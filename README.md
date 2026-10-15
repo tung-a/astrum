@@ -1,6 +1,8 @@
 # Astrum ✨
 
-**Astrum** é uma aplicação mobile inovadora que combina astrologia, meditação, IA e gamificação para criar uma experiência personalizada e significativa de aprendizagem. O projeto transforma a jornada educacional em uma aventura cósmica, onde cada usuário recebe orientações baseadas em seu signo zodiacal e pode interagir com um assistente de IA alimentado pelo Google Gemini.
+> **Migração Flutter** (branch `feature/flutter-migration`): o app novo está em [`flutter/`](flutter/README.md). Esta pasta raiz ainda contém o Expo/React Native original, como referência. O Oráculo **não usa mais Gemini pago** — Groq (opcional) → Pollinations (sem chave) → respostas locais.
+
+**Astrum** é uma aplicação mobile que combina astrologia, meditação, IA e gamificação para criar uma jornada cósmica personalizada.
 
 ---
 
