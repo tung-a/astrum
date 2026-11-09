@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../data/astrology.dart';
 import '../models/app_user.dart';
+import 'economy.dart';
 
 class UserRepository {
   UserRepository({FirebaseFirestore? db, FirebaseAuth? auth})
@@ -68,6 +69,55 @@ class UserRepository {
 
   Future<void> updateFields(String uid, Map<String, dynamic> data) async {
     await _userDoc(uid).update(data);
+  }
+
+  /// Compra atomica: le o perfil dentro da transacao, valida e grava saldo e
+  /// inventario completo (a regra exige o inventario antigo + 1 item).
+  /// Se [equipField] for informado, equipa o item na mesma gravacao.
+  /// Lanca [EconomyException] sem gravar nada quando a compra nao e valida.
+  Future<void> purchaseItem({
+    required String uid,
+    required String itemId,
+    required int price,
+    String? equipField,
+  }) {
+    final ref = _userDoc(uid);
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      final data = snap.data();
+      if (data == null) throw StateError('Perfil não encontrado.');
+      final result = computePurchase(
+        stardust: ((data['wallet'] as Map?)?['stardust'] as num?)?.toInt() ?? 0,
+        inventory: ((data['inventory'] as List?) ?? const []).cast<String>(),
+        itemId: itemId,
+        price: price,
+      );
+      tx.update(ref, {
+        'wallet.stardust': result.stardust,
+        'inventory': result.inventory,
+        if (equipField != null) equipField: itemId,
+      });
+    });
+  }
+
+  /// Check-in diario atomico. [today] no formato `yyyy-MM-dd` (data local; as
+  /// regras aceitam UTC +-1 dia). Lanca [AlreadyCheckedInException] se ja feito.
+  Future<void> dailyCheckIn({required String uid, required String today}) {
+    final ref = _userDoc(uid);
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      final data = snap.data();
+      if (data == null) throw StateError('Perfil não encontrado.');
+      final newStardust = computeCheckIn(
+        stardust: ((data['wallet'] as Map?)?['stardust'] as num?)?.toInt() ?? 0,
+        lastCheckIn: data['dailyCheckIn'] as String?,
+        today: today,
+      );
+      tx.update(ref, {
+        'wallet.stardust': newStardust,
+        'dailyCheckIn': today,
+      });
+    });
   }
 
   Stream<List<RitualEvent>> watchEvents(String uid) {

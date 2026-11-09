@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +9,7 @@ import '../../data/cosmetics.dart';
 import '../../data/moon.dart';
 import '../../data/tarot.dart';
 import '../../providers/app_providers.dart';
+import '../../services/economy.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/cosmic_scaffold.dart';
 import '../rituals/meditation_sheet.dart';
@@ -23,6 +23,7 @@ class CosmosScreen extends ConsumerStatefulWidget {
 
 class _CosmosScreenState extends ConsumerState<CosmosScreen> {
   bool _drawing = false;
+  bool _checkingIn = false;
   bool _horoscopeRequested = false;
 
   String get _today => DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -45,38 +46,55 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
   Future<void> _drawTarot() async {
     final profile = ref.read(profileProvider).valueOrNull;
     if (profile == null || _drawing) return;
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _drawing = true);
-    final card = pickDailyCard(DateTime.now(), profile.uid);
-    var meaning = card.meaning;
     try {
-      meaning = await ref.read(oracleServiceProvider).complete(
-            prompt:
-                'O usuário tirou a carta de Tarot "${card.name}" para o dia de hoje. Interpretação mística, direta, 2 a 3 frases.',
-            sign: profile.zodiacSign,
-          );
-    } catch (_) {}
-    await ref.read(userRepositoryProvider).updateFields(profile.uid, {
-      'dailyTarot': {
-        'date': _today,
-        'card': card.name,
-        'meaning': meaning,
-      },
-    });
-    if (mounted) setState(() => _drawing = false);
+      final card = pickDailyCard(DateTime.now(), profile.uid);
+      var meaning = card.meaning;
+      try {
+        meaning = await ref.read(oracleServiceProvider).complete(
+              prompt:
+                  'O usuário tirou a carta de Tarot "${card.name}" para o dia de hoje. Interpretação mística, direta, 2 a 3 frases.',
+              sign: profile.zodiacSign,
+            );
+      } catch (_) {}
+      if (!mounted) return;
+      await ref.read(userRepositoryProvider).updateFields(profile.uid, {
+        'dailyTarot': {
+          'date': _today,
+          'card': card.name,
+          'meaning': meaning,
+        },
+      });
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Não foi possível salvar a carta. Tente novamente.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _drawing = false);
+    }
   }
 
   Future<void> _checkIn() async {
     final profile = ref.read(profileProvider).valueOrNull;
-    if (profile == null) return;
-    if (profile.dailyCheckIn == _today) return;
-    await ref.read(userRepositoryProvider).updateFields(profile.uid, {
-      'dailyCheckIn': _today,
-      'wallet.stardust': FieldValue.increment(25),
-    });
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('+25 Poeira Estelar pelo check-in de hoje')),
-    );
+    if (profile == null || _checkingIn) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _checkingIn = true);
+    String message;
+    try {
+      // A validacao da data acontece dentro da transacao.
+      await ref
+          .read(userRepositoryProvider)
+          .dailyCheckIn(uid: profile.uid, today: _today);
+      message = '+25 Poeira Estelar pelo check-in de hoje';
+    } on EconomyException catch (e) {
+      message = e.message;
+    } catch (_) {
+      message = 'Não foi possível fazer o check-in. Tente novamente.';
+    } finally {
+      if (mounted) setState(() => _checkingIn = false);
+    }
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -171,7 +189,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
               ),
               const SizedBox(height: 16),
               FilledButton.tonal(
-                onPressed: checkedIn ? null : _checkIn,
+                onPressed: checkedIn || _checkingIn ? null : _checkIn,
                 child: Text(
                   checkedIn
                       ? 'Check-in de hoje já recebido · ${profile.stardust} ✦'

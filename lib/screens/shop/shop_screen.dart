@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +5,7 @@ import '../../data/astrology.dart';
 import '../../data/cosmetics.dart';
 import '../../models/app_user.dart';
 import '../../providers/app_providers.dart';
+import '../../services/economy.dart';
 import '../../widgets/cosmic_scaffold.dart';
 
 class ShopScreen extends ConsumerStatefulWidget {
@@ -17,6 +17,7 @@ class ShopScreen extends ConsumerStatefulWidget {
 
 class _ShopScreenState extends ConsumerState<ShopScreen> {
   ItemType _filter = ItemType.cardSkin;
+  bool _buying = false;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +66,8 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                 ),
                 isThreeLine: item.description.isNotEmpty,
                 trailing: FilledButton(
-                  onPressed: () => _selectItem(profile.uid, item),
+                  onPressed:
+                      _buying ? null : () => _selectItem(profile.uid, item),
                   child: Text(
                     _isEquipped(profile, item)
                         ? 'Em uso'
@@ -94,33 +96,40 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       };
 
   Future<void> _selectItem(String uid, ShopItem item) async {
+    if (_buying) return;
     final profile = ref.read(profileProvider).valueOrNull;
     if (profile == null) return;
-    final owned = profile.inventory.contains(item.id);
     final field = switch (item.type) {
       ItemType.cardSkin => 'equipped.skin',
       ItemType.background => 'equipped.background',
       ItemType.profilePicture => 'equipped.profilePicture',
     };
+    final repo = ref.read(userRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
 
-    if (owned) {
-      await ref
-          .read(userRepositoryProvider)
-          .updateFields(uid, {field: item.id});
-      return;
+    setState(() => _buying = true);
+    try {
+      if (profile.inventory.contains(item.id)) {
+        // Equipar nao mexe em saldo nem inventario.
+        await repo.updateFields(uid, {field: item.id});
+      } else {
+        // Saldo e posse sao validados dentro da transacao.
+        await repo.purchaseItem(
+          uid: uid,
+          itemId: item.id,
+          price: item.price,
+          equipField: field,
+        );
+      }
+    } on EconomyException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Não foi possível concluir. Tente novamente.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _buying = false);
     }
-    if (profile.stardust < item.price) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Poeira Estelar insuficiente.')),
-      );
-      return;
-    }
-
-    await ref.read(userRepositoryProvider).updateFields(uid, {
-      'wallet.stardust': FieldValue.increment(-item.price),
-      'inventory': [...profile.inventory, item.id],
-      field: item.id,
-    });
   }
 }
 
