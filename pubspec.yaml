@@ -42,13 +42,6 @@ flutter_launcher_icons:
     image_path: assets/images/icon.png
     background_color: "#120B25"
     theme_color: "#24123D"
-  windows:
-    generate: true
-    image_path: assets/images/icon.png
-    icon_size: 48
-  macos:
-    generate: true
-    image_path: assets/images/icon.png
 
 flutter:
   uses-material-design: true
