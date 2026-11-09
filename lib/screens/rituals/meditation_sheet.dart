@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/app_providers.dart';
+import '../../services/meditation_sounds.dart';
 import '../../theme/astrum_colors.dart';
 
 const _themes = [
@@ -60,6 +62,9 @@ class _MeditationSheetState extends ConsumerState<MeditationSheet>
   int _themeIndex = 0;
   String? _script;
   bool _loading = false;
+  String _soundId = meditationSounds.first.id;
+  bool _playing = false;
+  AudioPlayer? _player;
   late final AnimationController _breath;
 
   @override
@@ -73,12 +78,41 @@ class _MeditationSheetState extends ConsumerState<MeditationSheet>
 
   @override
   void dispose() {
+    _player?.dispose();
     _breath.dispose();
     super.dispose();
   }
 
+  Future<void> _playSound() async {
+    try {
+      final player = _player ??= AudioPlayer();
+      await player.setReleaseMode(ReleaseMode.loop);
+      await player.play(AssetSource(soundForId(_soundId).sourcePath));
+      if (mounted) setState(() => _playing = true);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _playing = false);
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(content: Text('Não foi possível tocar o som.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleSound() async {
+    if (_playing) {
+      try {
+        await _player?.pause();
+      } catch (_) {}
+      if (mounted) setState(() => _playing = false);
+    } else {
+      await _playSound();
+    }
+  }
+
   Future<void> _start() async {
     setState(() => _loading = true);
+    _playSound();
     final theme = _themes[_themeIndex];
     final text = await ref.read(oracleServiceProvider).complete(
           prompt:
@@ -132,6 +166,22 @@ class _MeditationSheetState extends ConsumerState<MeditationSheet>
                   ),
               ],
             ),
+            const SizedBox(height: 16),
+            const Text('Som', style: TextStyle(color: AstrumColors.muted)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final s in meditationSounds)
+                  ChoiceChip(
+                    selected: s.id == _soundId,
+                    label: Text(s.label),
+                    selectedColor: AstrumColors.amethyst,
+                    labelStyle: const TextStyle(color: AstrumColors.cream),
+                    onSelected: (_) => setState(() => _soundId = s.id),
+                  ),
+              ],
+            ),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: _loading ? null : _start,
@@ -166,6 +216,12 @@ class _MeditationSheetState extends ConsumerState<MeditationSheet>
               ),
             ),
             const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: _toggleSound,
+              icon: Icon(_playing ? Icons.pause : Icons.play_arrow,
+                  color: AstrumColors.gold),
+              label: Text(_playing ? 'Pausar som' : 'Retomar som'),
+            ),
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Encerrar com gratidão'),
