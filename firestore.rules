@@ -100,7 +100,7 @@ service cloud.firestore {
       function isPurchase() {
         return nw().inventory is list
           && nw().inventory.size() == oldInv().size() + 1
-          && nw().inventory.hasAll(oldInv())
+          && nw().inventory == oldInv().concat([nw().inventory[nw().inventory.size() - 1]])
           && !(nw().inventory[nw().inventory.size() - 1] in oldInv())
           && purchaseMatchesCatalog(nw().inventory[nw().inventory.size() - 1])
           && newCheck() == oldCheck();
@@ -128,17 +128,45 @@ service cloud.firestore {
 
       // equipped: so chaves conhecidas e cada valor precisa estar no inventario
       // (profilePicture pode ser null).
+      // Item equipado: precisa ser do tipo certo no catalogo. Os dois itens
+      // padrao (skin_classic, bg_void) valem sem consultar o catalogo.
+      function equipTypeOk(id, type, builtin) {
+        return id == builtin
+          || (id is string
+            && exists(catalogPath(id))
+            && get(catalogPath(id)).data.type == type);
+      }
+
       function equippedOk() {
         return !('equipped' in nw())
           || (nw().equipped is map
             && nw().equipped.keys().hasOnly(['skin', 'background', 'profilePicture'])
             && (!('skin' in nw().equipped)
-              || nw().equipped.skin in nw().get('inventory', []))
+              || (nw().equipped.skin in nw().get('inventory', [])
+                && equipTypeOk(nw().equipped.skin, 'skin', 'skin_classic')))
             && (!('background' in nw().equipped)
-              || nw().equipped.background in nw().get('inventory', []))
+              || (nw().equipped.background in nw().get('inventory', [])
+                && equipTypeOk(nw().equipped.background, 'background', 'bg_void')))
             && (!('profilePicture' in nw().equipped)
               || nw().equipped.profilePicture == null
-              || nw().equipped.profilePicture in nw().get('inventory', [])));
+              || (nw().equipped.profilePicture in nw().get('inventory', [])
+                && equipTypeOk(nw().equipped.profilePicture, 'profilePicture', ''))));
+      }
+
+      // Inventario inicial: so os dois itens padrao, ou eles mais um unico
+      // avatar zodiacal gratuito e ativo do catalogo (pfp_zodiac_<signo>).
+      function initialInvOk() {
+        return nw().inventory is list
+          && (nw().inventory == ['skin_classic', 'bg_void']
+            || (nw().inventory.size() == 3
+              && nw().inventory[0] == 'skin_classic'
+              && nw().inventory[1] == 'bg_void'
+              && nw().inventory[2] is string
+              && nw().inventory[2].matches('^pfp_zodiac_[a-z]+$')
+              && exists(catalogPath(nw().inventory[2]))
+              && get(catalogPath(nw().inventory[2])).data.price == 0
+              && get(catalogPath(nw().inventory[2])).data.type == 'profilePicture'
+              && get(catalogPath(nw().inventory[2])).data.active == true));
       }
 
       function prefsOk() {
@@ -178,9 +206,7 @@ service cloud.firestore {
         && profileShapeOk()
         && request.resource.data.role == 'user'
         && request.resource.data.wallet == {'stardust': 500}
-        && request.resource.data.inventory is list
-        && request.resource.data.inventory.size() <= 3
-        && request.resource.data.inventory.hasAll(['skin_classic', 'bg_void'])
+        && initialInvOk()
         && !('dailyCheckIn' in request.resource.data);
 
       allow update: if isOwner(uid)

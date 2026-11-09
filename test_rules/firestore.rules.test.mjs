@@ -43,9 +43,12 @@ beforeEach(async () => {
     await setDoc(doc(db, 'users/bob'), baseUser({ name: 'B', email: 'b@x.com' }));
     await setDoc(doc(db, 'users/root'), baseUser({ role: 'admin' }));
     // catalogo: itens pagos a 100, mais um gratuito e um inativo
-    for (const id of ['a', 'b', 'skin_x', 'bg_y']) {
+    for (const id of ['a', 'b', 'skin_x']) {
       await setDoc(doc(db, `shop_items/${id}`), item(100));
     }
+    await setDoc(doc(db, 'shop_items/bg_y'), item(100, { type: 'background' }));
+    await setDoc(doc(db, 'shop_items/pfp_zodiac_leao'), item(0, { type: 'profilePicture' }));
+    await setDoc(doc(db, 'shop_items/pfp_zodiac_off'), item(0, { type: 'profilePicture', active: false }));
     await setDoc(doc(db, 'shop_items/free'), item(0));
     await setDoc(doc(db, 'shop_items/off'), item(100, { active: false }));
   });
@@ -304,6 +307,51 @@ test('shop_items: admin com dados invalidos negado', async () => {
   await assertFails(setDoc(doc(db, 'shop_items/n4'), item(1, { active: 'sim' })));
   await assertFails(setDoc(doc(db, 'shop_items/n5'), item(1, { extra: 1 })));
 });
+
+// ---- brechas de inventario e catalogo
+test('create: inventario com item extra alem do padrao negado; duplicata negada', async () => {
+  const db = as('carol');
+  await assertFails(setDoc(doc(db, 'users/carol'), baseUser({ inventory: ['skin_classic', 'bg_void', 'a'] })));
+  await assertFails(setDoc(doc(db, 'users/carol'), baseUser({ inventory: ['skin_classic', 'bg_void', 'skin_classic'] })));
+  await assertFails(setDoc(doc(db, 'users/carol'), baseUser({ inventory: ['skin_classic', 'bg_void', 'pfp_zodiac_leao', 'a'] })));
+  await assertFails(setDoc(doc(db, 'users/carol'), baseUser({ inventory: ['skin_classic', 'bg_void', 'pfp_zodiac_off'] })));
+});
+
+test('create: pfp zodiacal padrao valido permitido (e equipado)', async () => {
+  const db = as('carol');
+  await assertSucceeds(setDoc(doc(db, 'users/carol'), baseUser({
+    inventory: ['skin_classic', 'bg_void', 'pfp_zodiac_leao'],
+    equipped: { skin: 'skin_classic', background: 'bg_void', profilePicture: 'pfp_zodiac_leao' },
+  })));
+});
+
+test('compra de item gratuito trocando duplicata por item livre negada', async () => {
+  const ref = doc(as('alice'), 'users/alice');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users/alice'), baseUser({ inventory: ['skin_classic', 'bg_void', 'a'] }));
+  });
+  // troca 'a' (pago) por 'free' e acrescenta 'a' de novo: tamanho +1, hasAll falharia so se checasse ordem
+  await assertFails(updateDoc(ref, { inventory: ['skin_classic', 'bg_void', 'free', 'free'] }));
+  await assertFails(updateDoc(ref, { inventory: ['skin_classic', 'bg_void', 'free', 'a'] }));
+  await assertFails(updateDoc(ref, { inventory: ['skin_classic', 'free', 'a', 'free'] }));
+  await assertSucceeds(updateDoc(ref, { inventory: ['skin_classic', 'bg_void', 'a', 'free'] }));
+});
+
+test('equipar background no campo skin (e vice-versa) negado', async () => {
+  const ref = doc(as('alice'), 'users/alice');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users/alice'), baseUser({ inventory: ['skin_classic', 'bg_void', 'skin_x', 'bg_y'] }));
+  });
+  await assertFails(updateDoc(ref, { 'equipped.skin': 'bg_y' }));
+  await assertFails(updateDoc(ref, { 'equipped.background': 'skin_x' }));
+  await assertFails(updateDoc(ref, { 'equipped.profilePicture': 'skin_x' }));
+  await assertSucceeds(updateDoc(ref, { 'equipped.skin': 'skin_x', 'equipped.background': 'bg_y' }));
+});
+
+// Nota: a regra de shop_items NAO distingue "publicar catalogo" de "editar
+// preco": o admin pode alterar price de item existente (teste acima). A
+// protecao contra sobrescrever price/active e feita so no cliente (merge no
+// botao Publicar catalogo); nao ha teste de regra para isso.
 
 // ---- perfil publico (publicProfiles)
 const HASH = 'a'.repeat(64);

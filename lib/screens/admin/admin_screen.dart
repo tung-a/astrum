@@ -156,17 +156,30 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     final profile = ref.read(profileProvider).valueOrNull;
     if (profile == null || !profile.isAdmin) return;
     final db = FirebaseFirestore.instance;
-    final batch = db.batch(); // fullShopCatalog tem bem menos de 500 itens
-    for (final item in fullShopCatalog) {
-      batch.set(db.collection('shop_items').doc(item.id), {
-        'price': item.price,
-        'type': catalogTypeName(item.type),
-        'rarity': catalogRarityName(item.rarity),
-        'active': true,
-      });
-    }
-
     try {
+      // Le o estado atual antes de gravar; se falhar, nada e gravado.
+      final existing = await db.collection('shop_items').get();
+      final existingIds = existing.docs.map((d) => d.id).toSet();
+      final seedIds = fullShopCatalog.map((i) => i.id).toSet();
+      final batch = db.batch(); // bem menos de 500 operacoes
+      for (final item in fullShopCatalog) {
+        final ref = db.collection('shop_items').doc(item.id);
+        final data = <String, dynamic>{
+          'type': catalogTypeName(item.type),
+          'rarity': catalogRarityName(item.rarity),
+        };
+        // Docs existentes mantem price e active; so docs novos recebem ambos.
+        if (!existingIds.contains(item.id)) {
+          data['price'] = item.price;
+          data['active'] = true;
+        }
+        batch.set(ref, data, SetOptions(merge: true));
+      }
+      // Itens fora do seed sao desativados, nunca apagados.
+      for (final id in existingIds.difference(seedIds)) {
+        batch.set(db.collection('shop_items').doc(id), {'active': false},
+            SetOptions(merge: true));
+      }
       await batch.commit();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
