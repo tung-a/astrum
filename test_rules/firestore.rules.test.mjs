@@ -111,11 +111,53 @@ test('subcolecoes: so o dono', async () => {
   await assertFails(setDoc(doc(as('alice'), 'users/alice/outra/x'), { a: 1 }));
 });
 
-test('notificacao: enviar a outro com fromUid proprio ok; forjar negado; outro nao le', async () => {
-  const n = (from) => ({ type: 'intention', intentionId: 'i', intentionLabel: 'l', fromName: 'A', fromUid: from, read: false, createdAt: serverTimestamp() });
-  await assertSucceeds(addDoc(collection(as('alice'), 'users/bob/notifications'), n('alice')));
-  await assertFails(addDoc(collection(as('alice'), 'users/bob/notifications'), n('carol')));
-  await assertFails(getDocs(collection(as('alice'), 'users/bob/notifications')));
+test('notificacao: amigo + intencao fixa + nome real ok; forjar, texto livre e sem amizade negados; outro nao le', async () => {
+  const n = (from, over = {}) => ({ type: 'intention', intentionId: 'luz', intentionLabel: 'Luz', fromName: 'A', fromUid: from, read: false, createdAt: serverTimestamp(), ...over });
+  const col = (db) => collection(db, 'users/bob/notifications');
+  // sem amizade: negado, mesmo com campos coerentes
+  await assertFails(addDoc(col(as('alice')), n('alice')));
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users/alice/friends/bob'), { name: 'B', email: 'b@x.com', zodiacSign: 'Leo' });
+  });
+  await assertSucceeds(addDoc(col(as('alice')), n('alice')));
+  await assertFails(addDoc(col(as('alice')), n('carol')));
+  await assertFails(addDoc(col(as('alice')), n('alice', { fromName: 'Presidente do banco' })));
+  await assertFails(addDoc(col(as('alice')), n('alice', { intentionLabel: 'clique em x.com' })));
+  await assertFails(addDoc(col(as('alice')), n('alice', { intentionId: 'livre', intentionLabel: 'livre' })));
+  await assertFails(getDocs(col(as('alice'))));
+});
+
+test('notificacao: fromName livre sem amizade negado', async () => {
+  const n = { type: 'intention', intentionId: 'luz', intentionLabel: 'Luz', fromName: 'Qualquer Coisa', fromUid: 'alice', read: false, createdAt: serverTimestamp() };
+  await assertFails(addDoc(collection(as('alice'), 'users/bob/notifications'), n));
+});
+
+test('perfil: campo extra negado; equipar item nao possuido negado; possuido ok', async () => {
+  const ref = doc(as('alice'), 'users/alice');
+  await assertFails(updateDoc(ref, { campoExtra: 'x' }));
+  await assertFails(updateDoc(ref, { 'equipped.skin': 'skin_dourada' }));
+  await assertFails(updateDoc(ref, { 'equipped.profilePicture': 'pfp_nao_possuida' }));
+  await assertFails(updateDoc(ref, { 'equipped.outro': 'skin_classic' }));
+  await assertFails(updateDoc(ref, { name: 'x'.repeat(101) }));
+  await assertSucceeds(updateDoc(ref, { 'equipped.skin': 'skin_classic' }));
+  await assertSucceeds(updateDoc(ref, { 'equipped.background': 'bg_void', 'equipped.profilePicture': null }));
+});
+
+test('compra com equipar: equipa o item recem comprado; item nao comprado negado', async () => {
+  const ref = doc(as('alice'), 'users/alice');
+  await assertSucceeds(updateDoc(ref, { 'wallet.stardust': 400, inventory: ['skin_classic', 'bg_void', 'skin_x'], 'equipped.skin': 'skin_x' }));
+  await assertFails(updateDoc(ref, { 'wallet.stardust': 300, inventory: ['skin_classic', 'bg_void', 'skin_x', 'bg_y'], 'equipped.background': 'bg_z' }));
+});
+
+test('criar perfil com campo extra ou equipped nao possuido negado', async () => {
+  const db = as('carol');
+  await assertFails(setDoc(doc(db, 'users/carol'), baseUser({ extra: 1 })));
+  await assertFails(setDoc(doc(db, 'users/carol'), baseUser({ equipped: { skin: 'skin_x' } })));
+  await assertSucceeds(setDoc(doc(db, 'users/carol'), baseUser({
+    equipped: { skin: 'skin_classic', background: 'bg_void', profilePicture: null },
+    preferences: { notifications: true, publicProfile: true, showSign: true },
+    astrologyData: { sun: 'Leo', moon: null, ascendant: null },
+  })));
 });
 
 test('analytics: create proprio ok; userId alheio negado; leitura negada; admin le', async () => {
@@ -163,4 +205,35 @@ test('mensagens: batch valido ok; 10001 chars, role invalido, update, 501a, sem 
   await assertFails(setDoc(doc(db, 'users/alice/conversations/zzz/messages/m1'), msg()));
   await assertFails(getDoc(doc(as('bob'), 'users/alice/conversations/c1/messages/m1')));
   await assertSucceeds(deleteDoc(doc(db, 'users/alice/conversations/c1/messages/m1')));
+});
+
+test('mensagens: sem incrementar messageCount negado; incremento de 1 ok; salto de 2 negado; contador nao diminui', async () => {
+  const db = as('alice');
+  await setDoc(doc(db, 'users/alice/conversations/c1'), conv(0));
+  const send = (id, count) => {
+    const b = writeBatch(db);
+    b.set(doc(db, `users/alice/conversations/c1/messages/${id}`), msg());
+    if (count !== null) b.update(doc(db, 'users/alice/conversations/c1'), { messageCount: count, updatedAt: Timestamp.now() });
+    return b.commit();
+  };
+  await assertFails(send('m1', null)); // mensagem sem tocar na conversa
+  await assertFails(send('m1', 0)); // contador igual
+  await assertFails(send('m1', 2)); // salto de 2
+  await assertSucceeds(send('m1', 1));
+  await assertFails(updateDoc(doc(db, 'users/alice/conversations/c1'), { messageCount: 0 })); // diminuir
+  await assertFails(updateDoc(doc(db, 'users/alice/conversations/c1'), { messageCount: 3 })); // subir 2
+  await assertSucceeds(send('m2', 2));
+});
+
+test('mensagens: conversa criada no mesmo batch com contador 1 ok; contador 2 negado', async () => {
+  const db = as('alice');
+  const make = (count) => {
+    const b = writeBatch(db);
+    b.set(doc(db, 'users/alice/conversations/n1'), conv(count));
+    b.set(doc(db, 'users/alice/conversations/n1/messages/m1'), msg());
+    return b.commit();
+  };
+  await assertFails(make(0));
+  await assertFails(make(2));
+  await assertSucceeds(make(1));
 });

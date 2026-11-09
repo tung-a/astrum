@@ -96,11 +96,66 @@ service cloud.firestore {
           && newCheck() == oldCheck();
       }
 
+      // ---- formato do perfil (lista fechada de campos que o app grava)
+      // Campos opcionais: ausentes ou do tipo/tamanho certo.
+      function optStr(k, maxLen) {
+        return !(k in nw()) || (nw()[k] is string && nw()[k].size() <= maxLen);
+      }
+
+      function optMap(k, maxKeys) {
+        return !(k in nw()) || (nw()[k] is map && nw()[k].size() <= maxKeys);
+      }
+
+      // equipped: so chaves conhecidas e cada valor precisa estar no inventario
+      // (profilePicture pode ser null).
+      function equippedOk() {
+        return !('equipped' in nw())
+          || (nw().equipped is map
+            && nw().equipped.keys().hasOnly(['skin', 'background', 'profilePicture'])
+            && (!('skin' in nw().equipped)
+              || nw().equipped.skin in nw().get('inventory', []))
+            && (!('background' in nw().equipped)
+              || nw().equipped.background in nw().get('inventory', []))
+            && (!('profilePicture' in nw().equipped)
+              || nw().equipped.profilePicture == null
+              || nw().equipped.profilePicture in nw().get('inventory', [])));
+      }
+
+      function prefsOk() {
+        return !('preferences' in nw())
+          || (nw().preferences is map
+            && nw().preferences.keys().hasOnly(['notifications', 'publicProfile', 'showSign'])
+            && (!('notifications' in nw().preferences) || nw().preferences.notifications is bool)
+            && (!('publicProfile' in nw().preferences) || nw().preferences.publicProfile is bool)
+            && (!('showSign' in nw().preferences) || nw().preferences.showSign is bool));
+      }
+
+      function profileShapeOk() {
+        return nw().keys().hasOnly([
+            'name', 'email', 'role', 'zodiacSign', 'birthDate', 'birthTime',
+            'birthPlace', 'astrologyData', 'astralMapJson', 'wallet', 'inventory',
+            'equipped', 'preferences', 'dailyHoroscope', 'dailyTarot', 'dailyCheckIn'])
+          && ('name' in nw() ? (nw().name is string && nw().name.size() >= 1 && nw().name.size() <= 100) : true)
+          && optStr('email', 254)
+          && optStr('zodiacSign', 30)
+          && optStr('birthDate', 20)
+          && optStr('birthTime', 10)
+          && optStr('birthPlace', 200)
+          && optStr('astralMapJson', 20000)
+          && optMap('astrologyData', 5)
+          && optMap('dailyHoroscope', 5)
+          && optMap('dailyTarot', 5)
+          && (!('inventory' in nw()) || (nw().inventory is list && nw().inventory.size() <= 500))
+          && equippedOk()
+          && prefsOk();
+      }
+
       // Leitura: dono ou admin (inclui list/query do admin). Usuario comum nao
       // consegue consultar outros usuarios (ver regressao findUserByEmail).
       allow read: if isOwner(uid) || isAdmin();
 
       allow create: if isOwner(uid)
+        && profileShapeOk()
         && request.resource.data.role == 'user'
         && request.resource.data.wallet == {'stardust': 500}
         && request.resource.data.inventory is list
@@ -110,6 +165,7 @@ service cloud.firestore {
 
       allow update: if isOwner(uid)
         && roleUnchanged()
+        && profileShapeOk()
         && walletShapeOk()
         && (noEconomyChange() || isCheckin() || isPurchase());
 
@@ -126,9 +182,22 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
-      // Notificacoes de intencao: qualquer usuario logado pode ENVIAR para
-      // outro (create), com remetente verdadeiro; so o dono le/marca/apaga.
+      // Notificacoes de intencao: um usuario logado so envia para quem esta na
+      // PROPRIA lista de amigos (users/{remetente}/friends/{destinatario}, que e
+      // o que o app grava em addFriend). A intencao vem de lista fixa (a mesma
+      // de account_screen.dart), o rotulo e derivado do id e fromName deve ser
+      // o nome do perfil do remetente: nada de texto livre. So o dono
+      // le/marca/apaga.
+      // Limite: a lista de amigos e gravavel pelo proprio remetente, entao a
+      // amizade e auto-declarada (nao ha aceite do destinatario).
       match /notifications/{id} {
+        function labelOk(intentionId, label) {
+          return (intentionId == 'luz' && label == 'Luz')
+            || (intentionId == 'coragem' && label == 'Coragem')
+            || (intentionId == 'cura' && label == 'Cura')
+            || (intentionId == 'clareza' && label == 'Clareza');
+        }
+
         allow read, delete: if isOwner(uid);
         allow create: if signedIn()
           && request.resource.data.keys().hasOnly(
@@ -137,11 +206,13 @@ service cloud.firestore {
           && request.resource.data.fromUid == request.auth.uid
           && request.resource.data.read == false
           && request.resource.data.intentionId is string
-          && request.resource.data.intentionId.size() <= 100
           && request.resource.data.intentionLabel is string
-          && request.resource.data.intentionLabel.size() <= 200
+          && labelOk(request.resource.data.intentionId, request.resource.data.intentionLabel)
           && request.resource.data.fromName is string
-          && request.resource.data.fromName.size() <= 100
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && request.resource.data.fromName
+            == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(uid))
           && request.resource.data.createdAt == request.time;
         allow update: if isOwner(uid)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
@@ -158,9 +229,14 @@ service cloud.firestore {
         }
 
         allow read: if isOwner(uid);
-        allow create: if isOwner(uid) && validConv(request.resource.data);
+        // Na criacao o contador e 0 (ou 1, se a primeira mensagem vai no mesmo
+        // batch). Depois so fica igual ou sobe exatamente 1; nunca diminui.
+        allow create: if isOwner(uid) && validConv(request.resource.data)
+          && request.resource.data.messageCount <= 1;
         allow update: if isOwner(uid) && validConv(request.resource.data)
-          && request.resource.data.createdAt == resource.data.createdAt;
+          && request.resource.data.createdAt == resource.data.createdAt
+          && (request.resource.data.messageCount == resource.data.messageCount
+            || request.resource.data.messageCount == resource.data.messageCount + 1);
         allow delete: if isOwner(uid);
 
         // Mensagens imutaveis: create apenas. Delete so pelo dono, para a
@@ -174,7 +250,14 @@ service cloud.firestore {
             && request.resource.data.text.size() >= 1
             && request.resource.data.text.size() <= 10000
             && request.resource.data.createdAt is timestamp
-            && getAfter(/databases/$(database)/documents/users/$(uid)/conversations/$(convId)).data.messageCount <= 500;
+            && getAfter(/databases/$(database)/documents/users/$(uid)/conversations/$(convId)).data.messageCount <= 500
+            // O contador da conversa sobe exatamente 1 no mesmo batch (ou a
+            // conversa nasce no batch com contador 1): sem mensagem sem contar.
+            // Um batch com varias mensagens da mesma conversa nao passa.
+            && getAfter(/databases/$(database)/documents/users/$(uid)/conversations/$(convId)).data.messageCount
+              == (exists(/databases/$(database)/documents/users/$(uid)/conversations/$(convId))
+                ? get(/databases/$(database)/documents/users/$(uid)/conversations/$(convId)).data.messageCount + 1
+                : 1);
           allow update: if false;
           allow delete: if isOwner(uid);
         }
