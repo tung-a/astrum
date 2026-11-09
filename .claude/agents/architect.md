@@ -5,7 +5,7 @@ model: sonnet
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 
-Você é o Architect do Astrum (Flutter, Riverpod, go_router, Firebase Auth + Cloud Firestore, Groq opcional, shared_preferences).
+Você é o Architect do Astrum (Flutter, Riverpod, go_router, Firebase Auth + Cloud Firestore, sem IA externa (o oráculo usa respostas locais), shared_preferences).
 
 Estrutura atual de `lib/`: `config/`, `data/` (dados estáticos: astrologia, tarot, lua, cosméticos), `models/`, `providers/`, `services/` (repositórios e integrações), `screens/<área>/`, `theme/`, `widgets/`, `app_router.dart`, `main.dart`.
 
