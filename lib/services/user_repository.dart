@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../data/astrology.dart';
 import '../models/app_user.dart';
 import 'economy.dart';
+import 'public_profile.dart';
 
 class UserRepository {
   UserRepository({FirebaseFirestore? db, FirebaseAuth? auth})
@@ -65,10 +66,48 @@ class UserRepository {
         'showSign': true,
       },
     });
+    await _writePublicProfile(user.uid,
+        name: name, avatar: pfp, email: user.email ?? '');
   }
+
+  DocumentReference<Map<String, dynamic>> _publicDoc(String uid) =>
+      _db.collection('publicProfiles').doc(uid);
+
+  Future<void> _writePublicProfile(
+    String uid, {
+    required String name,
+    required String? avatar,
+    required String email,
+  }) async {
+    final data = buildPublicProfile(name: name, avatar: avatar, email: email);
+    if (data == null) return;
+    await _publicDoc(uid).set(data);
+  }
+
+  /// Regrava publicProfiles/{uid} a partir do perfil atual em users/{uid}.
+  Future<void> syncPublicProfile(String uid) async {
+    final data = (await _userDoc(uid).get()).data();
+    if (data == null) return;
+    final equipped = data['equipped'] as Map<String, dynamic>?;
+    final pfp = equipped?['profilePicture'] as String? ??
+        defaultProfilePictureId(data['zodiacSign'] as String?);
+    await _writePublicProfile(
+      uid,
+      name: data['name'] as String? ?? '',
+      avatar: pfp,
+      email: data['email'] as String? ?? _auth.currentUser?.email ?? '',
+    );
+  }
+
+  static bool _touchesPublicProfile(Iterable<String> keys) => keys.any((k) =>
+      k == 'name' ||
+      k == 'email' ||
+      k == 'equipped' ||
+      k == 'equipped.profilePicture');
 
   Future<void> updateFields(String uid, Map<String, dynamic> data) async {
     await _userDoc(uid).update(data);
+    if (_touchesPublicProfile(data.keys)) await syncPublicProfile(uid);
   }
 
   Stream<Map<String, CatalogEntry>> watchShopCatalog() {
@@ -109,6 +148,10 @@ class UserRepository {
         'inventory': result.inventory,
         if (equipField != null) equipField: itemId,
       });
+    }).then((_) async {
+      if (equipField != null && _touchesPublicProfile([equipField])) {
+        await syncPublicProfile(uid);
+      }
     });
   }
 
@@ -172,34 +215,43 @@ class UserRepository {
         );
   }
 
+  /// Busca por e-mail em publicProfiles (hash); nunca le `users`. O Friend
+  /// devolvido nao tem e-mail nem signo (nao constam no perfil publico).
   Future<Friend?> findUserByEmail(String email) async {
+    if (email.trim().isEmpty) return null;
     final snap = await _db
-        .collection('users')
-        .where('email', isEqualTo: email.trim().toLowerCase())
+        .collection('publicProfiles')
+        .where('emailHash', isEqualTo: hashEmail(email))
         .limit(1)
         .get();
-    if (snap.docs.isEmpty) {
-      final alt = await _db
-          .collection('users')
-          .where('email', isEqualTo: email.trim())
-          .limit(1)
-          .get();
-      if (alt.docs.isEmpty) return null;
-      final d = alt.docs.first;
-      return Friend(
-        id: d.id,
-        name: d.data()['name'] as String? ?? 'Viajante',
-        email: d.data()['email'] as String? ?? '',
-        zodiacSign: d.data()['zodiacSign'] as String? ?? '',
-      );
-    }
+    if (snap.docs.isEmpty) return null;
     final d = snap.docs.first;
     return Friend(
       id: d.id,
       name: d.data()['name'] as String? ?? 'Viajante',
-      email: d.data()['email'] as String? ?? '',
-      zodiacSign: d.data()['zodiacSign'] as String? ?? '',
+      avatar: d.data()['avatar'] as String? ?? '',
     );
+  }
+
+  /// Migracao: grava publicProfiles para todos os users (so admin le users).
+  /// Devolve quantos perfis foram gravados.
+  Future<int> rebuildPublicProfiles() async {
+    final snap = await _db.collection('users').get();
+    var count = 0;
+    for (final d in snap.docs) {
+      final data = d.data();
+      final equipped = data['equipped'] as Map<String, dynamic>?;
+      final profile = buildPublicProfile(
+        name: data['name'] as String? ?? '',
+        avatar: equipped?['profilePicture'] as String? ??
+            defaultProfilePictureId(data['zodiacSign'] as String?),
+        email: data['email'] as String? ?? '',
+      );
+      if (profile == null) continue;
+      await _publicDoc(d.id).set(profile);
+      count++;
+    }
+    return count;
   }
 
   Future<void> addFriend(String uid, Friend friend) {

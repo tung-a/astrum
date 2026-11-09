@@ -187,8 +187,10 @@ class _FriendTile extends ConsumerWidget {
     return Card(
       child: ExpansionTile(
         title: Text(friend.name),
-        subtitle: Text(
-            '${friend.zodiacSign} · ${synergy.title} (${synergy.score}/5)'),
+        subtitle: Text([
+          if (friend.zodiacSign.isNotEmpty) friend.zodiacSign,
+          '${synergy.title} (${synergy.score}/5)',
+        ].join(' · ')),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),

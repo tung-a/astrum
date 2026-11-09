@@ -181,12 +181,14 @@ class Friend {
     required this.name,
     this.email = '',
     this.zodiacSign = '',
+    this.avatar = '',
   });
 
   final String id;
   final String name;
   final String email;
   final String zodiacSign;
+  final String avatar;
 }
 
 class IntentionNotice {

@@ -304,3 +304,41 @@ test('shop_items: admin com dados invalidos negado', async () => {
   await assertFails(setDoc(doc(db, 'shop_items/n4'), item(1, { active: 'sim' })));
   await assertFails(setDoc(doc(db, 'shop_items/n5'), item(1, { extra: 1 })));
 });
+
+// ---- perfil publico (publicProfiles)
+const HASH = 'a'.repeat(64);
+const pub = (over = {}) => ({ name: 'A', avatar: 'pfp_leo', emailHash: HASH, ...over });
+
+test('publicProfiles: logado le de outro; anonimo nao; consulta por emailHash ok', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'publicProfiles/bob'), pub({ name: 'B' }));
+  });
+  await assertSucceeds(getDoc(doc(as('alice'), 'publicProfiles/bob')));
+  await assertSucceeds(getDocs(query(collection(as('alice'), 'publicProfiles'), where('emailHash', '==', HASH))));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'publicProfiles/bob')));
+});
+
+test('publicProfiles: dono cria e atualiza; escrever o de outro negado', async () => {
+  await assertSucceeds(setDoc(doc(as('alice'), 'publicProfiles/alice'), pub()));
+  await assertSucceeds(setDoc(doc(as('alice'), 'publicProfiles/alice'), pub({ avatar: '' })));
+  await assertSucceeds(updateDoc(doc(as('alice'), 'publicProfiles/alice'), { name: 'Novo' }));
+  await assertFails(setDoc(doc(as('alice'), 'publicProfiles/bob'), pub()));
+  await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'publicProfiles/alice'), pub()));
+});
+
+test('publicProfiles: campo extra (email), hash de tamanho errado ou nao hex, nome invalido negados', async () => {
+  const ref = doc(as('alice'), 'publicProfiles/alice');
+  await assertFails(setDoc(ref, pub({ email: 'a@x.com' })));
+  await assertFails(setDoc(ref, pub({ emailHash: 'a'.repeat(63) })));
+  await assertFails(setDoc(ref, pub({ emailHash: 'a'.repeat(65) })));
+  await assertFails(setDoc(ref, pub({ emailHash: 'A'.repeat(64) })));
+  await assertFails(setDoc(ref, pub({ emailHash: 'g'.repeat(64) })));
+  await assertFails(setDoc(ref, pub({ name: '' })));
+  await assertFails(setDoc(ref, pub({ name: 'x'.repeat(101) })));
+  await assertFails(setDoc(ref, { name: 'A', emailHash: HASH })); // sem avatar
+});
+
+test('publicProfiles: delete pelo dono negado', async () => {
+  await assertSucceeds(setDoc(doc(as('alice'), 'publicProfiles/alice'), pub()));
+  await assertFails(deleteDoc(doc(as('alice'), 'publicProfiles/alice')));
+});

@@ -322,6 +322,24 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // -------------------------------------------------------- publicProfiles
+    // Perfil publico minimo para a busca de amigo por e-mail: so nome, avatar e
+    // SHA-256 do e-mail (hex, 64 chars). Qualquer logado le; so o dono escreve;
+    // sem delete pelo cliente.
+    match /publicProfiles/{uid} {
+      function validPublic(d) {
+        return d.keys().hasOnly(['name', 'avatar', 'emailHash'])
+          && d.name is string && d.name.size() >= 1 && d.name.size() <= 100
+          && d.avatar is string && d.avatar.size() <= 100
+          && d.emailHash is string
+          && d.emailHash.matches('^[0-9a-f]{64}$');
+      }
+
+      allow read: if signedIn();
+      allow create, update: if isOwner(uid) && validPublic(request.resource.data);
+      allow delete: if false;
+    }
+
     // Qualquer outro caminho: negado.
     match /{document=**} {
       allow read, write: if false;
