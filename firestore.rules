@@ -15,10 +15,15 @@ rules_version = '2';
 //   ativo em shop_items nao entra no inventario.
 //
 // RISCO RESIDUAL (limitacao conhecida):
-//   O preco e verificado. Continua sem verificacao apenas: (1) o tipo do item
-//   (so garantido por quem publica o catalogo, nao ha checagem de que um
-//   avatar, por exemplo, e equipado no campo certo alem do equippedOk) e
-//   (2) a FREQUENCIA de compra, que as regras nao limitam.
+//   O preco da compra e verificado e o TIPO do item agora tambem e verificado
+//   pelo catalogo. Limitacoes que permanecem:
+//   (1) Preco e ativacao dos itens JA existentes dependem so do cliente do
+//   admin: a regra de shop_items nao protege price nem active ja gravados.
+//   Isso e aceitavel neste modelo sem servidor, mas um admin comprometido pode
+//   alterar precos.
+//   (2) Os avatares gratuitos pfp_zodiac_* podem ser adicionados por qualquer
+//   usuario (impacto nulo, pois custam 0).
+//   (3) A FREQUENCIA de compra, que as regras nao limitam.
 //   Tambem: o dia do check-in e validado em UTC com tolerancia de +-1 dia (o
 //   app usa a data local); o limite e uma vez por data crescente.
 // =============================================================================
