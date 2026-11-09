@@ -5,7 +5,6 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 import '../../models/app_user.dart';
 import '../../providers/app_providers.dart';
-import '../../services/oracle_service.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/cosmic_scaffold.dart';
 
@@ -79,13 +78,8 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
     });
     await _persist(uid);
     await ref.read(analyticsServiceProvider).logEvent('send_message_chat');
-    final history = _current.messages
-        .map((m) => ChatTurn(role: m.role, text: m.text))
-        .toList();
-    // last user already included
     final reply = await ref.read(oracleServiceProvider).complete(
           prompt: text,
-          history: history.take(history.length - 1).toList(),
           sign: sign,
         );
     setState(() {

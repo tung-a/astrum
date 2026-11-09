@@ -4,22 +4,12 @@ import '../data/astrology.dart';
 import '../data/moon.dart';
 import '../data/tarot.dart';
 
-class ChatTurn {
-  const ChatTurn({required this.role, required this.text});
-
-  /// `user` or `model`
-  final String role;
-  final String text;
-}
-
 class OracleService {
   const OracleService();
 
   /// O oráculo responde somente com respostas locais (sem rede).
-  /// [history] é mantido na API pública, mas não é usado.
   Future<String> complete({
     required String prompt,
-    List<ChatTurn> history = const [],
     String? sign,
   }) async {
     return localReply(prompt: prompt, sign: sign);
