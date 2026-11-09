@@ -41,3 +41,4 @@ Thumbs.db
 
 # Testes de regras (Node)
 test_rules/node_modules/
+test_rules/*.log
