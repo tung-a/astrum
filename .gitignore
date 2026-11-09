@@ -1,46 +1,40 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-.vscode/
-.env
-.idea/
-
-# dependencies
-node_modules/
-
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+/build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+/android/.gradle/
+/ios/Pods/
+/ios/.symlinks/
 .kotlin/
 *.orig.*
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# IDEs
+.idea/
+.vscode/
+
+# Native signing keys and local settings
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
 *.pem
+*.mobileprovision
+key.properties
+local.properties
+GoogleService-Info.plist
+google-services.json
 
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-app-example
-
-# generated native folders
-/ios
-/android
+# OS files
+.DS_Store
+Thumbs.db
