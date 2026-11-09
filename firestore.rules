@@ -1,0 +1,210 @@
+rules_version = '2';
+
+// =============================================================================
+// Regras do Firestore do Astrum (T07).
+//
+// Plano gratuito: sem Cloud Functions, entao toda a seguranca esta aqui.
+// O role 'admin' e atribuido manualmente no console (o cliente nao consegue
+// altera-lo). Nao ha curinga amplo em users/{uid}/{document=**}: regras somam
+// por OR e um curinga anularia as validacoes abaixo.
+//
+// RISCO RESIDUAL (limitacao conhecida, nao resolvida aqui):
+//   As regras NAO conseguem verificar o preco do item da loja nem qual item foi
+//   comprado (o catalogo vive no app, nao no Firestore). Um cliente malicioso
+//   pode, em uma compra, debitar qualquer valor (inclusive 1) ou gravar
+//   qualquer id de item no inventario, obtendo itens quase de graca. As regras
+//   garantem apenas: saldo nao negativo, saldo que so diminui, e exatamente
+//   um item novo no inventario. Fechar de vez exige backend (Cloud Functions /
+//   plano Blaze) ou catalogo com precos em documento lido pelas regras.
+//   Tambem: o dia do check-in e validado em UTC com tolerancia de +-1 dia (o
+//   app usa a data local); o limite e uma vez por data crescente.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin';
+    }
+
+    function pad(n) {
+      return n < 10 ? '0' + string(n) : string(n);
+    }
+
+    function dateStr(t) {
+      return string(t.year()) + '-' + pad(t.month()) + '-' + pad(t.day());
+    }
+
+    // ---------------------------------------------------------------- users
+    match /users/{uid} {
+      function old() { return resource.data; }
+      function nw() { return request.resource.data; }
+
+      function oldStar() { return old().get('wallet', {}).get('stardust', 0); }
+      function newStar() { return nw().wallet.stardust; }
+      function oldInv() { return old().get('inventory', []); }
+      function oldCheck() { return old().get('dailyCheckIn', ''); }
+      function newCheck() { return nw().get('dailyCheckIn', ''); }
+
+      function walletShapeOk() {
+        return nw().wallet is map
+          && nw().wallet.keys().hasOnly(['stardust'])
+          && newStar() is int;
+      }
+
+      function roleUnchanged() {
+        return nw().get('role', 'user') == old().get('role', 'user');
+      }
+
+      // Sem mudanca de saldo: inventario e dailyCheckIn tambem ficam fixos.
+      function noEconomyChange() {
+        return newStar() == oldStar()
+          && nw().get('inventory', []) == oldInv()
+          && newCheck() == oldCheck();
+      }
+
+      // (a) check-in: +25 exatos, data nova (crescente) = hoje (UTC +-1 dia).
+      function isCheckin() {
+        return newStar() == oldStar() + 25
+          && nw().get('inventory', []) == oldInv()
+          && newCheck() is string
+          && newCheck() > oldCheck()
+          && newCheck() in [
+            dateStr(request.time - duration.value(1, 'd')),
+            dateStr(request.time),
+            dateStr(request.time + duration.value(1, 'd'))
+          ];
+      }
+
+      // (b) compra: saldo diminui, fica >= 0, inventario ganha exatamente 1 item.
+      function isPurchase() {
+        return newStar() < oldStar()
+          && newStar() >= 0
+          && nw().inventory is list
+          && nw().inventory.size() == oldInv().size() + 1
+          && nw().inventory.hasAll(oldInv())
+          && newCheck() == oldCheck();
+      }
+
+      // Leitura: dono ou admin (inclui list/query do admin). Usuario comum nao
+      // consegue consultar outros usuarios (ver regressao findUserByEmail).
+      allow read: if isOwner(uid) || isAdmin();
+
+      allow create: if isOwner(uid)
+        && request.resource.data.role == 'user'
+        && request.resource.data.wallet == {'stardust': 500}
+        && request.resource.data.inventory is list
+        && request.resource.data.inventory.size() <= 3
+        && request.resource.data.inventory.hasAll(['skin_classic', 'bg_void'])
+        && !('dailyCheckIn' in request.resource.data);
+
+      allow update: if isOwner(uid)
+        && roleUnchanged()
+        && walletShapeOk()
+        && (noEconomyChange() || isCheckin() || isPurchase());
+
+      // Sem delete pelo cliente: apagar e recriar o perfil devolveria o saldo
+      // inicial. Exclusao de conta (LGPD) precisa de decisao propria.
+      allow delete: if false;
+
+      // Subcolecoes: cada uma com regra propria (sem curinga).
+      match /events/{id} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /friends/{id} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Notificacoes de intencao: qualquer usuario logado pode ENVIAR para
+      // outro (create), com remetente verdadeiro; so o dono le/marca/apaga.
+      match /notifications/{id} {
+        allow read, delete: if isOwner(uid);
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(
+            ['type', 'intentionId', 'intentionLabel', 'fromName', 'fromUid', 'read', 'createdAt'])
+          && request.resource.data.type == 'intention'
+          && request.resource.data.fromUid == request.auth.uid
+          && request.resource.data.read == false
+          && request.resource.data.intentionId is string
+          && request.resource.data.intentionId.size() <= 100
+          && request.resource.data.intentionLabel is string
+          && request.resource.data.intentionLabel.size() <= 200
+          && request.resource.data.fromName is string
+          && request.resource.data.fromName.size() <= 100
+          && request.resource.data.createdAt == request.time;
+        allow update: if isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      }
+
+      // Conversas do oraculo (docs/architecture/chat-sync.md). So o dono.
+      match /conversations/{convId} {
+        function validConv(d) {
+          return d.keys().hasOnly(['title', 'createdAt', 'updatedAt', 'messageCount', 'schemaVersion'])
+            && d.title is string && d.title.size() >= 1 && d.title.size() <= 80
+            && d.createdAt is timestamp && d.updatedAt is timestamp
+            && d.messageCount is int && d.messageCount >= 0 && d.messageCount <= 500
+            && d.schemaVersion == 1;
+        }
+
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && validConv(request.resource.data);
+        allow update: if isOwner(uid) && validConv(request.resource.data)
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(uid);
+
+        // Mensagens imutaveis: create apenas. Delete so pelo dono, para a
+        // limpeza em cascata ao apagar a conversa (feita pelo cliente).
+        match /messages/{msgId} {
+          allow read: if isOwner(uid);
+          allow create: if isOwner(uid)
+            && request.resource.data.keys().hasOnly(['role', 'text', 'createdAt'])
+            && request.resource.data.role in ['user', 'model']
+            && request.resource.data.text is string
+            && request.resource.data.text.size() >= 1
+            && request.resource.data.text.size() <= 10000
+            && request.resource.data.createdAt is timestamp
+            && getAfter(/databases/$(database)/documents/users/$(uid)/conversations/$(convId)).data.messageCount <= 500;
+          allow update: if false;
+          allow delete: if isOwner(uid);
+        }
+      }
+    }
+
+    // ------------------------------------------------------ analytics_events
+    // Create com userId do proprio usuario (ou 'anonymous' sem login, como o
+    // app faz). Leitura so do admin (tela de admin); cliente comum nao le.
+    match /analytics_events/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['eventName', 'userId', 'createdAt'])
+        && request.resource.data.eventName is string
+        && request.resource.data.eventName.size() >= 1
+        && request.resource.data.eventName.size() <= 100
+        && request.resource.data.userId is string
+        && (request.resource.data.userId == (signedIn() ? request.auth.uid : 'anonymous'))
+        && request.resource.data.createdAt == request.time;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ------------------------------------------------- cristais_propriedades
+    // Escrita pela tela de admin (popular cristais). O app nao le a colecao.
+    match /cristais_propriedades/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // Qualquer outro caminho: negado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
