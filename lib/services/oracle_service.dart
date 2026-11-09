@@ -1,9 +1,5 @@
-import 'dart:convert';
 import 'dart:math';
 
-import 'package:http/http.dart' as http;
-
-import '../config/env.dart';
 import '../data/astrology.dart';
 import '../data/moon.dart';
 import '../data/tarot.dart';
@@ -17,95 +13,16 @@ class ChatTurn {
 }
 
 class OracleService {
-  OracleService({http.Client? client}) : _client = client ?? http.Client();
+  const OracleService();
 
-  final http.Client _client;
-
-  static const systemInstruction =
-      'Você é o Oráculo do Astrum, guia místico experiente em astrologia, '
-      'cristais, tarot, fases da lua e energias sutis. '
-      'Ajude a pessoa a encontrar equilíbrio e autoconhecimento. '
-      'Responda com empatia, em português do Brasil, linguagem acolhedora e levemente esotérica. '
-      'Não invente consultas médicas ou financeiras. Seja breve (até 3 parágrafos) salvo se pedirem mais.';
-
+  /// O oráculo responde somente com respostas locais (sem rede).
+  /// [history] é mantido na API pública, mas não é usado.
   Future<String> complete({
     required String prompt,
     List<ChatTurn> history = const [],
     String? sign,
   }) async {
-    final messages = <Map<String, String>>[
-      {'role': 'system', 'content': _systemWithSign(sign)},
-      for (final turn in history)
-        {
-          'role': turn.role == 'model' ? 'assistant' : 'user',
-          'content': turn.text,
-        },
-      {'role': 'user', 'content': prompt},
-    ];
-
-    if (Env.hasGroq) {
-      final groq = await _openAiCompatible(
-        uri: Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
-        headers: {
-          'Authorization': 'Bearer ${Env.groqApiKey}',
-          'Content-Type': 'application/json',
-        },
-        body: {
-          'model': 'llama-3.3-70b-versatile',
-          'temperature': 0.9,
-          'max_tokens': 700,
-          'messages': messages,
-        },
-      );
-      if (groq != null) return groq;
-    }
-
-    final pollinations = await _openAiCompatible(
-      uri: Uri.parse('https://text.pollinations.ai/openai'),
-      headers: const {'Content-Type': 'application/json'},
-      body: {
-        'model': 'openai',
-        'messages': messages,
-      },
-    );
-    if (pollinations != null) return pollinations;
-
     return localReply(prompt: prompt, sign: sign);
-  }
-
-  String _systemWithSign(String? sign) {
-    if (sign == null || sign.isEmpty) return systemInstruction;
-    return '$systemInstruction O signo solar da pessoa é $sign.';
-  }
-
-  Future<String?> _openAiCompatible({
-    required Uri uri,
-    required Map<String, String> headers,
-    required Map<String, dynamic> body,
-  }) async {
-    try {
-      final response = await _client
-          .post(uri, headers: headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 25));
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        return null;
-      }
-      final decoded = jsonDecode(response.body);
-      if (decoded is Map<String, dynamic>) {
-        final choices = decoded['choices'];
-        if (choices is List && choices.isNotEmpty) {
-          final message = choices.first['message'];
-          final content = message is Map ? message['content'] : null;
-          if (content is String && content.trim().isNotEmpty) {
-            return content.trim();
-          }
-        }
-      }
-      if (decoded is String && decoded.trim().isNotEmpty) return decoded.trim();
-    } catch (_) {
-      return null;
-    }
-    return null;
   }
 
   String localReply({required String prompt, String? sign}) {

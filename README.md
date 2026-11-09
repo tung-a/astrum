@@ -6,7 +6,6 @@ Astrum é um aplicativo de astrologia, tarot e espiritualidade feito em Flutter 
 
 - Flutter SDK estável instalado e disponível no `PATH`
 - Uma configuração Firebase para Authentication e Cloud Firestore
-- (Opcional) uma chave Groq para respostas de IA
 
 ## Configuração
 
@@ -19,7 +18,6 @@ FIREBASE_PROJECT_ID
 FIREBASE_STORAGE_BUCKET
 FIREBASE_MESSAGING_SENDER_ID
 FIREBASE_APP_ID
-GROQ_API_KEY
 ```
 
 As opções Firebase são passadas ao Flutter com `--dart-define-from-file`; não é necessário adicionar os arquivos de configuração nativos do Firebase ao repositório. O app verifica todas as variáveis Firebase necessárias e mostra quais faltam.
@@ -48,7 +46,7 @@ flutter build apk --dart-define-from-file=.env
 
 - Cadastro, login e perfil armazenado no Firebase Authentication e Firestore
 - Cosmos com energia lunar, horóscopo, tarot diário, check-in e rituais
-- Oráculo com Groq opcional, Pollinations e respostas locais como alternativa
+- Oráculo que responde com respostas locais, sem IA externa
 - Mapa astral aproximado calculado no dispositivo
 - Meditação guiada, conversas persistidas localmente e leitura em voz alta
 - Loja e inventário de skins, fundos e avatares zodiacais

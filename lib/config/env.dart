@@ -11,11 +11,8 @@ class Env {
   static const firebaseMessagingSenderId =
       String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
   static const firebaseAppId = String.fromEnvironment('FIREBASE_APP_ID');
-  static const groqApiKey = String.fromEnvironment('GROQ_API_KEY');
 
   static bool get hasFirebase => missingFirebaseVars.isEmpty;
-
-  static bool get hasGroq => groqApiKey.isNotEmpty;
 
   static FirebaseOptions get firebaseOptions => FirebaseOptions(
         apiKey: firebaseApiKey,
