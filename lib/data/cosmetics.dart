@@ -148,6 +148,31 @@ final profilePictureShopCatalog = [
 
 final shopCatalog = [..._baseShopCatalog, ...profilePictureShopCatalog];
 
+/// Todos os itens visuais, incluindo os avatares gratuitos de essencia
+/// zodiacal. O preco aqui e so o valor de seed: a fonte de verdade do preco e
+/// o catalogo shop_items no Firestore.
+final fullShopCatalog = [
+  ...shopCatalog,
+  for (final sign in zodiacSigns)
+    ShopItem(
+      id: defaultProfilePictureId(sign),
+      name: 'Avatar $sign · Essência Zodiacal',
+      type: ItemType.profilePicture,
+      rarity: ItemRarity.common,
+      price: 0,
+    ),
+];
+
+/// Valor do campo type em shop_items (validado pelas regras).
+String catalogTypeName(ItemType type) => switch (type) {
+      ItemType.cardSkin => 'skin',
+      ItemType.background => 'background',
+      ItemType.profilePicture => 'profilePicture',
+    };
+
+/// Valor do campo rarity em shop_items.
+String catalogRarityName(ItemRarity rarity) => rarity.name;
+
 const _zodiacPictureFiles = {
   'Aquário': 'Aquarius_pfp.png',
   'Áries': 'Aries_pfp.png',

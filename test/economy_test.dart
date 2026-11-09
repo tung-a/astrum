@@ -41,12 +41,48 @@ void main() {
       );
     });
 
-    test('preco zero nao e compravel (regras exigem saldo menor)', () {
+    test('preco zero adiciona o item sem mexer no saldo', () {
+      final r = computePurchase(
+          stardust: 10, inventory: [], itemId: 'a', price: 0);
+      expect(r.stardust, 10);
+      expect(r.inventory, ['a']);
+    });
+
+    test('preco negativo nao e compravel', () {
       expect(
         () => computePurchase(
-            stardust: 10, inventory: [], itemId: 'a', price: 0),
+            stardust: 10, inventory: [], itemId: 'a', price: -5),
         throwsA(isA<NotPurchasableException>()),
       );
+    });
+  });
+
+  group('resolvePrice', () {
+    const entry =
+        CatalogEntry(price: 800, type: 'skin', rarity: 'rare', active: true);
+
+    test('usa o preco do catalogo', () {
+      expect(resolvePrice({'a': entry}, 'a'), 800);
+    });
+
+    test('catalogo vazio: indisponivel', () {
+      expect(() => resolvePrice({}, 'a'),
+          throwsA(isA<CatalogUnavailableException>()));
+    });
+
+    test('item fora do catalogo ou inativo nao e compravel', () {
+      expect(() => resolvePrice({'a': entry}, 'b'),
+          throwsA(isA<NotPurchasableException>()));
+      const off =
+          CatalogEntry(price: 1, type: 'skin', rarity: 'rare', active: false);
+      expect(() => resolvePrice({'a': off}, 'a'),
+          throwsA(isA<NotPurchasableException>()));
+    });
+
+    test('doc sem preco vira invalido', () {
+      final e = CatalogEntry.fromMap({'active': true});
+      expect(() => resolvePrice({'a': e}, 'a'),
+          throwsA(isA<NotPurchasableException>()));
     });
   });
 

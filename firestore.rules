@@ -8,14 +8,17 @@ rules_version = '2';
 // altera-lo). Nao ha curinga amplo em users/{uid}/{document=**}: regras somam
 // por OR e um curinga anularia as validacoes abaixo.
 //
-// RISCO RESIDUAL (limitacao conhecida, nao resolvida aqui):
-//   As regras NAO conseguem verificar o preco do item da loja nem qual item foi
-//   comprado (o catalogo vive no app, nao no Firestore). Um cliente malicioso
-//   pode, em uma compra, debitar qualquer valor (inclusive 1) ou gravar
-//   qualquer id de item no inventario, obtendo itens quase de graca. As regras
-//   garantem apenas: saldo nao negativo, saldo que so diminui, e exatamente
-//   um item novo no inventario. Fechar de vez exige backend (Cloud Functions /
-//   plano Blaze) ou catalogo com precos em documento lido pelas regras.
+// LOJA: o preco vive em shop_items/{itemId} (escrita so do admin). Na compra o
+//   item novo do inventario e o ultimo da lista (que nao pode ja estar no
+//   inventario antigo) e o saldo novo deve ser EXATAMENTE saldo antigo menos o
+//   preco do catalogo. Preco 0: saldo inalterado, item gratuito. Item sem doc
+//   ativo em shop_items nao entra no inventario.
+//
+// RISCO RESIDUAL (limitacao conhecida):
+//   O preco e verificado. Continua sem verificacao apenas: (1) o tipo do item
+//   (so garantido por quem publica o catalogo, nao ha checagem de que um
+//   avatar, por exemplo, e equipado no campo certo alem do equippedOk) e
+//   (2) a FREQUENCIA de compra, que as regras nao limitam.
 //   Tambem: o dia do check-in e validado em UTC com tolerancia de +-1 dia (o
 //   app usa a data local); o limite e uma vez por data crescente.
 // =============================================================================
@@ -86,14 +89,31 @@ service cloud.firestore {
           ];
       }
 
-      // (b) compra: saldo diminui, fica >= 0, inventario ganha exatamente 1 item.
+      // Doc do catalogo do item (so lido depois de checar que existe).
+      function catalogPath(itemId) {
+        return /databases/$(database)/documents/shop_items/$(itemId);
+      }
+
+      // (b) compra: inventario ganha exatamente 1 item (o ultimo da lista, que
+      // nao estava no inventario antigo), o item esta ativo no catalogo e o
+      // saldo novo == saldo antigo - preco do catalogo (preco 0: sem mudanca).
       function isPurchase() {
-        return newStar() < oldStar()
-          && newStar() >= 0
-          && nw().inventory is list
+        return nw().inventory is list
           && nw().inventory.size() == oldInv().size() + 1
           && nw().inventory.hasAll(oldInv())
+          && !(nw().inventory[nw().inventory.size() - 1] in oldInv())
+          && purchaseMatchesCatalog(nw().inventory[nw().inventory.size() - 1])
           && newCheck() == oldCheck();
+      }
+
+      function purchaseMatchesCatalog(itemId) {
+        return itemId is string
+          && exists(catalogPath(itemId))
+          && get(catalogPath(itemId)).data.active == true
+          && get(catalogPath(itemId)).data.price is int
+          && get(catalogPath(itemId)).data.price >= 0
+          && newStar() >= 0
+          && newStar() == oldStar() - get(catalogPath(itemId)).data.price;
       }
 
       // ---- formato do perfil (lista fechada de campos que o app grava)
@@ -283,6 +303,23 @@ service cloud.firestore {
     // Escrita pela tela de admin (popular cristais). O app nao le a colecao.
     match /cristais_propriedades/{id} {
       allow read, write: if isAdmin();
+    }
+
+    // ------------------------------------------------------------ shop_items
+    // Catalogo da loja: preco e disponibilidade. Qualquer usuario logado le;
+    // so o admin escreve (botao "Publicar catalogo" da tela de admin).
+    match /shop_items/{itemId} {
+      function validItem(d) {
+        return d.keys().hasOnly(['price', 'type', 'rarity', 'active'])
+          && d.price is int && d.price >= 0
+          && d.type in ['skin', 'background', 'profilePicture']
+          && d.rarity is string
+          && d.active is bool;
+      }
+
+      allow read: if signedIn();
+      allow create, update: if isAdmin() && validItem(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     // Qualquer outro caminho: negado.

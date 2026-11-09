@@ -25,6 +25,8 @@ const baseUser = (over = {}) => ({
   ...over,
 });
 
+const item = (price, over = {}) => ({ price, type: 'skin', rarity: 'common', active: true, ...over });
+
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-astrum',
@@ -40,6 +42,12 @@ beforeEach(async () => {
     await setDoc(doc(db, 'users/alice'), baseUser());
     await setDoc(doc(db, 'users/bob'), baseUser({ name: 'B', email: 'b@x.com' }));
     await setDoc(doc(db, 'users/root'), baseUser({ role: 'admin' }));
+    // catalogo: itens pagos a 100, mais um gratuito e um inativo
+    for (const id of ['a', 'b', 'skin_x', 'bg_y']) {
+      await setDoc(doc(db, `shop_items/${id}`), item(100));
+    }
+    await setDoc(doc(db, 'shop_items/free'), item(0));
+    await setDoc(doc(db, 'shop_items/off'), item(100, { active: false }));
   });
 });
 
@@ -236,4 +244,63 @@ test('mensagens: conversa criada no mesmo batch com contador 1 ok; contador 2 ne
   await assertFails(make(0));
   await assertFails(make(2));
   await assertSucceeds(make(1));
+});
+
+// ---- catalogo da loja (shop_items)
+test('compra: saldo debitado igual ao preco do catalogo ok; diferente negado', async () => {
+  const ref = doc(as('alice'), 'users/alice');
+  const inv = ['skin_classic', 'bg_void', 'a'];
+  await assertFails(updateDoc(ref, { 'wallet.stardust': 499, inventory: inv })); // debitou 1
+  await assertFails(updateDoc(ref, { 'wallet.stardust': 300, inventory: inv })); // debitou 200
+  await assertFails(updateDoc(ref, { 'wallet.stardust': 500, inventory: inv })); // nao debitou
+  await assertSucceeds(updateDoc(ref, { 'wallet.stardust': 400, inventory: inv }));
+});
+
+test('compra: item inativo, sem doc no catalogo ou ja possuido (duplicado) negados', async () => {
+  const ref = doc(as('alice'), 'users/alice');
+  await assertFails(updateDoc(ref, { 'wallet.stardust': 400, inventory: ['skin_classic', 'bg_void', 'off'] }));
+  await assertFails(updateDoc(ref, { 'wallet.stardust': 400, inventory: ['skin_classic', 'bg_void', 'sem_doc'] }));
+  await assertFails(updateDoc(ref, { 'wallet.stardust': 400, inventory: ['skin_classic', 'bg_void', 'skin_classic'] }));
+});
+
+test('item de preco zero: com doc no catalogo permitido e saldo igual; saldo menor negado', async () => {
+  const ref = doc(as('alice'), 'users/alice');
+  await assertFails(updateDoc(ref, { 'wallet.stardust': 400, inventory: ['skin_classic', 'bg_void', 'free'] }));
+  await assertSucceeds(updateDoc(ref, { inventory: ['skin_classic', 'bg_void', 'free'] }));
+});
+
+test('item de preco zero sem doc no catalogo negado (e inativo tambem)', async () => {
+  const ref = doc(as('alice'), 'users/alice');
+  await assertFails(updateDoc(ref, { inventory: ['skin_classic', 'bg_void', 'pfp_gratis'] }));
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'shop_items/free_off'), item(0, { active: false }));
+  });
+  await assertFails(updateDoc(ref, { inventory: ['skin_classic', 'bg_void', 'free_off'] }));
+});
+
+test('inventario: limite de 500 itens continua valendo', async () => {
+  const big = Array.from({ length: 500 }, (_, i) => `i${i}`);
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users/alice'), baseUser({ inventory: big }));
+  });
+  await assertFails(updateDoc(doc(as('alice'), 'users/alice'), { inventory: [...big, 'free'] }));
+});
+
+test('shop_items: logado le; anonimo nao; usuario comum nao escreve; admin escreve', async () => {
+  await assertSucceeds(getDoc(doc(as('alice'), 'shop_items/a')));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'shop_items/a')));
+  await assertFails(setDoc(doc(as('alice'), 'shop_items/novo'), item(1)));
+  await assertFails(updateDoc(doc(as('alice'), 'shop_items/a'), { price: 1 }));
+  await assertFails(deleteDoc(doc(as('alice'), 'shop_items/a')));
+  await assertSucceeds(setDoc(doc(as('root'), 'shop_items/novo'), item(250)));
+  await assertSucceeds(updateDoc(doc(as('root'), 'shop_items/a'), { price: 150 }));
+});
+
+test('shop_items: admin com dados invalidos negado', async () => {
+  const db = as('root');
+  await assertFails(setDoc(doc(db, 'shop_items/n1'), item(-1)));
+  await assertFails(setDoc(doc(db, 'shop_items/n2'), item(1.5)));
+  await assertFails(setDoc(doc(db, 'shop_items/n3'), item(1, { type: 'arma' })));
+  await assertFails(setDoc(doc(db, 'shop_items/n4'), item(1, { active: 'sim' })));
+  await assertFails(setDoc(doc(db, 'shop_items/n5'), item(1, { extra: 1 })));
 });

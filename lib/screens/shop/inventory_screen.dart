@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/astrology.dart';
 import '../../data/cosmetics.dart';
 import '../../models/app_user.dart';
 import '../../providers/app_providers.dart';
@@ -26,15 +25,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     }
 
     final ownedItems = [
-      ...shopCatalog,
-      for (final sign in zodiacSigns)
-        ShopItem(
-          id: defaultProfilePictureId(sign),
-          name: 'Avatar $sign · Essência Zodiacal',
-          type: ItemType.profilePicture,
-          rarity: ItemRarity.common,
-          price: 0,
-        ),
+      ...fullShopCatalog,
     ].where(
         (item) => profile.inventory.contains(item.id) && item.type == _filter);
 

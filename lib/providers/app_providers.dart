@@ -7,6 +7,7 @@ import '../data/cosmetics.dart';
 import '../models/app_user.dart';
 import '../services/analytics_service.dart';
 import '../services/chat_store.dart';
+import '../services/economy.dart';
 import '../services/oracle_service.dart';
 import '../services/user_repository.dart';
 
@@ -29,6 +30,11 @@ final chatStoreProvider =
 
 final profileProvider = StreamProvider<AppUser?>((ref) {
   return ref.watch(userRepositoryProvider).watchProfile();
+});
+
+/// Catalogo da loja (shop_items): fonte unica de preco e disponibilidade.
+final shopCatalogProvider = StreamProvider<Map<String, CatalogEntry>>((ref) {
+  return ref.watch(userRepositoryProvider).watchShopCatalog();
 });
 
 final eventsProvider = StreamProvider<List<RitualEvent>>((ref) {

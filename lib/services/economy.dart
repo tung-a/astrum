@@ -1,5 +1,5 @@
 /// Logica pura de economia (compra e check-in). Sem Firebase, para ser testada
-/// e reutilizada dentro de transacoes. Precisa permanecer coerente com
+/// e reutilizada dentro de transacoes. O preco vem do catalogo. Precisa permanecer coerente com
 /// `isPurchase()` e `isCheckin()` em firestore.rules.
 library;
 
@@ -23,11 +23,51 @@ class InsufficientFundsException extends EconomyException {
       : super('Poeira Estelar insuficiente.');
 }
 
-/// Item com preco <= 0 nao pode ser "comprado": as regras exigem que o saldo
-/// diminua em toda compra.
+/// Item sem entrada ativa no catalogo (shop_items) ou com preco invalido: as
+/// regras do Firestore recusariam a gravacao.
 class NotPurchasableException extends EconomyException {
   const NotPurchasableException()
       : super('Este item não está disponível para compra.');
+}
+
+/// Catalogo vazio (shop_items nao publicado ou ainda nao carregado): nao ha
+/// preco confiavel, entao nao se compra com preco local.
+class CatalogUnavailableException extends EconomyException {
+  const CatalogUnavailableException() : super('Catálogo indisponível.');
+}
+
+/// Entrada do catalogo `shop_items/{itemId}` (preco validado pelas regras).
+class CatalogEntry {
+  const CatalogEntry({
+    required this.price,
+    required this.type,
+    required this.rarity,
+    required this.active,
+  });
+
+  final int price;
+  final String type;
+  final String rarity;
+  final bool active;
+
+  factory CatalogEntry.fromMap(Map<String, dynamic> data) => CatalogEntry(
+        price: (data['price'] as num?)?.toInt() ?? -1,
+        type: data['type'] as String? ?? '',
+        rarity: data['rarity'] as String? ?? '',
+        active: data['active'] == true,
+      );
+}
+
+/// Preco de [itemId] segundo o [catalog]. Lanca [CatalogUnavailableException]
+/// se o catalogo estiver vazio e [NotPurchasableException] se o item nao existe,
+/// esta inativo ou tem preco invalido.
+int resolvePrice(Map<String, CatalogEntry> catalog, String itemId) {
+  if (catalog.isEmpty) throw const CatalogUnavailableException();
+  final entry = catalog[itemId];
+  if (entry == null || !entry.active || entry.price < 0) {
+    throw const NotPurchasableException();
+  }
+  return entry.price;
 }
 
 class AlreadyCheckedInException extends EconomyException {
@@ -50,7 +90,9 @@ PurchaseResult computePurchase({
   required int price,
 }) {
   if (inventory.contains(itemId)) throw const AlreadyOwnedException();
-  if (price <= 0) throw const NotPurchasableException();
+  // Preco 0: item gratuito do catalogo, saldo inalterado (as regras exigem
+  // saldo novo == saldo antigo - preco).
+  if (price < 0) throw const NotPurchasableException();
   if (stardust < price) throw const InsufficientFundsException();
   return PurchaseResult(
     stardust: stardust - price,

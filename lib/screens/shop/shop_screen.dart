@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/astrology.dart';
 import '../../data/cosmetics.dart';
 import '../../models/app_user.dart';
 import '../../providers/app_providers.dart';
@@ -27,17 +26,25 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           body: Center(child: CircularProgressIndicator()));
     }
 
-    final items = [
-      ...shopCatalog,
-      for (final sign in zodiacSigns)
-        ShopItem(
-          id: defaultProfilePictureId(sign),
-          name: 'Avatar $sign · Essência Zodiacal',
-          type: ItemType.profilePicture,
-          rarity: ItemRarity.common,
-          price: 0,
-        ),
-    ].where((item) => item.type == _filter);
+    final catalogAsync = ref.watch(shopCatalogProvider);
+    if (catalogAsync.isLoading && !catalogAsync.hasValue) {
+      return const CosmicScaffold(
+          body: Center(child: CircularProgressIndicator()));
+    }
+    final catalog = catalogAsync.valueOrNull ?? const <String, CatalogEntry>{};
+    if (catalog.isEmpty) {
+      // Sem catalogo nao ha preco confiavel: nada de comprar com preco local.
+      return const CosmicScaffold(
+        title: 'Loja',
+        body: Center(child: Text('Catálogo indisponível.')),
+      );
+    }
+
+    // So itens ativos no catalogo; o preco exibido e o do servidor.
+    final items = fullShopCatalog
+        .where((item) =>
+            item.type == _filter && (catalog[item.id]?.active ?? false))
+        .toList();
 
     return CosmicScaffold(
       title: 'Loja · ${profile.stardust} ✦',
@@ -62,7 +69,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                 leading: _ItemIcon(item: item),
                 title: Text(item.name),
                 subtitle: Text(
-                  '${rarityLabel(item.rarity)} · ${item.price} ✦\n${item.description}',
+                  '${rarityLabel(item.rarity)} · ${catalog[item.id]!.price} ✦\n${item.description}',
                 ),
                 isThreeLine: item.description.isNotEmpty,
                 trailing: FilledButton(
@@ -117,7 +124,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         await repo.purchaseItem(
           uid: uid,
           itemId: item.id,
-          price: item.price,
           equipField: field,
         );
       }

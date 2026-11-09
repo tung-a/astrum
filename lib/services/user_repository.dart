@@ -71,21 +71,33 @@ class UserRepository {
     await _userDoc(uid).update(data);
   }
 
-  /// Compra atomica: le o perfil dentro da transacao, valida e grava saldo e
-  /// inventario completo (a regra exige o inventario antigo + 1 item).
+  Stream<Map<String, CatalogEntry>> watchShopCatalog() {
+    return _db.collection('shop_items').snapshots().map((snap) => {
+          for (final d in snap.docs) d.id: CatalogEntry.fromMap(d.data()),
+        });
+  }
+
+  /// Compra atomica: le o perfil e o preco do catalogo (shop_items) dentro da
+  /// transacao, valida e grava saldo e inventario completo (a regra exige o
+  /// inventario antigo + 1 item, e o item novo no fim da lista).
   /// Se [equipField] for informado, equipa o item na mesma gravacao.
   /// Lanca [EconomyException] sem gravar nada quando a compra nao e valida.
   Future<void> purchaseItem({
     required String uid,
     required String itemId,
-    required int price,
     String? equipField,
   }) {
     final ref = _userDoc(uid);
+    final itemRef = _db.collection('shop_items').doc(itemId);
     return _db.runTransaction((tx) async {
       final snap = await tx.get(ref);
+      final itemSnap = await tx.get(itemRef);
       final data = snap.data();
       if (data == null) throw StateError('Perfil não encontrado.');
+      final itemData = itemSnap.data();
+      if (itemData == null) throw const NotPurchasableException();
+      final price = resolvePrice(
+          {itemId: CatalogEntry.fromMap(itemData)}, itemId);
       final result = computePurchase(
         stardust: ((data['wallet'] as Map?)?['stardust'] as num?)?.toInt() ?? 0,
         inventory: ((data['inventory'] as List?) ?? const []).cast<String>(),

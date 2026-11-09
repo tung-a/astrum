@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/cosmetics.dart';
 import '../../models/app_user.dart';
 import '../../providers/app_providers.dart';
 import '../../theme/astrum_colors.dart';
@@ -144,6 +145,39 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Falha ao atualizar cristais: ${error.message}')),
+        );
+      }
+    }
+  }
+
+  /// Publica o catalogo da loja (shop_items) a partir de cosmetics.dart. As
+  /// regras so aceitam a escrita de admin; a tela tambem confere o papel.
+  Future<void> _publishCatalog() async {
+    final profile = ref.read(profileProvider).valueOrNull;
+    if (profile == null || !profile.isAdmin) return;
+    final db = FirebaseFirestore.instance;
+    final batch = db.batch(); // fullShopCatalog tem bem menos de 500 itens
+    for (final item in fullShopCatalog) {
+      batch.set(db.collection('shop_items').doc(item.id), {
+        'price': item.price,
+        'type': catalogTypeName(item.type),
+        'rarity': catalogRarityName(item.rarity),
+        'active': true,
+      });
+    }
+
+    try {
+      await batch.commit();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Catálogo da loja publicado.')),
+        );
+      }
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Falha ao publicar catálogo: ${error.message}')),
         );
       }
     }
@@ -292,6 +326,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   onPressed: _seedCrystals,
                   icon: const Icon(Icons.cloud_upload_outlined),
                   label: const Text('Popular cristais'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _publishCatalog,
+                  icon: const Icon(Icons.storefront_outlined),
+                  label: const Text('Publicar catálogo'),
                 ),
                 const SizedBox(height: 20),
                 Text('Usuários', style: Theme.of(context).textTheme.titleLarge),
