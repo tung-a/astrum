@@ -30,7 +30,7 @@ const item = (price, over = {}) => ({ price, type: 'skin', rarity: 'common', act
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-astrum',
-    firestore: { rules: fs.readFileSync('../firestore.rules', 'utf8'), host: '127.0.0.1', port: 8080 },
+    firestore: { rules: fs.readFileSync('../firestore.rules', 'utf8'), host: '127.0.0.1', port: Number(process.env.FIRESTORE_EMULATOR_PORT ?? 8080) },
   });
 });
 after(async () => { await env.cleanup(); });
@@ -78,6 +78,10 @@ test('create: role admin negado; wallet diferente negada; valido ok', async () =
 
 test('update: mudar role negado', async () => {
   await assertFails(updateDoc(doc(as('alice'), 'users/alice'), { role: 'admin' }));
+});
+
+test('update: reescrever wallet inteiro como mapa negado', async () => {
+  await assertFails(updateDoc(doc(as('alice'), 'users/alice'), { wallet: { stardust: 9999 } }));
 });
 
 test('update: aumentar stardust fora de check-in negado', async () => {

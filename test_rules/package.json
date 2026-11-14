@@ -2,7 +2,7 @@
   "name": "astrum-firestore-rules-tests",
   "private": true,
   "scripts": {
-    "test": "firebase --config ../firebase.json emulators:exec --only firestore --project demo-astrum \"node --test firestore.rules.test.mjs\""
+    "test": "node run-tests.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",

@@ -69,6 +69,13 @@ cd test_rules && npm ci && npm test
 
 O `npm test` chama o comando `firebase`, então é preciso ter firebase-tools instalado globalmente e Java no `PATH`.
 
+O emulador usa a porta 8080 por padrão. Se ela estiver ocupada, defina `FIRESTORE_EMULATOR_PORT` (o `npm test` gera uma config temporária com essa porta, sem alterar `firebase.json`):
+
+```bash
+FIRESTORE_EMULATOR_PORT=8091 npm test            # bash
+$env:FIRESTORE_EMULATOR_PORT=8091; npm test      # PowerShell
+```
+
 ## Funcionalidades
 
 - Cadastro, login e perfil armazenado no Firebase Authentication e Firestore
