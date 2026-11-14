@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feature/flutter-migration]
+  pull_request:
+    branches: [main, feature/flutter-migration]
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.47.7"
+
+jobs:
+  flutter:
+    name: Analyze e testes Flutter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  firestore-rules:
+    name: Testes das regras do Firestore
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: test_rules/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Instala firebase-tools
+        run: npm install -g firebase-tools@13.29.1
+      - name: Instala dependencias dos testes
+        working-directory: test_rules
+        run: npm ci
+      - name: Roda os testes no emulador
+        working-directory: test_rules
+        run: npm test
