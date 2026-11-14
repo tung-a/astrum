@@ -5,11 +5,11 @@ import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/data/profile_pictures.dart';
-import 'package:astrum/models/app_user.dart';
+import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/models/equip_slot.dart';
 import 'package:astrum/services/equip_slot_field.dart';
-import 'package:astrum/services/public_profile.dart';
-import 'package:astrum/services/public_profile_sync.dart';
+import 'package:astrum/features/profile/domain/public_profile.dart';
+import 'package:astrum/features/profile/data/public_profile_sync.dart';
 
 /// Perfil do usuario logado.
 class ProfileRepository {

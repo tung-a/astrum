@@ -4,8 +4,8 @@
 import 'package:astrum/models/equip_slot.dart';
 import 'package:astrum/services/economy_exceptions.dart';
 import 'package:astrum/services/economy_repository.dart';
-import 'package:astrum/services/public_profile.dart';
-import 'package:astrum/services/public_profile_sync.dart';
+import 'package:astrum/features/profile/domain/public_profile.dart';
+import 'package:astrum/features/profile/data/public_profile_sync.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 

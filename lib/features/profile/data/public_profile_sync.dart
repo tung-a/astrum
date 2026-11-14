@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/data/profile_pictures.dart';
-import 'package:astrum/services/public_profile.dart';
+import 'package:astrum/features/profile/domain/public_profile.dart';
 
 /// Grava publicProfiles/{uid}. Usado por Profile, Economy e Admin.
 class PublicProfileSync {

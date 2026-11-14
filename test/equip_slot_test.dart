@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/models/shop_item.dart';
-import 'package:astrum/models/app_user.dart';
+import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/models/equip_slot.dart';
 import 'package:astrum/services/equip_slot_field.dart';
 import 'package:flutter_test/flutter_test.dart';

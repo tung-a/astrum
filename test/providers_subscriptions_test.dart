@@ -1,6 +1,6 @@
 import 'package:astrum/app_router.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
-import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/core/firebase/session_providers.dart';

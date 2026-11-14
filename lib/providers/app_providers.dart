@@ -3,21 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
-import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/theme/cosmetics_style.dart';
-import 'package:astrum/models/app_user.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/services/catalog_repository.dart';
 import 'package:astrum/models/catalog_entry.dart';
 import 'package:astrum/services/economy_repository.dart';
-import 'package:astrum/services/profile_repository.dart';
-import 'package:astrum/services/public_profile_sync.dart';
-
-final publicProfileSyncProvider = Provider(
-  (ref) => PublicProfileSync(
-    db: ref.watch(firestoreProvider),
-    auth: ref.watch(firebaseAuthProvider),
-  ),
-);
 
 final catalogRepositoryProvider =
     Provider((ref) => CatalogRepository(ref.watch(firestoreProvider)));
@@ -28,27 +18,6 @@ final economyRepositoryProvider = Provider<EconomyRepository>(
     sync: ref.watch(publicProfileSyncProvider),
   ),
 );
-
-final profileRepositoryProvider = Provider(
-  (ref) => ProfileRepository(
-    db: ref.watch(firestoreProvider),
-    sync: ref.watch(publicProfileSyncProvider),
-  ),
-);
-
-/// Perfil do usuario logado. Semantica switchMap: ao mudar o estado de auth
-/// (logout, login de outro usuario) o provider e reconstruido e o Riverpod
-/// cancela a assinatura anterior antes de abrir a do novo uid.
-final profileProvider = StreamProvider<AppUser?>((ref) {
-  final auth = ref.watch(authStateProvider);
-  // Erro no stream de auth conta como deslogado.
-  if (auth.hasError) return Stream<AppUser?>.value(null);
-  // Aguardando o primeiro estado de auth: perfil em loading.
-  if (!auth.hasValue) return const Stream<AppUser?>.empty();
-  final user = auth.requireValue;
-  if (user == null) return Stream<AppUser?>.value(null);
-  return ref.watch(profileRepositoryProvider).watchProfile(user);
-});
 
 /// Catalogo da loja (shop_items): fonte unica de preco e disponibilidade.
 final shopCatalogProvider = StreamProvider<Map<String, CatalogEntry>>((ref) {

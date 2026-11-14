@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/core/astro/natal_chart.dart';
-import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/widgets/cosmic_scaffold.dart';
 

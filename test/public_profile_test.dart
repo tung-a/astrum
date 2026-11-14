@@ -1,4 +1,4 @@
-import 'package:astrum/services/public_profile.dart';
+import 'package:astrum/features/profile/domain/public_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

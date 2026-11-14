@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/features/social/domain/friend.dart';
 import 'package:astrum/features/social/domain/intention_notice.dart';
-import 'package:astrum/services/public_profile.dart';
+import 'package:astrum/features/profile/domain/public_profile.dart';
 
 /// Amigos, busca por e-mail e intencoes/notificacoes.
 class SocialRepository {

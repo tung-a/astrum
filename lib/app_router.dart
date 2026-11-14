@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:astrum/core/firebase/firebase_providers.dart';
-import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/features/auth/presentation/sign_up_provider.dart';
-import 'package:astrum/screens/account/account_screen.dart';
+import 'package:astrum/features/profile/presentation/account_screen.dart';
 import 'package:astrum/features/admin/presentation/admin_screen.dart';
 import 'package:astrum/features/astral/presentation/astral_screen.dart';
 import 'package:astrum/features/auth/presentation/login_screen.dart';

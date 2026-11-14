@@ -5,11 +5,11 @@ import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/data/profile_pictures.dart';
 import 'package:astrum/models/shop_item.dart';
 import 'package:astrum/data/catalog_seed.dart';
-import 'package:astrum/models/app_user.dart';
+import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/services/economy.dart';
 import 'package:astrum/services/economy_exceptions.dart';
-import 'package:astrum/services/profile_repository.dart';
-import 'package:astrum/services/public_profile_sync.dart';
+import 'package:astrum/features/profile/data/profile_repository.dart';
+import 'package:astrum/features/profile/data/public_profile_sync.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
