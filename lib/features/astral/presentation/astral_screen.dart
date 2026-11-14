@@ -1,6 +1,6 @@
-import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/features/astral/presentation/astral_controller.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
@@ -55,28 +55,17 @@ class AstralScreen extends ConsumerWidget {
           if (map.isEmpty)
             FilledButton(
               onPressed: () async {
-                final parsed = parseDateString(profile.birthDate);
-                if (parsed == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                final messenger = ScaffoldMessenger.of(context);
+                final ok = await ref
+                    .read(astralControllerProvider.notifier)
+                    .calculate(profile);
+                if (!ok) {
+                  messenger.showSnackBar(
                     const SnackBar(
                         content:
                             Text('Preencha a data de nascimento na conta.')),
                   );
-                  return;
                 }
-                final timeParts = profile.birthTime.split(':');
-                final hour = timeParts.isNotEmpty
-                    ? int.tryParse(timeParts[0]) ?? 12
-                    : 12;
-                final minute =
-                    timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0;
-                final birth = DateTime(
-                    parsed.year, parsed.month, parsed.day, hour, minute);
-                final computed = computeNatalChart(
-                    birth: birth, birthPlace: profile.birthPlace);
-                await ref
-                    .read(profileRepositoryProvider)
-                    .saveAstralMap(profile.uid, computed);
               },
               child: const Text('Calcular mapa no dispositivo'),
             )

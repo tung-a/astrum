@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/features/auth/data/auth_repository.dart';
 import 'package:astrum/features/auth/domain/auth_exception.dart';
 import 'package:astrum/features/auth/domain/sign_up_data.dart';
+import 'package:astrum/features/economy/domain/equip_slot.dart';
 import 'package:astrum/features/profile/data/profile_repository.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
@@ -49,6 +51,42 @@ class FakeProfileRepository implements ProfileRepository {
         return sub.cancel();
       };
     });
+  }
+
+  // Escritas registradas (controllers das telas); falha sob comando.
+  final astralMaps = <({String uid, List<PlanetPosition> chart})>[];
+  final horoscopes = <({String uid, String date, String content})>[];
+  final tarots = <({String uid, String date, String card, String meaning})>[];
+  final equips = <({String uid, EquipSlot slot, String itemId})>[];
+  Object? saveError;
+  Object? equipError;
+
+  @override
+  Future<void> saveAstralMap(String uid, List<PlanetPosition> chart) async {
+    astralMaps.add((uid: uid, chart: chart));
+    if (saveError != null) throw saveError!;
+  }
+
+  @override
+  Future<void> saveDailyHoroscope(String uid,
+      {required String date, required String content}) async {
+    horoscopes.add((uid: uid, date: date, content: content));
+    if (saveError != null) throw saveError!;
+  }
+
+  @override
+  Future<void> saveDailyTarot(String uid,
+      {required String date,
+      required String card,
+      required String meaning}) async {
+    tarots.add((uid: uid, date: date, card: card, meaning: meaning));
+    if (saveError != null) throw saveError!;
+  }
+
+  @override
+  Future<void> equip(String uid, EquipSlot slot, String itemId) async {
+    equips.add((uid: uid, slot: slot, itemId: itemId));
+    if (equipError != null) throw equipError!;
   }
 
   @override
