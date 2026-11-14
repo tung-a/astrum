@@ -127,8 +127,14 @@ Pendências registradas pela etapa 6 (não implementadas):
 - (Etapa 11) Timeout do `createProfile` agora só faz `signOut` (sem `user.delete`, para não orfanar docs se o write efetivar depois). Fica a conta Auth possivelmente sem perfil: recuperação de "perfil ausente" no login (`watchProfile` com `data == null` abre o app com escritas falhando) e varredura de docs sem usuário Auth.
 - (Etapa 11, fora de escopo) `emailHash` arbitrário pode ser gravado pelo dono no próprio `publicProfile`.
 - (Etapa 11, impacto nulo) `/admin` com `isLoading` deixa passar durante o cadastro (`inFlight`); as regras negam o acesso.
-- Limites de campos do cadastro (`SignUpLimits`) espelham `profileShapeOk`; manter em sincronia se as regras mudarem. `AnalyticsService` agora exige `firestore`/`auth` (sem default de `.instance`).
+- Limites de campos do cadastro (`SignUpLimits`) espelham `profileShapeOk`; COBERTO na etapa 7: `SignUpLimits` usa `rules_contract.dart` e `test/rules_contract_test.dart` detecta divergência com `firestore.rules`. `AnalyticsService` agora exige `firestore`/`auth` (sem default de `.instance`).
 - (Etapa 11) `reauthenticate` e `deleteAccount`: só documentados como ponto de extensão em `AuthRepository`; `AuthErrorCode.requiresRecentLogin` já existe.
 - (M1) `rebuildPublicProfiles` segue falhando para terceiros (permission-denied); só isolado, com o erro convertido em `AdminOperationException`.
 - Mensagens de erro do cadastro seguem dependentes do texto do Firebase (inglês); texto novo de falha pós-Auth: "Não foi possível concluir o cadastro. Tente novamente." (+ "Se persistir, entre em contato." se o rollback falhou); revisar com designer/writer.
 - Checklist manual 8.3 e relatório `docs/qa/etapa-6.md` pelo `qa`.
+
+## Etapa 7 (implementada; sem commit)
+
+Detalhes e desvios em `docs/architecture/step7-data-models.md`. Entregue (passos 1 a 7 e 9; passo 8, renomes opcionais, não feito): testes de caracterização; `lib/core/firebase/rules_contract.dart` + `test/rules_contract_test.dart` (detector de divergência com `firestore.rules`, com casos de mutação); `lib/` consome o contrato; `models/app_user.dart` dividido em um arquivo por modelo; `data/astrology.dart` virou `core/astro/{zodiac,natal_chart,synergy}.dart` + `data/profile_pictures.dart`; `data/cosmetics.dart` virou `models/shop_item.dart` + `data/catalog_seed.dart` + `theme/cosmetics_style.dart`; `economy.dart` separado em `models/catalog_entry.dart` e `services/economy_exceptions.dart`. `firestore.rules`, `firestore.indexes.json`, `test_rules/` e `pubspec.yaml` sem diff; `npm test` de `test_rules/` não executado (regras inalteradas; porta 8080 em uso por outro processo).
+
+Pendente da etapa 7: renomes opcionais `AppUser.fromFirebase` para `fromDoc` e `CatalogRepository.watchShopCatalog` para `watchCatalog` (passo 8); revisão pelo `reviewer`; CHANGELOG pelo `writer`; limites de chat (`title 80`, `messageCount 500`, `text 10000`, `schemaVersion 1`) entram no contrato na etapa 10.

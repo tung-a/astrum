@@ -91,11 +91,12 @@ $env:FIRESTORE_EMULATOR_PORT=8091; npm test      # PowerShell
 
 - `docs/architecture/overview.md`: visão geral da arquitetura, das coleções do Firestore e das decisões.
 - `docs/architecture/restructuring.md`: análise da arquitetura atual e proposta de reestruturação (feature-first leve, repositórios por agregado).
-- `docs/plans/reestruturacao-etapas-1-a-3.md`: plano de migração em etapas (o nome é histórico; o arquivo registra também as etapas 4 a 6 e o backlog). As etapas 1 a 6 estão na branch.
+- `docs/plans/reestruturacao-etapas-1-a-3.md`: plano de migração em etapas (o nome é histórico; o arquivo registra também as etapas 4 a 6 e o backlog). As etapas 1 a 7 estão na branch (a 7 ainda sem commit).
 - `docs/architecture/step4-repositories.md`: etapa 4, divisão do `UserRepository` em repositórios por agregado (concluída na branch).
 - `docs/architecture/step5-typed-writes.md`: etapa 5, escritas tipadas no perfil e `EquipSlot` no equipar e na compra (concluída na branch; a atomicidade entre `users` e `publicProfiles` continua pendente).
 - `docs/architecture/step6-auth.md`: etapa 6, `AuthRepository`, cadastro com desfazimento, senha fora da navegação e Firebase fora das telas (implementada na branch, sem commit; aguarda revisão do `reviewer-consultor`).
-- As etapas 7 em diante estão no backlog.
+- `docs/architecture/step7-data-models.md`: etapa 7, separação de `data/` e `models/`, contrato único com `firestore.rules` e teste de divergência (implementada na branch, sem commit; renomes opcionais do passo 8 não feitos).
+- A partir da etapa 8 (feature-first, numeração de `restructuring.md`) está no backlog.
 - `docs/decisions/2026-11-restructuring-decisions.md`: decisões de escopo sobre economia, plataformas, exclusão de conta e chat.
 
 O projeto Flutter e suas plataformas nativas ficam na raiz. Imagens e áudios em `assets/` são recursos compartilhados do aplicativo.

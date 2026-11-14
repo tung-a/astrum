@@ -27,6 +27,9 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - Limites de tamanho nos campos do cadastro (`SignUpLimits` e `signUpLengthError` em `lib/models/sign_up_data.dart`), com `maxLength` nas telas e checagem antes do envio.
 - `AdminRepository` ganha `watchAnalyticsEvents`, `seedCrystals`, `publishCatalog`, `planCatalogPublish` (regra de publicação do catálogo, pura), `summarizeAnalytics` (contagem de eventos, pura) e `AdminOperationException`.
 - Testes novos: `test/auth_models_test.dart`, `test/auth_repository_test.dart`, `test/sign_up_test.dart` e `test/admin_test.dart`, além de testes do `createProfile` em lote em `test/repositories_firestore_test.dart`. Os fakes de `FirebaseAuth` e de repositórios em `test/support/` foram ampliados.
+- Contrato único com as regras do Firestore em `lib/core/firebase/rules_contract.dart`: recompensa de check-in, saldo inicial, itens padrão, prefixo do avatar zodiacal, intenções, tipos de catálogo, papéis, id anônimo e limites de campo. Cada constante traz a regra correspondente em comentário.
+- `test/rules_contract_test.dart` lê `firestore.rules` e falha se um valor do contrato divergir das regras (com casos de mutação por constante) ou se um padrão da regra sumir. Não há workflow novo: roda no `flutter test`.
+- Testes de caracterização do seed do catálogo, dos caminhos de avatar, dos defaults de `AppUser`, do payload de `createProfile` e do check-in (`test/characterization_etapa_7_test.dart`), e teste de fronteira de imports de `lib/core` (`test/core_boundaries_test.dart`).
 
 ### Alterado
 
@@ -48,6 +51,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - A lógica do painel admin (eventos por período, seed de cristais e publicação do catálogo) saiu da tela. A lista inicial de cristais foi para `lib/data/crystal_seed.dart`. A publicação mantém a regra anterior: itens existentes preservam preço e status, itens novos recebem os dois, e itens fora do catálogo são desativados, nunca apagados.
 - Durante o cadastro, o app fica na tela de boas-vindas até a operação terminar, mesmo com a conta já autenticada. Isso evita sair da tela antes de exibir um erro.
 - `/welcome` sem rascunho de cadastro volta para `/register`. Ao entrar em `/register`, um rascunho anterior é descartado.
+- Reorganização de `lib/data/` e `lib/models/`, sem mudança de comportamento (mesmos valores, regras, consultas e textos). Os cálculos astrológicos e o seed do catálogo saíram de arquivos mistos: `core/astro/` (signos, mapa natal, sinergia), `data/catalog_seed.dart`, `data/profile_pictures.dart`, `models/shop_item.dart` e `theme/cosmetics_style.dart`. Cada modelo tem arquivo próprio (`ritual_event.dart`, `chat_models.dart`, `friend.dart`, `intention_notice.dart`); `app_user.dart` ficou só com `AppUser`. `CatalogEntry` foi para `models/catalog_entry.dart` e as exceções de economia para `services/economy_exceptions.dart`.
+- Os valores que estavam duplicados entre o código Dart e `firestore.rules` (saldo inicial, recompensa do check-in, skin e fundo padrão, papéis, limites do cadastro e de perfil) passam a vir do contrato em `rules_contract.dart`. `SignUpLimits` mantém a mesma API, agora com as constantes do contrato.
 
 ### Corrigido
 
@@ -61,6 +66,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 
 ### Removido
 
+- `lib/data/astrology.dart` e `lib/data/cosmetics.dart`, substituídos pelos arquivos da reorganização (ver "Alterado"). A duplicação do slug do signo virou uma única função (`zodiacSlug`).
 - `ProfileRepository.updateFields`, a trava por prefixo que recusava chaves `wallet*`, `inventory*`, `dailyCheckIn*` e `role*` (com `ArgumentError`) e `PublicProfileSync.touches`. Não há mais escrita genérica por caminho de campo.
 
 - `UserRepository` (`lib/services/user_repository.dart`), `userRepositoryProvider` e o `FakeUserRepository` dos testes, substituídos pelos repositórios por agregado.

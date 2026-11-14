@@ -1,6 +1,6 @@
 # Reestruturação proposta do Astrum
 
-Status: proposto. Marcado para revisão do `reviewer-consultor` (toca modelo de dados do usuário, economia/loja, regras do Firestore e arquitetura). Nenhuma mudança de código foi feita; este documento só descreve o plano.
+Status: em execução. Etapas 1 a 7 implementadas na branch (a 7 sem commit); a etapa 8 em diante segue como plano. As seções 1 a 3 são a análise do estado anterior à etapa 1 e foram mantidas como histórico. Os desvios de execução estão nas notas "Desvio" da seção 4 e na seção 4.1, e os detalhes de cada etapa estão nos `step*.md`. Este documento descreve o plano; o código é a fonte da verdade sobre o estado atual.
 
 Base da análise: `pubspec.yaml`, `firestore.rules`, `firestore.indexes.json`, `firebase.json`, todo `lib/`, `test/`, `test_rules/` e `docs/architecture/`. Tamanho: ~5,1 mil linhas de Dart em `lib/` + testes, 6 arquivos de teste Dart (~250 linhas) e 37 testes de regras (Node, emulador).
 
@@ -131,14 +131,14 @@ lib/
       data/economy_repository.dart     # purchaseItem, dailyCheckIn (transações)
       data/catalog_repository.dart     # watchCatalog
       data/catalog_seed.dart           # lista local usada só pelo admin para publicar
-      presentation/{shop,inventory}_screen.dart, cosmetics_style.dart, economy_providers.dart
+      presentation/{shop,inventory}_screen.dart, economy_providers.dart   # cosmetics_style.dart: theme/ na etapa 7, core/theme/ na etapa 8 (ver 4.1)
     oracle/
       domain/oracle_service.dart       # respostas locais (puro)
       domain/chat_models.dart          # ChatConversation, ChatMessage
       data/chat_repository.dart        # Firestore (D9) + legacy_chat_store.dart (prefs, só migração)
       presentation/oracle_screen.dart, chat_providers.dart
     cosmos/                            # tela inicial
-      domain/{astrology,moon,tarot}.dart
+      domain/{moon,tarot}.dart          # astrology.dart virou core/astro/ (etapa 7)
       data/daily_content_repository.dart   # horóscopo/tarô do dia (parte de profile, ou em profile)
       presentation/cosmos_screen.dart, cosmos_controller.dart
     rituals/
@@ -172,6 +172,22 @@ Notas da estrutura:
 - Constantes de domínio de economia (`checkInReward`, `initialStardust`, itens padrão, ids de intenção) em `economy/domain` e `social/domain`, com comentário apontando para o trecho equivalente em `firestore.rules`. Não existe como gerar regras a partir de Dart sem tooling; a defesa é um teste de regras que lê os valores (ou uma checklist) e o CI.
 - Roteador: manter go_router; ajustar para ler `authStateProvider` e um `routerStateProvider` derivado (`isLoggedIn`, `isAdmin`, `isLoading`) via `ref.listen` + `select`, sem `FirebaseAuth.instance`. Senha no `extra` de `/welcome` (router, linha ~58) é evitável: ao registrar, guardar o rascunho no provider (`StateProvider`) e passar só o necessário; não persiste em disco, risco baixo, mas é dado sensível trafegando por estado de navegação.
 
+### 4.1 Desvios da execução (etapas 1 a 7)
+
+A árvore acima é o alvo original. Ao executar, algumas decisões mudaram o destino de arquivos ou nomes. Os motivos estão em `step7-data-models.md` (seção 2 e 9). O texto original acima foi mantido.
+
+| Proposta original | O que foi feito | Por quê | Destino final |
+|---|---|---|---|
+| `cosmos/domain/astrology.dart` | `core/astro/{zodiac,natal_chart,synergy}.dart` | signos, mapa natal e sinergia são usados por auth, perfil, economia, social, astral, cosmos, oráculo e admin; em `cosmos/` criariam dependência de quase todas as features para a home | fica em `core/astro/` |
+| `economy/presentation/cosmetics_style.dart` | `theme/cosmetics_style.dart` (etapa 7); `core/theme/` na etapa 8 | `CosmicScaffold` (widget transversal) usa o estilo; no tema evita `core -> features` | `core/theme/cosmetics_style.dart` (a etapa 8 move `theme/` inteiro) |
+| constantes de economia em `economy/domain` e intenções em `social/domain` | `core/firebase/rules_contract.dart`, um único contrato com comentário por regra | um único arquivo de regras pede um único contrato, fácil de conferir; `test/rules_contract_test.dart` detecta divergência | fica em `core/firebase/` |
+| `social/domain/{friend,intention}.dart` | `models/friend.dart` e `models/intention_notice.dart` (nome do arquivo de intenção mudou para `intention_notice.dart`) | um arquivo por modelo; a pasta de feature ainda não existe | `features/social/domain/` (etapa 8) |
+| `data/catalog_seed.dart` em `economy/data/` | `lib/data/catalog_seed.dart` | pasta de feature ainda não existe | `features/economy/data/` (etapa 8) |
+| `CatalogEntry` em `economy/domain/` | `models/catalog_entry.dart` (saiu de `services/economy.dart`) | um arquivo por modelo | `features/economy/domain/` (etapa 8) |
+| (não estava na proposta) `profile_pictures.dart` | `lib/data/profile_pictures.dart` | junta variantes, id padrão e caminho do asset, antes espalhados em `astrology.dart` e `cosmetics.dart` | `features/economy/domain/` (etapa 8, `step7-data-models.md` seção 5) |
+| (não estava na proposta) `ItemType`, `ShopItem` | `models/shop_item.dart` | saiu de `data/cosmetics.dart` | `features/economy/domain/` (etapa 8) |
+| `AppUser.fromDoc` e `CatalogRepository.watchCatalog` | ainda `AppUser.fromFirebase` e `CatalogRepository.watchShopCatalog` | renomes são o passo 8 da etapa 7, opcional; não feito | renome pendente, sem mudança de comportamento |
+
 ## 5. Manter / ajustar / trocar
 
 | Componente | Recomendação | Justificativa | Custo/risco |
@@ -202,7 +218,7 @@ Cada etapa é um PR pequeno; ao final de cada uma `flutter analyze` e `flutter t
 4. Quebrar `UserRepository` (sem mudar comportamento). Extrair, na ordem: `EventsRepository`, `SocialRepository` (friends, busca, notificações), `CatalogRepository`, `EconomyRepository` (purchase e check-in), `ProfileRepository`, `AdminRepository`. Um PR por repositório, mantendo providers e assinaturas; `UserRepository` encolhe até sumir. (R na parte de economia, por tocar saldo/inventário.)
 5. (Implementada; ver `step5-typed-writes.md`.) Tipar as escritas. Substituir `updateFields(Map)` por métodos nomeados (`setEquipped(type, id)`, `saveDailyHoroscope`, `saveDailyTarot`, `updatePreferences`, `saveAstralMap`). Telas deixam de conhecer caminhos de campo. Perfil público sincronizado em `WriteBatch` com `users` quando possível, ou com retry/`syncPublicProfile` explícito. (R: dados de usuário.)
 6. Tirar Firebase das telas restantes. `AuthRepository` (login, cadastro com rollback do usuário Auth se `createProfile` falhar, logout) e `AdminRepository` (publicar catálogo, seed de cristais, stream de analytics). Telas só usam providers. Teste de `publishCatalog` com a lógica de merge extraída para função pura. (R: autenticação.)
-7. Separar `data/` e `models/`. `models/app_user.dart` dividido por modelo; `AppUser.fromDoc` único; `data/cosmetics.dart` em `cosmetics_style.dart` (UI) + `catalog_seed.dart`; `astrology/moon/tarot` para `cosmos/domain`; `economy.dart` separa `CatalogEntry` das exceções. Constantes de economia e intenções em um lugar, com comentário apontando para as regras.
+7. Separar `data/` e `models/`. `models/app_user.dart` dividido por modelo; `AppUser.fromDoc` único (na etapa 7 o método ainda se chama `fromFirebase`; o renome é o passo 8, opcional, não feito); `data/cosmetics.dart` em `cosmetics_style.dart` (UI) + `catalog_seed.dart`; `astrology` em `core/astro/{zodiac,natal_chart,synergy}.dart` (+ `profile_pictures.dart`) e `moon/tarot` para `cosmos/domain`; `cosmetics_style.dart` em `theme/` (depois `core/theme/`); `economy.dart` separa `CatalogEntry` das exceções. Constantes de economia e intenções em um lugar (`core/firebase/rules_contract.dart`, com teste de divergência contra `firestore.rules`) e comentário apontando para as regras. Implementada em `step7-data-models.md`; destinos finais da etapa 8 na seção 5 desse documento.
 8. Mover para feature-first. Mover arquivos por feature (auth, profile, economy, oracle, cosmos, rituals, social, astral, admin) em PRs separados, um por feature, só com mudança de caminho e imports. Roteador para `app/router.dart`.
 9. Controllers das telas pesadas. Extrair de `cosmos_screen.dart` e `oracle_screen.dart` a lógica (horóscopo do dia, tarô, check-in, envio de mensagem) para `Notifier`/`AsyncNotifier` testáveis com repositórios fake. Interfaces `abstract interface class` só para Auth/Profile/Economy/Chat.
 10. Chat no Firestore (D9, já com regras prontas). Implementar `ChatRepository` conforme `chat-sync.md`, migração do legado de prefs, `OracleScreen` observando streams. (R: dado pessoal sensível.)
