@@ -15,7 +15,7 @@ import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/services/economy_exceptions.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/widgets/cosmic_scaffold.dart';
-import 'package:astrum/screens/rituals/meditation_sheet.dart';
+import 'package:astrum/features/cosmos/presentation/meditation_sheet.dart';
 
 class CosmosScreen extends ConsumerStatefulWidget {
   const CosmosScreen({super.key});

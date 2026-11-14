@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:astrum/services/meditation_sounds.dart';
+import 'package:astrum/features/cosmos/data/meditation_sounds.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

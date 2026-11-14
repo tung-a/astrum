@@ -3,7 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
-import 'package:astrum/services/meditation_sounds.dart';
+import 'package:astrum/features/cosmos/data/meditation_sounds.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 
 const _themes = [
