@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 import 'package:astrum/models/ritual_event.dart';
 import 'package:astrum/providers/app_providers.dart';
-import 'package:astrum/theme/astrum_colors.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/widgets/cosmic_scaffold.dart';
 
 class RitualsScreen extends ConsumerStatefulWidget {

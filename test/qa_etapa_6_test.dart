@@ -10,7 +10,7 @@ import 'package:astrum/providers/sign_up_provider.dart';
 import 'package:astrum/screens/auth/login_screen.dart';
 import 'package:astrum/screens/auth/welcome_screen.dart';
 import 'package:astrum/services/admin_repository.dart';
-import 'package:astrum/services/analytics_service.dart';
+import 'package:astrum/core/analytics/analytics_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';

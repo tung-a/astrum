@@ -7,8 +7,8 @@ import 'package:astrum/models/auth_exception.dart';
 import 'package:astrum/models/sign_up_data.dart';
 import 'package:astrum/providers/app_providers.dart';
 import 'package:astrum/providers/sign_up_provider.dart';
-import 'package:astrum/theme/astrum_colors.dart';
-import 'package:astrum/widgets/starfield.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/core/widgets/starfield.dart';
 
 class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});

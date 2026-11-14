@@ -11,7 +11,7 @@ import 'package:astrum/models/ritual_event.dart';
 import 'package:astrum/models/friend.dart';
 import 'package:astrum/models/intention_notice.dart';
 import 'package:astrum/services/admin_repository.dart';
-import 'package:astrum/services/analytics_service.dart';
+import 'package:astrum/core/analytics/analytics_service.dart';
 import 'package:astrum/services/auth_repository.dart';
 import 'package:astrum/services/catalog_repository.dart';
 import 'package:astrum/services/chat_store.dart';

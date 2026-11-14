@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:astrum/models/auth_exception.dart';
-import 'package:astrum/theme/astrum_colors.dart';
-import 'package:astrum/widgets/starfield.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/core/widgets/starfield.dart';
 import 'package:astrum/providers/app_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {

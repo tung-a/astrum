@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:astrum/app_router.dart';
-import 'package:astrum/config/env.dart';
+import 'package:astrum/core/config/env.dart';
 import 'package:astrum/providers/app_providers.dart';
-import 'package:astrum/theme/astrum_theme.dart';
+import 'package:astrum/core/theme/astrum_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

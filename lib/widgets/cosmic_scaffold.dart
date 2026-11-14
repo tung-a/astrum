@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:astrum/models/intention_notice.dart';
 import 'package:astrum/providers/app_providers.dart';
-import 'package:astrum/theme/astrum_colors.dart';
-import 'package:astrum/widgets/starfield.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/core/widgets/starfield.dart';
 
 class CosmicScaffold extends ConsumerWidget {
   const CosmicScaffold({

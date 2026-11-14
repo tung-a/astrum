@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:astrum/models/sign_up_data.dart';
 import 'package:astrum/providers/sign_up_provider.dart';
-import 'package:astrum/theme/astrum_colors.dart';
-import 'package:astrum/widgets/starfield.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/core/widgets/starfield.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});

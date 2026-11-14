@@ -9,7 +9,7 @@ import 'package:astrum/data/profile_pictures.dart';
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/models/friend.dart';
 import 'package:astrum/providers/app_providers.dart';
-import 'package:astrum/theme/astrum_colors.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/widgets/cosmic_scaffold.dart';
 
 /// Icone e cor de cada intencao, por id. Os ids e rotulos vem do contrato

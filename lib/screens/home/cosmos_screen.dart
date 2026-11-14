@@ -7,11 +7,11 @@ import 'package:intl/intl.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/theme/cosmetics_style.dart';
-import 'package:astrum/data/moon.dart';
-import 'package:astrum/data/tarot.dart';
+import 'package:astrum/core/astro/moon.dart';
+import 'package:astrum/core/astro/tarot.dart';
 import 'package:astrum/providers/app_providers.dart';
 import 'package:astrum/services/economy_exceptions.dart';
-import 'package:astrum/theme/astrum_colors.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/widgets/cosmic_scaffold.dart';
 import 'package:astrum/screens/rituals/meditation_sheet.dart';
 
