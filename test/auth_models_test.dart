@@ -1,5 +1,5 @@
-import 'package:astrum/models/auth_exception.dart';
-import 'package:astrum/models/sign_up_data.dart';
+import 'package:astrum/features/auth/domain/auth_exception.dart';
+import 'package:astrum/features/auth/domain/sign_up_data.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

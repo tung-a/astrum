@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:astrum/models/auth_exception.dart';
-import 'package:astrum/models/sign_up_data.dart';
+import 'package:astrum/features/auth/domain/auth_exception.dart';
+import 'package:astrum/features/auth/domain/sign_up_data.dart';
 import 'package:astrum/services/profile_repository.dart';
 
 abstract interface class AuthRepository {

@@ -7,7 +7,7 @@ import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/models/shop_item.dart';
 import 'package:astrum/data/catalog_seed.dart';
 import 'package:astrum/theme/cosmetics_style.dart';
-import 'package:astrum/models/sign_up_data.dart';
+import 'package:astrum/features/auth/domain/sign_up_data.dart';
 import 'package:astrum/screens/account/account_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 

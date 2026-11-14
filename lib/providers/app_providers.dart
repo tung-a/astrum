@@ -6,7 +6,6 @@ import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/theme/cosmetics_style.dart';
 import 'package:astrum/models/app_user.dart';
-import 'package:astrum/services/auth_repository.dart';
 import 'package:astrum/services/catalog_repository.dart';
 import 'package:astrum/models/catalog_entry.dart';
 import 'package:astrum/services/economy_repository.dart';
@@ -68,11 +67,3 @@ final equippedBackgroundProvider = Provider<List<Color>>((ref) {
   return cosmeticBackgrounds[id] ?? cosmeticBackgrounds[defaultBackgroundId]!;
 });
 
-/// Cadastro/login/logout. Depende so de providers estaveis (nao recria
-/// streams).
-final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => FirebaseAuthRepository(
-    auth: ref.watch(firebaseAuthProvider),
-    profile: ref.watch(profileRepositoryProvider),
-  ),
-);

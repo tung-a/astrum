@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:astrum/models/auth_exception.dart';
+import 'package:astrum/features/auth/domain/auth_exception.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/core/widgets/starfield.dart';
-import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/auth/presentation/auth_providers.dart';
 import 'package:astrum/core/analytics/analytics_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {

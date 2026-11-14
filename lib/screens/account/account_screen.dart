@@ -9,6 +9,7 @@ import 'package:astrum/data/profile_pictures.dart';
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/features/social/domain/friend.dart';
 import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/auth/presentation/auth_providers.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/widgets/cosmic_scaffold.dart';

@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:astrum/app_router.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
-import 'package:astrum/models/auth_exception.dart';
+import 'package:astrum/features/auth/domain/auth_exception.dart';
 import 'package:astrum/providers/app_providers.dart';
-import 'package:astrum/providers/sign_up_provider.dart';
+import 'package:astrum/features/auth/presentation/auth_providers.dart';
+import 'package:astrum/features/auth/presentation/sign_up_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
