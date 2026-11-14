@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../core/firebase/firestore_paths.dart';
-import '../core/firebase/rules_contract.dart';
-import '../data/profile_pictures.dart';
-import '../models/shop_item.dart';
-import '../data/crystal_seed.dart';
-import '../models/app_user.dart';
-import 'public_profile.dart';
+import 'package:astrum/core/firebase/firestore_paths.dart';
+import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:astrum/data/profile_pictures.dart';
+import 'package:astrum/models/shop_item.dart';
+import 'package:astrum/data/crystal_seed.dart';
+import 'package:astrum/models/app_user.dart';
+import 'package:astrum/services/public_profile.dart';
 
 /// Falha de uma operacao de admin (mensagem original do Firebase).
 class AdminOperationException implements Exception {

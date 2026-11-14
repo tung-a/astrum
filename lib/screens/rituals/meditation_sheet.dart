@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/app_providers.dart';
-import '../../services/meditation_sounds.dart';
-import '../../theme/astrum_colors.dart';
+import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/services/meditation_sounds.dart';
+import 'package:astrum/theme/astrum_colors.dart';
 
 const _themes = [
   (

@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/sign_up_data.dart';
-import 'app_providers.dart';
+import 'package:astrum/models/sign_up_data.dart';
+import 'package:astrum/providers/app_providers.dart';
 
 /// Rascunho do cadastro entre as duas telas. Vive so em memoria (nunca em
 /// go_router extra, disco ou state restoration); a senha e sensivel.

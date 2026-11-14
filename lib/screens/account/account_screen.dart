@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/firebase/rules_contract.dart';
-import '../../core/astro/zodiac.dart';
-import '../../core/astro/synergy.dart';
-import '../../data/profile_pictures.dart';
-import '../../models/app_user.dart';
-import '../../models/friend.dart';
-import '../../providers/app_providers.dart';
-import '../../theme/astrum_colors.dart';
-import '../../widgets/cosmic_scaffold.dart';
+import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:astrum/core/astro/zodiac.dart';
+import 'package:astrum/core/astro/synergy.dart';
+import 'package:astrum/data/profile_pictures.dart';
+import 'package:astrum/models/app_user.dart';
+import 'package:astrum/models/friend.dart';
+import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/theme/astrum_colors.dart';
+import 'package:astrum/widgets/cosmic_scaffold.dart';
 
 /// Icone e cor de cada intencao, por id. Os ids e rotulos vem do contrato
 /// (`intentionLabels`), que espelha `labelOk` em firestore.rules.

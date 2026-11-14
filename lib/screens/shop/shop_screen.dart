@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/shop_item.dart';
-import '../../data/catalog_seed.dart';
-import '../../theme/cosmetics_style.dart';
-import '../../data/profile_pictures.dart';
-import '../../models/app_user.dart';
-import '../../providers/app_providers.dart';
-import '../../services/economy_exceptions.dart';
-import '../../models/catalog_entry.dart';
-import '../../widgets/cosmic_scaffold.dart';
+import 'package:astrum/models/shop_item.dart';
+import 'package:astrum/data/catalog_seed.dart';
+import 'package:astrum/theme/cosmetics_style.dart';
+import 'package:astrum/data/profile_pictures.dart';
+import 'package:astrum/models/app_user.dart';
+import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/services/economy_exceptions.dart';
+import 'package:astrum/models/catalog_entry.dart';
+import 'package:astrum/widgets/cosmic_scaffold.dart';
 
 class ShopScreen extends ConsumerStatefulWidget {
   const ShopScreen({super.key});

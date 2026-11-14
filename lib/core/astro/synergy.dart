@@ -1,4 +1,4 @@
-import 'zodiac.dart';
+import 'package:astrum/core/astro/zodiac.dart';
 
 class SynergyResult {
   const SynergyResult({

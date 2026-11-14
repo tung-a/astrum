@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/firebase/rules_contract.dart';
-import '../models/shop_item.dart';
+import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:astrum/models/shop_item.dart';
 
 class SkinStyle {
   const SkinStyle({

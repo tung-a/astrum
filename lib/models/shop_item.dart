@@ -1,4 +1,4 @@
-import 'equip_slot.dart';
+import 'package:astrum/models/equip_slot.dart';
 
 enum ItemRarity { common, rare, epic, legendary }
 

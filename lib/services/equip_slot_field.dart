@@ -1,4 +1,4 @@
-import '../models/equip_slot.dart';
+import 'package:astrum/models/equip_slot.dart';
 
 /// Caminho do campo em `users/{uid}` para cada slot.
 extension EquipSlotField on EquipSlot {

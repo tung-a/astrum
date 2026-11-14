@@ -4,16 +4,16 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/firebase/rules_contract.dart';
-import '../../core/astro/zodiac.dart';
-import '../../theme/cosmetics_style.dart';
-import '../../data/moon.dart';
-import '../../data/tarot.dart';
-import '../../providers/app_providers.dart';
-import '../../services/economy_exceptions.dart';
-import '../../theme/astrum_colors.dart';
-import '../../widgets/cosmic_scaffold.dart';
-import '../rituals/meditation_sheet.dart';
+import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:astrum/core/astro/zodiac.dart';
+import 'package:astrum/theme/cosmetics_style.dart';
+import 'package:astrum/data/moon.dart';
+import 'package:astrum/data/tarot.dart';
+import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/services/economy_exceptions.dart';
+import 'package:astrum/theme/astrum_colors.dart';
+import 'package:astrum/widgets/cosmic_scaffold.dart';
+import 'package:astrum/screens/rituals/meditation_sheet.dart';
 
 class CosmosScreen extends ConsumerStatefulWidget {
   const CosmosScreen({super.key});

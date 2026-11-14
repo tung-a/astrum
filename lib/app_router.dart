@@ -3,21 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'core/firebase/firebase_providers.dart';
-import 'providers/app_providers.dart';
-import 'providers/sign_up_provider.dart';
-import 'screens/account/account_screen.dart';
-import 'screens/admin/admin_screen.dart';
-import 'screens/astral/astral_screen.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/auth/register_screen.dart';
-import 'screens/auth/welcome_screen.dart';
-import 'screens/chat/oracle_screen.dart';
-import 'screens/home/cosmos_screen.dart';
-import 'screens/rituals/rituals_screen.dart';
-import 'screens/shell/main_shell.dart';
-import 'screens/shop/inventory_screen.dart';
-import 'screens/shop/shop_screen.dart';
+import 'package:astrum/core/firebase/firebase_providers.dart';
+import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/providers/sign_up_provider.dart';
+import 'package:astrum/screens/account/account_screen.dart';
+import 'package:astrum/screens/admin/admin_screen.dart';
+import 'package:astrum/screens/astral/astral_screen.dart';
+import 'package:astrum/screens/auth/login_screen.dart';
+import 'package:astrum/screens/auth/register_screen.dart';
+import 'package:astrum/screens/auth/welcome_screen.dart';
+import 'package:astrum/screens/chat/oracle_screen.dart';
+import 'package:astrum/screens/home/cosmos_screen.dart';
+import 'package:astrum/screens/rituals/rituals_screen.dart';
+import 'package:astrum/screens/shell/main_shell.dart';
+import 'package:astrum/screens/shop/inventory_screen.dart';
+import 'package:astrum/screens/shop/shop_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 

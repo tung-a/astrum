@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
-import '../models/auth_exception.dart';
-import '../models/sign_up_data.dart';
-import 'profile_repository.dart';
+import 'package:astrum/models/auth_exception.dart';
+import 'package:astrum/models/sign_up_data.dart';
+import 'package:astrum/services/profile_repository.dart';
 
 abstract interface class AuthRepository {
   /// Lanca [AuthException] (nunca FirebaseAuthException).

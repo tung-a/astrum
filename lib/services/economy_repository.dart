@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../core/firebase/firestore_paths.dart';
-import '../models/equip_slot.dart';
-import '../models/catalog_entry.dart';
-import 'economy.dart';
-import 'economy_exceptions.dart';
-import 'equip_slot_field.dart';
-import 'public_profile_sync.dart';
+import 'package:astrum/core/firebase/firestore_paths.dart';
+import 'package:astrum/models/equip_slot.dart';
+import 'package:astrum/models/catalog_entry.dart';
+import 'package:astrum/services/economy.dart';
+import 'package:astrum/services/economy_exceptions.dart';
+import 'package:astrum/services/equip_slot_field.dart';
+import 'package:astrum/services/public_profile_sync.dart';
 
 /// Todo credito e debito de `wallet.stardust` passa por aqui; nenhum outro
 /// repositorio pode gravar `wallet.*`.

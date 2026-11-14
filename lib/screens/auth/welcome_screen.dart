@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/astro/zodiac.dart';
-import '../../models/auth_exception.dart';
-import '../../models/sign_up_data.dart';
-import '../../providers/app_providers.dart';
-import '../../providers/sign_up_provider.dart';
-import '../../theme/astrum_colors.dart';
-import '../../widgets/starfield.dart';
+import 'package:astrum/core/astro/zodiac.dart';
+import 'package:astrum/models/auth_exception.dart';
+import 'package:astrum/models/sign_up_data.dart';
+import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/providers/sign_up_provider.dart';
+import 'package:astrum/theme/astrum_colors.dart';
+import 'package:astrum/widgets/starfield.dart';
 
 class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});

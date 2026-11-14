@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../core/firebase/firestore_paths.dart';
-import '../models/friend.dart';
-import '../models/intention_notice.dart';
-import 'public_profile.dart';
+import 'package:astrum/core/firebase/firestore_paths.dart';
+import 'package:astrum/models/friend.dart';
+import 'package:astrum/models/intention_notice.dart';
+import 'package:astrum/services/public_profile.dart';
 
 /// Amigos, busca por e-mail e intencoes/notificacoes.
 class SocialRepository {

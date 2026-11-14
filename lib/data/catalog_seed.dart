@@ -1,7 +1,7 @@
-import '../core/astro/zodiac.dart';
-import '../core/firebase/rules_contract.dart';
-import '../models/shop_item.dart';
-import 'profile_pictures.dart';
+import 'package:astrum/core/astro/zodiac.dart';
+import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:astrum/models/shop_item.dart';
+import 'package:astrum/data/profile_pictures.dart';
 
 const _baseShopCatalog = <ShopItem>[
   ShopItem(

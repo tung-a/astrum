@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../models/ritual_event.dart';
-import '../../providers/app_providers.dart';
-import '../../theme/astrum_colors.dart';
-import '../../widgets/cosmic_scaffold.dart';
+import 'package:astrum/models/ritual_event.dart';
+import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/theme/astrum_colors.dart';
+import 'package:astrum/widgets/cosmic_scaffold.dart';
 
 class RitualsScreen extends ConsumerStatefulWidget {
   const RitualsScreen({super.key});

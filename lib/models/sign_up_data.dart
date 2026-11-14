@@ -1,4 +1,4 @@
-import '../core/firebase/rules_contract.dart';
+import 'package:astrum/core/firebase/rules_contract.dart';
 
 /// Tamanhos maximos aceitos por `profileShapeOk` em firestore.rules
 /// (manter em sincronia com as regras).

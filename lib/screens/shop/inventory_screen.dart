@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/shop_item.dart';
-import '../../data/catalog_seed.dart';
-import '../../data/profile_pictures.dart';
-import '../../models/app_user.dart';
-import '../../providers/app_providers.dart';
-import '../../widgets/cosmic_scaffold.dart';
+import 'package:astrum/models/shop_item.dart';
+import 'package:astrum/data/catalog_seed.dart';
+import 'package:astrum/data/profile_pictures.dart';
+import 'package:astrum/models/app_user.dart';
+import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/widgets/cosmic_scaffold.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
