@@ -16,7 +16,7 @@ import 'package:astrum/features/auth/presentation/welcome_screen.dart';
 import 'package:astrum/features/oracle/presentation/oracle_screen.dart';
 import 'package:astrum/features/cosmos/presentation/cosmos_screen.dart';
 import 'package:astrum/features/rituals/presentation/rituals_screen.dart';
-import 'package:astrum/screens/shell/main_shell.dart';
+import 'package:astrum/app/shell/main_shell.dart';
 import 'package:astrum/features/economy/presentation/inventory_screen.dart';
 import 'package:astrum/features/economy/presentation/shop_screen.dart';
 

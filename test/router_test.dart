@@ -1,4 +1,4 @@
-import 'package:astrum/app_router.dart';
+import 'package:astrum/app/router.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/auth/presentation/login_screen.dart';

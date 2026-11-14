@@ -227,7 +227,6 @@ void main() {
     expect(bad, isEmpty);
   });
 
-  // Ativado no passo 13 da etapa 8.
   test('pastas legadas de lib/ nao existem mais', () {
     final left = [
       for (final d in _legacyDirs)
@@ -235,5 +234,5 @@ void main() {
       if (File('lib/app_router.dart').existsSync()) 'lib/app_router.dart',
     ];
     expect(left, isEmpty);
-  }, skip: 'ativado no passo 13');
+  });
 }

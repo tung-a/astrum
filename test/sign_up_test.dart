@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:astrum/app_router.dart';
+import 'package:astrum/app/router.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/features/auth/domain/auth_exception.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';

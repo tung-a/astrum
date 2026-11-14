@@ -1,6 +1,6 @@
 // Lacunas de QA para as etapas 1 a 3 (docs/plans/reestruturacao-etapas-1-a-3.md).
 // Sem rede: usa apenas os fakes de test/support.
-import 'package:astrum/app_router.dart';
+import 'package:astrum/app/router.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
