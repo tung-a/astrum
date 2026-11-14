@@ -4,6 +4,7 @@ import 'package:astrum/app_router.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

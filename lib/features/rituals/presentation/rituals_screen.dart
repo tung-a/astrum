@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:astrum/models/ritual_event.dart';
+import 'package:astrum/features/rituals/domain/ritual_event.dart';
 import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/core/analytics/analytics_providers.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/widgets/cosmic_scaffold.dart';

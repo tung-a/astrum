@@ -7,7 +7,6 @@ import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/core/storage/prefs_providers.dart';
 import 'package:astrum/theme/cosmetics_style.dart';
 import 'package:astrum/models/app_user.dart';
-import 'package:astrum/models/ritual_event.dart';
 import 'package:astrum/models/friend.dart';
 import 'package:astrum/models/intention_notice.dart';
 import 'package:astrum/services/admin_repository.dart';
@@ -16,7 +15,6 @@ import 'package:astrum/services/catalog_repository.dart';
 import 'package:astrum/services/chat_store.dart';
 import 'package:astrum/models/catalog_entry.dart';
 import 'package:astrum/services/economy_repository.dart';
-import 'package:astrum/services/events_repository.dart';
 import 'package:astrum/services/oracle_service.dart';
 import 'package:astrum/services/profile_repository.dart';
 import 'package:astrum/services/public_profile_sync.dart';
@@ -28,9 +26,6 @@ final publicProfileSyncProvider = Provider(
     auth: ref.watch(firebaseAuthProvider),
   ),
 );
-
-final eventsRepositoryProvider =
-    Provider((ref) => EventsRepository(ref.watch(firestoreProvider)));
 
 final socialRepositoryProvider =
     Provider((ref) => SocialRepository(ref.watch(firestoreProvider)));
@@ -77,12 +72,6 @@ final profileProvider = StreamProvider<AppUser?>((ref) {
 /// Catalogo da loja (shop_items): fonte unica de preco e disponibilidade.
 final shopCatalogProvider = StreamProvider<Map<String, CatalogEntry>>((ref) {
   return ref.watch(catalogRepositoryProvider).watchShopCatalog();
-});
-
-final eventsProvider = StreamProvider<List<RitualEvent>>((ref) {
-  final uid = ref.watch(currentUidProvider);
-  if (uid == null) return Stream.value(const []);
-  return ref.watch(eventsRepositoryProvider).watchEvents(uid);
 });
 
 final friendsProvider = StreamProvider<List<Friend>>((ref) {

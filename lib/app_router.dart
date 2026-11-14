@@ -15,7 +15,7 @@ import 'package:astrum/screens/auth/register_screen.dart';
 import 'package:astrum/screens/auth/welcome_screen.dart';
 import 'package:astrum/screens/chat/oracle_screen.dart';
 import 'package:astrum/screens/home/cosmos_screen.dart';
-import 'package:astrum/screens/rituals/rituals_screen.dart';
+import 'package:astrum/features/rituals/presentation/rituals_screen.dart';
 import 'package:astrum/screens/shell/main_shell.dart';
 import 'package:astrum/screens/shop/inventory_screen.dart';
 import 'package:astrum/screens/shop/shop_screen.dart';

@@ -9,6 +9,7 @@ import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/data/profile_pictures.dart';
 import 'package:astrum/models/equip_slot.dart';
 import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/services/admin_repository.dart';
 import 'package:astrum/services/catalog_repository.dart';
 import 'package:astrum/services/economy_repository.dart';
