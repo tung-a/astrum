@@ -1,7 +1,8 @@
-import 'package:astrum/core/analytics/analytics_providers.dart';
+import 'package:astrum/core/clock/day_key.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/features/rituals/domain/ritual_event.dart';
+import 'package:astrum/features/rituals/domain/ritual_day.dart';
+import 'package:astrum/features/rituals/presentation/rituals_controller.dart';
 import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
@@ -17,8 +18,6 @@ class RitualsScreen extends ConsumerStatefulWidget {
 
 class _RitualsScreenState extends ConsumerState<RitualsScreen> {
   late DateTime _selected = DateTime.now();
-
-  String _key(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
 
   Future<void> _add() async {
     final profile = ref.read(profileProvider).valueOrNull;
@@ -51,30 +50,19 @@ class _RitualsScreenState extends ConsumerState<RitualsScreen> {
         ],
       ),
     );
-    if (ok != true || title.text.trim().isEmpty) return;
-    await ref.read(eventsRepositoryProvider).addEvent(
-          profile.uid,
-          RitualEvent(
-            id: '',
-            title: title.text.trim(),
-            time: time.text.trim(),
-            date: _key(_selected),
-          ),
+    if (ok != true) return;
+    await ref.read(ritualsControllerProvider.notifier).add(
+          title: title.text,
+          time: time.text,
+          date: dayKey(_selected),
         );
-    await ref.read(analyticsServiceProvider).logEvent('add_event_calendar');
-  }
-
-  Future<void> _delete(String uid, String eventId) async {
-    await ref.read(eventsRepositoryProvider).deleteEvent(uid, eventId);
-    await ref.read(analyticsServiceProvider).logEvent('delete_event_calendar');
   }
 
   @override
   Widget build(BuildContext context) {
     final events = ref.watch(eventsProvider).valueOrNull ?? [];
     final profile = ref.watch(profileProvider).valueOrNull;
-    final dayEvents = events.where((e) => e.date == _key(_selected)).toList()
-      ..sort((a, b) => a.time.compareTo(b.time));
+    final dayEvents = eventsOfDay(events, dayKey(_selected));
 
     return CosmicScaffold(
       title: 'Rituais',
@@ -92,7 +80,7 @@ class _RitualsScreenState extends ConsumerState<RitualsScreen> {
               itemCount: 14,
               itemBuilder: (context, i) {
                 final day = DateTime.now().add(Duration(days: i - 3));
-                final selected = _key(day) == _key(_selected);
+                final selected = dayKey(day) == dayKey(_selected);
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
@@ -130,7 +118,9 @@ class _RitualsScreenState extends ConsumerState<RitualsScreen> {
                           icon: const Icon(Icons.delete_outline),
                           onPressed: profile == null
                               ? null
-                              : () => _delete(profile.uid, e.id),
+                              : () => ref
+                                  .read(ritualsControllerProvider.notifier)
+                                  .delete(e.id),
                         ),
                       );
                     },

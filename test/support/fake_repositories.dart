@@ -106,6 +106,19 @@ class FakeEventsRepository implements EventsRepository {
     return const Stream.empty();
   }
 
+  final added = <({String uid, RitualEvent event})>[];
+  final deleted = <({String uid, String eventId})>[];
+
+  @override
+  Future<void> addEvent(String uid, RitualEvent event) async {
+    added.add((uid: uid, event: event));
+  }
+
+  @override
+  Future<void> deleteEvent(String uid, String eventId) async {
+    deleted.add((uid: uid, eventId: eventId));
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
