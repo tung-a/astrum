@@ -6,7 +6,7 @@ import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/widgets/cosmic_scaffold.dart';
+import 'package:astrum/shared/cosmic_scaffold.dart';
 
 class AstralScreen extends ConsumerWidget {
   const AstralScreen({super.key});

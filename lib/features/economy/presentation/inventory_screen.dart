@@ -6,7 +6,7 @@ import 'package:astrum/features/economy/domain/catalog_seed.dart';
 import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/widgets/cosmic_scaffold.dart';
+import 'package:astrum/shared/cosmic_scaffold.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});

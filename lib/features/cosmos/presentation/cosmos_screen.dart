@@ -6,17 +6,17 @@ import 'package:intl/intl.dart';
 
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/astro/zodiac.dart';
-import 'package:astrum/theme/cosmetics_style.dart';
+import 'package:astrum/shared/cosmetics_style.dart';
 import 'package:astrum/core/astro/moon.dart';
 import 'package:astrum/core/astro/tarot.dart';
-import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/shared/equipped_cosmetics_providers.dart';
 import 'package:astrum/features/economy/presentation/economy_providers.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/features/economy/domain/economy_exceptions.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/widgets/cosmic_scaffold.dart';
+import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:astrum/features/cosmos/presentation/meditation_sheet.dart';
 
 class CosmosScreen extends ConsumerStatefulWidget {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:astrum/features/social/domain/intention_notice.dart';
-import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/shared/equipped_cosmetics_providers.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';

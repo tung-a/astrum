@@ -12,7 +12,7 @@ import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/auth/presentation/auth_providers.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/widgets/cosmic_scaffold.dart';
+import 'package:astrum/shared/cosmic_scaffold.dart';
 
 /// Icone e cor de cada intencao, por id. Os ids e rotulos vem do contrato
 /// (`intentionLabels`), que espelha `labelOk` em firestore.rules.

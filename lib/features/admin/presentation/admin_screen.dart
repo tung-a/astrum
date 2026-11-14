@@ -7,7 +7,7 @@ import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/admin/presentation/admin_providers.dart';
 import 'package:astrum/features/admin/data/admin_repository.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/widgets/cosmic_scaffold.dart';
+import 'package:astrum/shared/cosmic_scaffold.dart';
 
 enum _RoleFilter { all, admin, user }
 
