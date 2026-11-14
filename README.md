@@ -91,7 +91,7 @@ $env:FIRESTORE_EMULATOR_PORT=8091; npm test      # PowerShell
 
 - `docs/architecture/overview.md`: visão geral da arquitetura, das coleções do Firestore e das decisões.
 - `docs/architecture/restructuring.md`: análise da arquitetura atual e proposta de reestruturação (feature-first leve, repositórios por agregado).
-- `docs/plans/reestruturacao-etapas-1-a-3.md`: plano de migração em etapas (o nome é histórico; o arquivo registra também as etapas 4 a 6 e o backlog). As etapas 1 a 7 estão na branch (a 7 ainda sem commit).
+- `docs/plans/reestruturacao-etapas-1-a-3.md`: plano de migração em etapas (o nome é histórico; o arquivo registra também as etapas 4 a 6 e o backlog). As etapas 1 a 8 estão na branch (a 8 reorganizou `lib/` em `app/`, `core/`, `features/` e `shared/`).
 - `docs/architecture/step4-repositories.md`: etapa 4, divisão do `UserRepository` em repositórios por agregado (concluída na branch).
 - `docs/architecture/step5-typed-writes.md`: etapa 5, escritas tipadas no perfil e `EquipSlot` no equipar e na compra (concluída na branch; a atomicidade entre `users` e `publicProfiles` continua pendente).
 - `docs/architecture/step6-auth.md`: etapa 6, `AuthRepository`, cadastro com desfazimento, senha fora da navegação e Firebase fora das telas (implementada na branch, sem commit; aguarda revisão do `reviewer-consultor`).

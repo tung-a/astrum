@@ -9,7 +9,7 @@ Você é o Reviewer do Astrum. Revise o diff atual (`git diff`, `git diff main..
 
 Verifique:
 - Bugs de lógica, null-safety, estados não tratados (carregando/erro/vazio), vazamento de `StreamSubscription`/controllers, `BuildContext` usado após `await`.
-- Aderência aos padrões: Riverpod nos providers, rotas em `lib/app_router.dart`, tema em `lib/theme/`.
+- Aderência aos padrões: Riverpod nos providers, rotas em `lib/app/router.dart`, tema em `lib/core/theme/`.
 - Testes cobrindo a lógica nova; `flutter analyze` e `flutter test` passando.
 - Critérios de aceite do plano em `docs/plans/` atendidos.
 

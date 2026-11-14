@@ -33,6 +33,9 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 
 ### Alterado
 
+- Etapa 8, estrutura feature-first leve (refatoração pura, sem mudança de comportamento, regra, texto de tela ou dependência): `lib/` passa a ter `app/`, `core/`, `features/<feature>/{domain,data,presentation}/`, `shared/` e `main.dart`. O `app_providers.dart` monolítico foi dividido por feature, os imports de `lib/` usam só `package:astrum/` e 9 testes foram espelhados em `test/features/`. Detalhes e desvios em `docs/architecture/step8-feature-first.md`.
+- `test/core_boundaries_test.dart` verifica as fronteiras: camadas (core < domain < data < providers < shared < telas < app), ausência de ciclos e de import relativo em `lib/`, camada definida para todo arquivo, camadas puras sem Flutter (inclusive transitivamente) e `*_providers.dart` sem `material`/`widgets`.
+- Lint `directives_ordering` ativada em `analysis_options.yaml`; imports de `lib/` e `test/` ordenados.
 - `UserRepository` foi dividido em repositórios por agregado em `lib/services/`: `ProfileRepository` (perfil do usuário logado), `EventsRepository` (rituais), `SocialRepository` (amigos, busca e intenções), `CatalogRepository` (catálogo da loja), `AdminRepository` (listagem de usuários e reconstrução de perfis públicos) e `EconomyRepository`, uma interface com implementação `FirestoreEconomyRepository`, que concentra todo crédito e débito de saldo (compra e check-in). O comportamento foi preservado: os métodos foram movidos sem mudar gravações, ordem ou exceções.
 - `PublicProfileSync` centraliza a gravação de `publicProfiles` usada pelo perfil e pela economia.
 - Providers por repositório (`profileRepositoryProvider`, `eventsRepositoryProvider`, `socialRepositoryProvider`, `catalogRepositoryProvider`, `economyRepositoryProvider`, `adminRepositoryProvider`) substituem `userRepositoryProvider` nas telas e nos providers derivados.

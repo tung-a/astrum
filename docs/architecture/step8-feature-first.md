@@ -1,6 +1,6 @@
 # Etapa 8: mover para feature-first leve
 
-Status: passos 0 a 13 implementados (um commit por passo); passos 14 (espelhar testes) e 15 (docs) pendentes. Refatoração pura: nenhum comportamento, valor, texto de tela, regra ou índice muda. `firestore.rules`, `firestore.indexes.json`, `test_rules/` e `pubspec.yaml` ficam sem diff. Plano Spark inalterado (zero dependência nova, zero leitura nova). A única mudança que não é só "caminho + import" é a divisão de `lib/providers/app_providers.dart` por feature (seção 4); ela move declarações sem alterar o corpo e é explicada lá.
+Status: concluída (passos 0 a 15, um commit por passo, mais o fechamento descrito em "Desvios na execução" no fim deste arquivo). Refatoração pura: nenhum comportamento, valor, texto de tela, regra ou índice muda. `firestore.rules`, `firestore.indexes.json`, `test_rules/` e `pubspec.yaml` ficam sem diff. Plano Spark inalterado (zero dependência nova, zero leitura nova). A única mudança que não é só "caminho + import" é a divisão de `lib/providers/app_providers.dart` por feature (seção 4); ela move declarações sem alterar o corpo e é explicada lá.
 
 Base: `restructuring.md` (seção 4 e etapa 8 da seção 6), `step7-data-models.md` (seção 5), `step4-repositories.md`, `step5-typed-writes.md`, `step6-auth.md`, `docs/plans/reestruturacao-etapas-1-a-3.md` (backlog), `git ls-files lib test` (60 arquivos em `lib/`, 25 em `test/`) e grep de todos os imports. Os mapas e as regras abaixo foram validados numa cópia da árvore: aplicados os movimentos da seção 3 com a ferramenta da seção 6, todos os `package:astrum/...` resolvem e as regras da seção 5 acusam apenas o monolito `app_providers.dart` (que a seção 4 elimina).
 
@@ -280,3 +280,11 @@ Por quê: o `CLAUDE.md` lista "arquitetura" como gatilho, e esta etapa fixa regr
 - Nenhum `import` relativo em `lib/`; nenhum import de `providers/app_providers.dart`.
 - Zero diff em `firestore.rules`, `firestore.indexes.json`, `test_rules/`, `pubspec.yaml`, `pubspec.lock`.
 - `git log --follow` funciona nos arquivos movidos (renames detectados).
+
+## Desvios na execução e dívidas (fechamento)
+
+- Teste de fronteira reforçado no fechamento: em vez de lista de pastas legadas proibidas, todo arquivo de `lib/` precisa ter camada definida (lista de permitidas); pureza (sem Flutter) cobre `import` e `export` e o fecho transitivo de `domain`, `core/astro`, `core/firebase`, `core/storage`, `core/analytics/analytics_providers.dart` e `features/admin/data/crystal_seed.dart`; `*_provider(s).dart` de features não importam `material`/`widgets`. Exceção documentada: `core/analytics/analytics_service.dart` usa `package:flutter/foundation.dart`. Regras com testes de mutação em memória.
+- Dívida: a lógica de equipar (`equip`, sincronização do avatar com `publicProfiles`) mora em `ProfileRepository` (`features/profile/data`), embora o conceito seja de economia/cosméticos; mantida para não alterar corpo de repositório nesta etapa. Revisar na etapa 9.
+- Dívida: `shared/cosmetics_style.dart` e `shared/equipped_cosmetics_providers.dart` não cumprem a regra de admissão original; a regra foi reescrita (seção de riscos) e eles ficam como exceções conscientes. Revisar na etapa 9.
+- Passo 14: os 9 testes foram movidos com `git mv`; o import de `support/` dos 2 testes que o usam ficou relativo (`../../../support/fake_firebase.dart`), porque `test/support/` não é alcançável por `package:astrum/` (que aponta para `lib/`).
+- Passo 13/lint: `directives_ordering` foi ativada em `analysis_options.yaml` e `dart fix --apply` ordenou 60 arquivos; o diff só altera linhas de `import`/`export` e linhas em branco entre elas.

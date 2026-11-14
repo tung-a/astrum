@@ -1,6 +1,6 @@
 # Reestruturação proposta do Astrum
 
-Status: em execução. Etapas 1 a 7 implementadas na branch (a 7 sem commit); a etapa 8 em diante segue como plano. As seções 1 a 3 são a análise do estado anterior à etapa 1 e foram mantidas como histórico. Os desvios de execução estão nas notas "Desvio" da seção 4 e na seção 4.1, e os detalhes de cada etapa estão nos `step*.md`. Este documento descreve o plano; o código é a fonte da verdade sobre o estado atual.
+Status: em execução. Etapas 1 a 8 implementadas na branch (a 8 concluída em `step8-feature-first.md`); a etapa 9 em diante segue como plano. As seções 1 a 3 são a análise do estado anterior à etapa 1 e foram mantidas como histórico. Os desvios de execução estão nas notas "Desvio" da seção 4 e na seção 4.1, e os detalhes de cada etapa estão nos `step*.md`. Este documento descreve o plano; o código é a fonte da verdade sobre o estado atual.
 
 Base da análise: `pubspec.yaml`, `firestore.rules`, `firestore.indexes.json`, `firebase.json`, todo `lib/`, `test/`, `test_rules/` e `docs/architecture/`. Tamanho: ~5,1 mil linhas de Dart em `lib/` + testes, 6 arquivos de teste Dart (~250 linhas) e 37 testes de regras (Node, emulador).
 

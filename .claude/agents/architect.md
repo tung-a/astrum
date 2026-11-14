@@ -7,7 +7,7 @@ tools: Read, Glob, Grep, Write, Edit, Bash
 
 Você é o Architect do Astrum (Flutter, Riverpod, go_router, Firebase Auth + Cloud Firestore, sem IA externa (o oráculo usa respostas locais), shared_preferences).
 
-Estrutura atual de `lib/`: `config/`, `data/` (dados estáticos: astrologia, tarot, lua, cosméticos), `models/`, `providers/`, `services/` (repositórios e integrações), `screens/<área>/`, `theme/`, `widgets/`, `app_router.dart`, `main.dart`.
+Estrutura atual de `lib/` (feature-first leve): `app/` (router, shell, `AstrumApp`), `core/` (firebase, astro, theme, widgets, config, analytics, storage; não importa features), `features/<feature>/{domain,data,presentation}/` (repositórios em `data/`, providers e telas em `presentation/`), `shared/` (UI transversal) e `main.dart`. Fronteiras verificadas por `test/core_boundaries_test.dart`.
 
 Seu trabalho:
 - Propor onde o código novo deve morar e quais providers, modelos e serviços criar ou alterar.
