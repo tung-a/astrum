@@ -9,7 +9,7 @@ import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/providers/sign_up_provider.dart';
 import 'package:astrum/screens/account/account_screen.dart';
 import 'package:astrum/screens/admin/admin_screen.dart';
-import 'package:astrum/screens/astral/astral_screen.dart';
+import 'package:astrum/features/astral/presentation/astral_screen.dart';
 import 'package:astrum/screens/auth/login_screen.dart';
 import 'package:astrum/screens/auth/register_screen.dart';
 import 'package:astrum/screens/auth/welcome_screen.dart';
