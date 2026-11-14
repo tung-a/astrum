@@ -92,8 +92,7 @@ void main() {
   // A -> B sem logout, o profileProvider mantem o valor anterior enquanto o
   // perfil de B carrega. Logo o currentUidProvider segue 'a' e os streams de
   // events/friends continuam em A, ate o perfil de B chegar. Esperado: o uid
-  // nao deve ser 'a' depois que a auth ja e de B. Remover o skip quando
-  // corrigido.
+  // nao deve ser 'a' depois que a auth ja e de B.
   test(
       'BUG-1 troca A->B sem logout nao mantem o uid de A durante o loading de B',
       () async {

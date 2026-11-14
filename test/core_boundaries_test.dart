@@ -1,53 +1,49 @@
 // Fronteiras de imports (step8-feature-first.md, secao 5): camadas
 // core < domain < data < providers < shared < telas < app, sem ciclo, sem
-// import relativo em lib/ e sem Flutter em core/astro, core/firebase e
-// features/*/domain. Le lib/ como texto. Arquivos fora das pastas novas
-// (legado durante a migracao) tem camada indefinida e sao ignorados.
+// import relativo em lib/, sem Flutter nas camadas puras (e no fecho
+// transitivo delas) e sem widgets em *_provider(s).dart. Le lib/ como texto.
+// Todo arquivo de lib/ precisa ter camada definida (lista de permitidas).
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-final _import = RegExp(
-    r"""^\s*(?:import|export)\s+['"]package:astrum/([^'"]+)['"]""");
-final _relative =
-    RegExp(r"""^\s*(?:import|export)\s+['"](?!dart:|package:)""");
-final _flutter = RegExp(r"""import\s+['"](package:flutter/|dart:ui)""");
+final _import =
+    RegExp(r"""^\s*(?:import|export)\s+['"]package:astrum/([^'"]+)['"]""");
+final _relative = RegExp(r"""^\s*(?:import|export)\s+['"](?!dart:|package:)""");
+final _flutter =
+    RegExp(r"""^\s*(?:import|export)\s+['"](package:flutter/|dart:ui)""");
+final _widgets = RegExp(
+    r"""^\s*(?:import|export)\s+['"]package:flutter/(material|widgets)\.dart""");
 
 const _core = 0, _domain = 1, _data = 2, _providers = 3, _shared = 4;
 const _screen = 5, _app = 6;
 
 /// Camada do caminho relativo a lib/ (ex.: 'core/astro/zodiac.dart'), ou null
-/// quando o arquivo esta numa pasta legada.
+/// quando o arquivo esta fora das pastas permitidas. A ordem importa: core/ e
+/// features/ sao testados antes de shared/ e app/; dentro de presentation/, o
+/// sufixo _provider(s).dart vence e classifica como providers, o resto e tela.
 int? layerOf(String p) {
   if (p.startsWith('core/')) return _core;
-  final m = RegExp(r'^features/(\w+)/(domain|data|presentation)/(.*)$')
-      .firstMatch(p);
+  final m =
+      RegExp(r'^features/(\w+)/(domain|data|presentation)/(.*)$').firstMatch(p);
   if (m != null) {
     if (m[2] == 'domain') return _domain;
     if (m[2] == 'data') return _data;
-    return RegExp(r'_providers?\.dart$').hasMatch(m[3]!)
-        ? _providers
-        : _screen;
+    return RegExp(r'_providers?\.dart$').hasMatch(m[3]!) ? _providers : _screen;
   }
   if (p.startsWith('shared/')) return _shared;
   if (p.startsWith('app/') || p == 'main.dart') return _app;
   return null;
 }
 
-String? featureOf(String p) =>
-    RegExp(r'^features/(\w+)/').firstMatch(p)?[1];
+String? featureOf(String p) => RegExp(r'^features/(\w+)/').firstMatch(p)?[1];
 
 const _dataAllow = {'auth>profile', 'economy>profile'};
-const _legacyDirs = [
-  'providers',
-  'screens',
-  'services',
-  'models',
-  'data',
-  'widgets',
-  'theme',
-  'config',
-];
+
+/// Arquivos que dependem de Flutter de forma legitima e ficam fora da
+/// verificacao de pureza (nem sao marcados, nem atravessados).
+/// analytics_service usa package:flutter/foundation.dart (debugPrint/kDebugMode).
+const _flutterExceptions = {'core/analytics/analytics_service.dart'};
 
 Map<String, File> _libFiles() {
   final out = <String, File>{};
@@ -116,6 +112,63 @@ List<String> cycles(Map<String, List<String>> graph) {
   return bad;
 }
 
+Map<String, List<String>> _libLines() => {
+      for (final e in _libFiles().entries) e.key: e.value.readAsLinesSync(),
+    };
+
+/// Regra 1: arquivos de lib/ sem camada definida (fora das pastas permitidas).
+List<String> undefinedLayer(Iterable<String> paths) => [
+      for (final p in paths)
+        if (layerOf(p) == null) p
+    ];
+
+bool _isStrict(String p) =>
+    p.startsWith('core/astro/') ||
+    p.startsWith('core/firebase/') ||
+    RegExp(r'^features/\w+/domain/').hasMatch(p);
+
+bool _isFlutterFree(String p) =>
+    _isStrict(p) ||
+    p == 'features/admin/data/crystal_seed.dart' ||
+    p.startsWith('core/storage/') ||
+    p == 'core/analytics/analytics_providers.dart';
+
+/// Regra 2: raizes puras nao importam/exportam Flutter nem direta nem
+/// transitivamente (fecho pelos imports de package:astrum). As raizes
+/// estritas (domain, core/astro, core/firebase) tambem so podem importar
+/// dentro delas mesmas.
+List<String> purityViolations(Map<String, List<String>> lines) {
+  final bad = <String>[];
+  final seen = <String>{};
+  void visit(String p, String root) {
+    if (!seen.add('$root|$p') || _flutterExceptions.contains(p)) return;
+    for (final l in lines[p] ?? const <String>[]) {
+      if (_flutter.hasMatch(l)) bad.add('$root -> $p: $l');
+      final t = _import.firstMatch(l)?[1];
+      if (t == null) continue;
+      if (_isStrict(root) && !_isStrict(t)) {
+        bad.add(
+            '$root: $p importa $t (fora de domain/core/astro/core/firebase)');
+      }
+      visit(t, root);
+    }
+  }
+
+  for (final p in lines.keys.where(_isFlutterFree)) {
+    visit(p, p);
+  }
+  return bad;
+}
+
+/// Regra 3: *_provider(s).dart de features nao importam material/widgets.
+List<String> providerWidgetViolations(Map<String, List<String>> lines) => [
+      for (final e in lines.entries)
+        if (e.key.startsWith('features/') &&
+            RegExp(r'_providers?\.dart$').hasMatch(e.key))
+          for (final l in e.value)
+            if (_widgets.hasMatch(l)) '${e.key}: $l',
+    ];
+
 void main() {
   test('detector reconhece camadas, features e imports', () {
     expect(layerOf('core/astro/zodiac.dart'), _core);
@@ -134,14 +187,14 @@ void main() {
     expect(featureOf('core/astro/zodiac.dart'), isNull);
     expect(_import.firstMatch("import 'package:astrum/core/a.dart';")![1],
         'core/a.dart');
-    expect(_import.hasMatch("import 'package:flutter/material.dart';"),
-        isFalse);
+    expect(
+        _import.hasMatch("import 'package:flutter/material.dart';"), isFalse);
     expect(_relative.hasMatch("import '../data/tarot.dart';"), isTrue);
     expect(_relative.hasMatch("import 'zodiac.dart';"), isTrue);
     expect(_relative.hasMatch("import 'package:astrum/a.dart';"), isFalse);
     expect(_relative.hasMatch("import 'dart:io';"), isFalse);
-    expect(_flutter.hasMatch("import 'package:flutter/foundation.dart';"),
-        isTrue);
+    expect(
+        _flutter.hasMatch("import 'package:flutter/foundation.dart';"), isTrue);
     expect(
         _flutter.hasMatch(
             "import 'package:flutter_riverpod/flutter_riverpod.dart';"),
@@ -192,7 +245,8 @@ void main() {
     }
   });
 
-  test('camadas: nenhum import de camada acima nem de data/tela de outra '
+  test(
+      'camadas: nenhum import de camada acima nem de data/tela de outra '
       'feature; core so importa core', () {
     expect(layerViolations(_graph(_libFiles())), isEmpty);
   });
@@ -211,28 +265,79 @@ void main() {
     expect(bad, isEmpty);
   });
 
-  test('core/astro, core/firebase e features/*/domain nao importam Flutter',
-      () {
-    final bad = <String>[];
-    for (final e in _libFiles().entries) {
-      final p = e.key;
-      final pure = p.startsWith('core/astro/') ||
-          p.startsWith('core/firebase/') ||
-          RegExp(r'^features/\w+/domain/').hasMatch(p);
-      if (!pure) continue;
-      for (final line in e.value.readAsLinesSync()) {
-        if (_flutter.hasMatch(line)) bad.add('$p: $line');
-      }
-    }
-    expect(bad, isEmpty);
+  test('toda pasta de lib/ tem camada definida (lista de permitidas)', () {
+    expect(undefinedLayer(_libFiles().keys), isEmpty);
   });
 
-  test('pastas legadas de lib/ nao existem mais', () {
-    final left = [
-      for (final d in _legacyDirs)
-        if (Directory('lib/$d').existsSync()) 'lib/$d',
-      if (File('lib/app_router.dart').existsSync()) 'lib/app_router.dart',
-    ];
-    expect(left, isEmpty);
+  test('camadas puras (e fecho transitivo) nao dependem de Flutter', () {
+    expect(purityViolations(_libLines()), isEmpty);
+  });
+
+  test('providers de features nao importam material/widgets', () {
+    expect(providerWidgetViolations(_libLines()), isEmpty);
+  });
+
+  test('regras novas detectam violacoes em memoria', () {
+    expect(
+        undefinedLayer(['core/a.dart', 'services/x.dart', 'features/a/x.dart']),
+        ['services/x.dart', 'features/a/x.dart']);
+    // import direto, export e fecho transitivo
+    expect(
+        purityViolations({
+          'core/astro/a.dart': ["import 'package:flutter/material.dart';"],
+        }),
+        isNotEmpty);
+    expect(
+        purityViolations({
+          'features/a/domain/a.dart': [
+            "export 'package:flutter/widgets.dart';"
+          ],
+        }),
+        isNotEmpty);
+    expect(
+        purityViolations({
+          'features/a/domain/a.dart': [
+            "import 'package:astrum/shared/s.dart';"
+          ],
+          'shared/s.dart': ["import 'package:flutter/material.dart';"],
+        }),
+        isNotEmpty);
+    expect(
+        purityViolations({
+          'core/storage/p.dart': ["import 'package:astrum/shared/s.dart';"],
+          'shared/s.dart': ["import 'package:flutter/material.dart';"],
+        }),
+        isNotEmpty);
+    expect(
+        purityViolations({
+          'core/analytics/analytics_service.dart': [
+            "import 'package:flutter/foundation.dart';"
+          ],
+          'core/analytics/analytics_providers.dart': [
+            "import 'package:astrum/core/analytics/analytics_service.dart';"
+          ],
+          'features/a/domain/a.dart': [
+            "import 'package:astrum/core/astro/z.dart';"
+          ],
+          'core/astro/z.dart': <String>[],
+        }),
+        isEmpty);
+    expect(
+        providerWidgetViolations({
+          'features/a/presentation/a_providers.dart': [
+            "import 'package:flutter/material.dart';"
+          ],
+        }),
+        isNotEmpty);
+    expect(
+        providerWidgetViolations({
+          'features/a/presentation/a_provider.dart': [
+            "export 'package:flutter/widgets.dart';"
+          ],
+          'features/a/presentation/a_screen.dart': [
+            "import 'package:flutter/material.dart';"
+          ],
+        }).length,
+        1);
   });
 }
