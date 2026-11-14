@@ -2,16 +2,17 @@ import 'dart:async';
 
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/features/rituals/domain/ritual_event.dart';
-import 'package:astrum/models/friend.dart';
-import 'package:astrum/models/intention_notice.dart';
+import 'package:astrum/features/social/domain/friend.dart';
+import 'package:astrum/features/social/domain/intention_notice.dart';
 import 'package:astrum/models/auth_exception.dart';
 import 'package:astrum/models/sign_up_data.dart';
 import 'package:astrum/services/auth_repository.dart';
 import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/features/rituals/data/events_repository.dart';
 import 'package:astrum/services/profile_repository.dart';
-import 'package:astrum/services/social_repository.dart';
+import 'package:astrum/features/social/data/social_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

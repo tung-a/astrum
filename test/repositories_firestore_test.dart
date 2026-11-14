@@ -1,14 +1,14 @@
 import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/features/rituals/domain/ritual_event.dart';
-import 'package:astrum/models/friend.dart';
+import 'package:astrum/features/social/domain/friend.dart';
 import 'package:astrum/models/equip_slot.dart';
 import 'package:astrum/features/admin/data/admin_repository.dart';
 import 'package:astrum/features/rituals/data/events_repository.dart';
 import 'package:astrum/services/profile_repository.dart';
 import 'package:astrum/services/public_profile.dart';
 import 'package:astrum/services/public_profile_sync.dart';
-import 'package:astrum/services/social_repository.dart';
+import 'package:astrum/features/social/data/social_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';

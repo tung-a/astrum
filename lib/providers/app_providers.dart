@@ -6,15 +6,12 @@ import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/theme/cosmetics_style.dart';
 import 'package:astrum/models/app_user.dart';
-import 'package:astrum/models/friend.dart';
-import 'package:astrum/models/intention_notice.dart';
 import 'package:astrum/services/auth_repository.dart';
 import 'package:astrum/services/catalog_repository.dart';
 import 'package:astrum/models/catalog_entry.dart';
 import 'package:astrum/services/economy_repository.dart';
 import 'package:astrum/services/profile_repository.dart';
 import 'package:astrum/services/public_profile_sync.dart';
-import 'package:astrum/services/social_repository.dart';
 
 final publicProfileSyncProvider = Provider(
   (ref) => PublicProfileSync(
@@ -22,9 +19,6 @@ final publicProfileSyncProvider = Provider(
     auth: ref.watch(firebaseAuthProvider),
   ),
 );
-
-final socialRepositoryProvider =
-    Provider((ref) => SocialRepository(ref.watch(firestoreProvider)));
 
 final catalogRepositoryProvider =
     Provider((ref) => CatalogRepository(ref.watch(firestoreProvider)));
@@ -60,20 +54,6 @@ final profileProvider = StreamProvider<AppUser?>((ref) {
 /// Catalogo da loja (shop_items): fonte unica de preco e disponibilidade.
 final shopCatalogProvider = StreamProvider<Map<String, CatalogEntry>>((ref) {
   return ref.watch(catalogRepositoryProvider).watchShopCatalog();
-});
-
-final friendsProvider = StreamProvider<List<Friend>>((ref) {
-  final uid = ref.watch(currentUidProvider);
-  if (uid == null) return Stream.value(const []);
-  return ref.watch(socialRepositoryProvider).watchFriends(uid);
-});
-
-final intentionProvider = StreamProvider<IntentionNotice?>((ref) {
-  final uid = ref.watch(currentUidProvider);
-  final notificationsEnabled = ref.watch(profileProvider
-      .select((p) => p.valueOrNull?.notificationsEnabled ?? false));
-  if (uid == null || !notificationsEnabled) return Stream.value(null);
-  return ref.watch(socialRepositoryProvider).watchUnreadIntention(uid);
 });
 
 final equippedSkinProvider = Provider<SkinStyle>((ref) {
