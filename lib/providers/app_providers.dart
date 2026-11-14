@@ -8,7 +8,6 @@ import 'package:astrum/theme/cosmetics_style.dart';
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/models/friend.dart';
 import 'package:astrum/models/intention_notice.dart';
-import 'package:astrum/services/admin_repository.dart';
 import 'package:astrum/services/auth_repository.dart';
 import 'package:astrum/services/catalog_repository.dart';
 import 'package:astrum/models/catalog_entry.dart';
@@ -43,9 +42,6 @@ final profileRepositoryProvider = Provider(
     sync: ref.watch(publicProfileSyncProvider),
   ),
 );
-
-final adminRepositoryProvider =
-    Provider((ref) => AdminRepository(ref.watch(firestoreProvider)));
 
 /// Perfil do usuario logado. Semantica switchMap: ao mudar o estado de auth
 /// (logout, login de outro usuario) o provider e reconstruido e o Riverpod

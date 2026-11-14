@@ -4,7 +4,7 @@ import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/data/profile_pictures.dart';
 import 'package:astrum/models/shop_item.dart';
-import 'package:astrum/data/crystal_seed.dart';
+import 'package:astrum/features/admin/data/crystal_seed.dart';
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/services/public_profile.dart';
 

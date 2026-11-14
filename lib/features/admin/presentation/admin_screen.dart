@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astrum/data/catalog_seed.dart';
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/providers/app_providers.dart';
-import 'package:astrum/services/admin_repository.dart';
+import 'package:astrum/features/admin/presentation/admin_providers.dart';
+import 'package:astrum/features/admin/data/admin_repository.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/widgets/cosmic_scaffold.dart';
 
