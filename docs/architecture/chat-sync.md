@@ -7,7 +7,7 @@ Status: proposto. Marcado para revisão do `reviewer-consultor` (dado pessoal se
 - Hoje o histórico vive só em SharedPreferences, chave `astrum.chat.$uid` (`lib/services/chat_store.dart`), como um JSON único `{conversations: [{id, title, messages: [{role, text}]}]}`. `OracleScreen` carrega tudo uma vez (`_hydrate`) e regrava a lista inteira a cada mensagem (`_persist`).
 - Os modelos `ChatConversation` e `ChatTurnStored` estão em `lib/models/app_user.dart`. Os ids de conversa são UUID v4. Mensagens não têm id nem data.
 - O RN (`ChatContext.tsx`) tinha chave de IA no cliente e as chamadas `logAddConversation`/`logDeleteConversation` comentadas. Não há requisito de paridade além do que já existe.
-- `UserRepository` já usa `users/{uid}/<subcoleção>` (events, friends, notifications). Seguimos o mesmo padrão.
+- Os repositórios (`ProfileRepository`, `EventsRepository`, `SocialRepository`; o antigo `UserRepository` foi dividido na etapa 4) já usam `users/{uid}/<subcoleção>` (events, friends, notifications). Seguimos o mesmo padrão.
 - Restrições: plano gratuito (sem Cloud Functions), segurança só por regras, e as regras ainda não existem (T07).
 - Não existe hoje fluxo de exclusão de conta no app (nenhum `delete` de usuário em `lib/`). Ver seção 5.
 
