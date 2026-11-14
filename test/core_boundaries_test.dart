@@ -1,7 +1,8 @@
 // Fronteiras de imports (step8-feature-first.md, secao 5): camadas
 // core < domain < data < providers < shared < telas < app, sem ciclo, sem
 // import relativo em lib/, sem Flutter nas camadas puras (e no fecho
-// transitivo delas) e sem widgets em *_provider(s).dart. Le lib/ como texto.
+// transitivo delas) e sem widgets em *_provider(s).dart e *_controller.dart.
+// Le lib/ como texto.
 // Todo arquivo de lib/ precisa ter camada definida (lista de permitidas).
 import 'dart:io';
 
@@ -15,13 +16,16 @@ final _flutter =
 final _widgets = RegExp(
     r"""^\s*(?:import|export)\s+['"]package:flutter/(material|widgets)\.dart""");
 
+final _providerFile = RegExp(r'_(providers?|controller)\.dart$');
+
 const _core = 0, _domain = 1, _data = 2, _providers = 3, _shared = 4;
 const _screen = 5, _app = 6;
 
 /// Camada do caminho relativo a lib/ (ex.: 'core/astro/zodiac.dart'), ou null
 /// quando o arquivo esta fora das pastas permitidas. A ordem importa: core/ e
 /// features/ sao testados antes de shared/ e app/; dentro de presentation/, o
-/// sufixo _provider(s).dart vence e classifica como providers, o resto e tela.
+/// sufixo _provider(s).dart ou _controller.dart (etapa 9) classifica como
+/// providers (camada 3), o resto e tela.
 int? layerOf(String p) {
   if (p.startsWith('core/')) return _core;
   final m =
@@ -29,7 +33,7 @@ int? layerOf(String p) {
   if (m != null) {
     if (m[2] == 'domain') return _domain;
     if (m[2] == 'data') return _data;
-    return RegExp(r'_providers?\.dart$').hasMatch(m[3]!) ? _providers : _screen;
+    return _providerFile.hasMatch(m[3]!) ? _providers : _screen;
   }
   if (p.startsWith('shared/')) return _shared;
   if (p.startsWith('app/') || p == 'main.dart') return _app;
@@ -160,11 +164,12 @@ List<String> purityViolations(Map<String, List<String>> lines) {
   return bad;
 }
 
-/// Regra 3: *_provider(s).dart de features nao importam material/widgets.
+/// Regra 3: *_provider(s).dart e *_controller.dart de features nao importam
+/// material/widgets (mantem BuildContext, ScaffoldMessenger e controllers de
+/// texto fora da logica).
 List<String> providerWidgetViolations(Map<String, List<String>> lines) => [
       for (final e in lines.entries)
-        if (e.key.startsWith('features/') &&
-            RegExp(r'_providers?\.dart$').hasMatch(e.key))
+        if (e.key.startsWith('features/') && _providerFile.hasMatch(e.key))
           for (final l in e.value)
             if (_widgets.hasMatch(l)) '${e.key}: $l',
     ];
@@ -179,6 +184,14 @@ void main() {
     expect(layerOf('features/auth/presentation/sign_up_provider.dart'),
         _providers);
     expect(layerOf('features/auth/presentation/login_screen.dart'), _screen);
+    expect(layerOf('features/cosmos/presentation/cosmos_controller.dart'),
+        _providers);
+    expect(layerOf('features/oracle/presentation/chat_controller.dart'),
+        _providers);
+    expect(layerOf('features/cosmos/presentation/cosmos_controller_x.dart'),
+        _screen);
+    expect(layerOf('features/cosmos/presentation/my_controller.dart.bak'),
+        _screen);
     expect(layerOf('shared/cosmic_scaffold.dart'), _shared);
     expect(layerOf('app/router.dart'), _app);
     expect(layerOf('main.dart'), _app);
@@ -273,7 +286,7 @@ void main() {
     expect(purityViolations(_libLines()), isEmpty);
   });
 
-  test('providers de features nao importam material/widgets', () {
+  test('providers e controllers de features nao importam material/widgets', () {
     expect(providerWidgetViolations(_libLines()), isEmpty);
   });
 
@@ -339,5 +352,51 @@ void main() {
           ],
         }).length,
         1);
+  });
+
+  test('controllers: camada 3, importam providers de outra feature, nao tela',
+      () {
+    expect(
+        layerViolations({
+          'features/a/presentation/a_controller.dart': [
+            'features/b/presentation/b_providers.dart',
+            'features/b/domain/m.dart',
+            'features/a/data/r.dart',
+            'shared/s.dart',
+          ],
+        }).length,
+        1); // shared/ e camada 4, acima de 3
+    expect(
+        layerViolations({
+          'features/a/presentation/a_controller.dart': [
+            'features/b/presentation/b_controller.dart',
+            'features/b/data/r.dart',
+          ],
+          'features/a/presentation/a_screen.dart': [
+            'features/a/presentation/a_controller.dart',
+          ],
+        }).length,
+        1); // data de outra feature
+    expect(
+        layerViolations({
+          'features/a/presentation/a_controller.dart': [
+            'features/a/presentation/a_screen.dart',
+          ],
+        }).length,
+        1); // tela acima
+    expect(
+        providerWidgetViolations({
+          'features/a/presentation/a_controller.dart': [
+            "import 'package:flutter/material.dart';"
+          ],
+        }),
+        isNotEmpty);
+    expect(
+        providerWidgetViolations({
+          'features/a/presentation/a_controller.dart': [
+            "import 'package:flutter_riverpod/flutter_riverpod.dart';"
+          ],
+        }),
+        isEmpty);
   });
 }
