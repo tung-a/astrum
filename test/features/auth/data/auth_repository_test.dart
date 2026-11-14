@@ -7,7 +7,7 @@ import 'package:astrum/features/profile/data/profile_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/fake_firebase.dart';
+import '../../../support/fake_firebase.dart';
 
 /// Perfil que registra a ordem e e configuravel (sucesso, falha, nunca completa).
 class _StubProfile implements ProfileRepository {

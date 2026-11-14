@@ -9,7 +9,7 @@ import 'package:astrum/features/profile/domain/public_profile.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/fake_firebase.dart';
+import '../../../support/fake_firebase.dart';
 
 void main() {
   late FakeFirebaseFirestore db;
