@@ -66,7 +66,7 @@ class CosmicScaffold extends ConsumerWidget {
                                 ref.read(profileProvider).valueOrNull?.uid;
                             if (uid == null) return;
                             ref
-                                .read(userRepositoryProvider)
+                                .read(socialRepositoryProvider)
                                 .markNotificationRead(uid, notice.id);
                           },
                         ),

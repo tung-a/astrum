@@ -51,7 +51,7 @@ class _RitualsScreenState extends ConsumerState<RitualsScreen> {
       ),
     );
     if (ok != true || title.text.trim().isEmpty) return;
-    await ref.read(userRepositoryProvider).addEvent(
+    await ref.read(eventsRepositoryProvider).addEvent(
           profile.uid,
           RitualEvent(
             id: '',
@@ -64,7 +64,7 @@ class _RitualsScreenState extends ConsumerState<RitualsScreen> {
   }
 
   Future<void> _delete(String uid, String eventId) async {
-    await ref.read(userRepositoryProvider).deleteEvent(uid, eventId);
+    await ref.read(eventsRepositoryProvider).deleteEvent(uid, eventId);
     await ref.read(analyticsServiceProvider).logEvent('delete_event_calendar');
   }
 

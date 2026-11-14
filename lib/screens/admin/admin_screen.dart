@@ -81,7 +81,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   void initState() {
     super.initState();
-    _users = ref.read(userRepositoryProvider).listUsers();
+    _users = ref.read(adminRepositoryProvider).listUsers();
     _analytics = _watchAnalytics(_period);
   }
 
@@ -92,7 +92,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Future<void> _refresh() async {
-    final users = ref.read(userRepositoryProvider).listUsers();
+    final users = ref.read(adminRepositoryProvider).listUsers();
     setState(() => _users = users);
     await users;
   }
@@ -201,7 +201,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     final profile = ref.read(profileProvider).valueOrNull;
     if (profile == null || !profile.isAdmin) return;
     try {
-      final n = await ref.read(userRepositoryProvider).rebuildPublicProfiles();
+      final n = await ref.read(adminRepositoryProvider).rebuildPublicProfiles();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$n perfis públicos recriados.')),

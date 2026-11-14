@@ -98,7 +98,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         password: widget.password,
       );
       await cred.user!.updateDisplayName(widget.name);
-      await ref.read(userRepositoryProvider).createProfile(
+      await ref.read(profileRepositoryProvider).createProfile(
             user: cred.user!,
             name: widget.name,
             birthDate: _date.text,

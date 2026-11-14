@@ -111,17 +111,18 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       ItemType.background => 'equipped.background',
       ItemType.profilePicture => 'equipped.profilePicture',
     };
-    final repo = ref.read(userRepositoryProvider);
+    final profileRepo = ref.read(profileRepositoryProvider);
+    final economy = ref.read(economyRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
 
     setState(() => _buying = true);
     try {
       if (profile.inventory.contains(item.id)) {
         // Equipar nao mexe em saldo nem inventario.
-        await repo.updateFields(uid, {field: item.id});
+        await profileRepo.updateFields(uid, {field: item.id});
       } else {
         // Saldo e posse sao validados dentro da transacao.
-        await repo.purchaseItem(
+        await economy.purchaseItem(
           uid: uid,
           itemId: item.id,
           equipField: field,

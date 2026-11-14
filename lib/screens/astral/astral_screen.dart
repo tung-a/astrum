@@ -77,7 +77,7 @@ class AstralScreen extends ConsumerWidget {
                 final computed = computeNatalChart(
                     birth: birth, birthPlace: profile.birthPlace);
                 await ref
-                    .read(userRepositoryProvider)
+                    .read(profileRepositoryProvider)
                     .updateFields(profile.uid, {
                   'astralMapJson':
                       jsonEncode(computed.map((e) => e.toJson()).toList()),

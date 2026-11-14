@@ -87,7 +87,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ItemType.background => 'equipped.background',
       ItemType.profilePicture => 'equipped.profilePicture',
     };
-    await ref.read(userRepositoryProvider).updateFields(
+    await ref.read(profileRepositoryProvider).updateFields(
       profile.uid,
       {field: item.id},
     );

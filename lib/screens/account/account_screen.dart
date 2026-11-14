@@ -47,7 +47,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final profile = ref.read(profileProvider).valueOrNull;
     if (profile == null) return;
     final found =
-        await ref.read(userRepositoryProvider).findUserByEmail(_search.text);
+        await ref.read(socialRepositoryProvider).findUserByEmail(_search.text);
     if (!mounted) return;
     if (found == null || found.id == profile.uid) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -56,7 +56,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       );
       return;
     }
-    await ref.read(userRepositoryProvider).addFriend(profile.uid, found);
+    await ref.read(socialRepositoryProvider).addFriend(profile.uid, found);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${found.name} entrou na sua constelação.')),
@@ -131,7 +131,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             title: const Text('Notificações de intenções'),
             value: profile.notificationsEnabled,
             onChanged: (enabled) => ref
-                .read(userRepositoryProvider)
+                .read(profileRepositoryProvider)
                 .updateFields(
                     profile.uid, {'preferences.notifications': enabled}),
           ),
@@ -140,7 +140,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             title: const Text('Exibir meu signo'),
             value: profile.showSign,
             onChanged: (enabled) => ref
-                .read(userRepositoryProvider)
+                .read(profileRepositoryProvider)
                 .updateFields(profile.uid, {'preferences.showSign': enabled}),
           ),
           const SizedBox(height: 20),
@@ -204,7 +204,7 @@ class _FriendTile extends ConsumerWidget {
                     avatar: Icon(i.icon, size: 16, color: i.color),
                     label: Text(i.label),
                     onPressed: () async {
-                      await ref.read(userRepositoryProvider).sendIntention(
+                      await ref.read(socialRepositoryProvider).sendIntention(
                             fromUid: me.uid,
                             fromName: me.name,
                             toUid: friend.id,

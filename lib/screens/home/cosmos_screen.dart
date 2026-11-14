@@ -38,7 +38,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
               'Gere um horóscopo do dia curto e inspirador para o signo de ${profile.zodiacSign}. Foco: autoconhecimento. Máximo de 3 frases.',
           sign: profile.zodiacSign,
         );
-    await ref.read(userRepositoryProvider).updateFields(profile.uid, {
+    await ref.read(profileRepositoryProvider).updateFields(profile.uid, {
       'dailyHoroscope': {'date': _today, 'content': text},
     });
   }
@@ -59,7 +59,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
             );
       } catch (_) {}
       if (!mounted) return;
-      await ref.read(userRepositoryProvider).updateFields(profile.uid, {
+      await ref.read(profileRepositoryProvider).updateFields(profile.uid, {
         'dailyTarot': {
           'date': _today,
           'card': card.name,
@@ -84,7 +84,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
     try {
       // A validacao da data acontece dentro da transacao.
       await ref
-          .read(userRepositoryProvider)
+          .read(economyRepositoryProvider)
           .dailyCheckIn(uid: profile.uid, today: _today);
       message = '+25 Poeira Estelar pelo check-in de hoje';
     } on EconomyException catch (e) {

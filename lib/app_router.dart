@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/firebase/firebase_providers.dart';
 import 'providers/app_providers.dart';
 import 'screens/account/account_screen.dart';
 import 'screens/admin/admin_screen.dart';
@@ -19,15 +20,60 @@ import 'screens/shop/shop_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
+/// Unico trecho do perfil que o redirect consome. Mudancas de saldo,
+/// horoscopo etc. nao alteram este valor e nao reavaliam o redirect.
+typedef RouterProfileKey = ({bool isAdmin, bool isLoading});
+
+final routerProfileKeyProvider = Provider<RouterProfileKey>((ref) {
+  final uid = ref.watch(currentUidProvider);
+  return ref.watch(profileProvider.select((p) {
+    final profile = p.valueOrNull;
+    // Perfil retido de outro usuario (troca A -> B) nao vale como admin.
+    final isAdmin = profile != null && profile.uid == uid && profile.isAdmin;
+    return (isAdmin: isAdmin, isLoading: p.isLoading);
+  }));
+});
+
+/// Decisao de redirect, pura para ser testavel.
+String? decideRedirect({
+  required bool loggedIn,
+  required String location,
+  required bool isAdmin,
+  required bool isLoading,
+}) {
+  final authRoute = location == '/login' ||
+      location == '/register' ||
+      location == '/welcome';
+
+  if (!loggedIn && !authRoute) return '/login';
+  if (loggedIn && authRoute && !isLoading) {
+    return isAdmin ? '/admin' : '/app/cosmos';
+  }
+  if (loggedIn && location == '/admin' && isLoading) return null;
+  if (loggedIn && location == '/admin' && !isAdmin) return '/app/account';
+  if (loggedIn && !isLoading && isAdmin && location.startsWith('/app/')) {
+    return '/admin';
+  }
+  return null;
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final auth = ValueNotifier<User?>(FirebaseAuth.instance.currentUser);
+  // Seed sincrono com o usuario atual; depois acompanha authStateProvider,
+  // que e a unica fonte de authStateChanges do app (profileProvider tambem
+  // deriva dele, sem abrir outra assinatura).
+  final auth =
+      ValueNotifier<User?>(ref.read(firebaseAuthProvider).currentUser);
   final profileRefresh = ValueNotifier<int>(0);
-  final sub = FirebaseAuth.instance.authStateChanges().listen((user) {
-    auth.value = user;
+  ref.listen(authStateProvider, (_, next) {
+    // Erro no stream de auth e tratado como deslogado.
+    if (next.hasError) {
+      auth.value = null;
+    } else if (next.hasValue) {
+      auth.value = next.requireValue;
+    }
   });
-  ref.listen(profileProvider, (_, __) => profileRefresh.value++);
+  ref.listen(routerProfileKeyProvider, (_, __) => profileRefresh.value++);
   ref.onDispose(() {
-    sub.cancel();
     auth.dispose();
     profileRefresh.dispose();
   });
@@ -37,21 +83,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     refreshListenable: Listenable.merge([auth, profileRefresh]),
     redirect: (context, state) {
-      final loggedIn = auth.value != null;
-      final loc = state.matchedLocation;
-      final authRoute =
-          loc == '/login' || loc == '/register' || loc == '/welcome';
-      final profileState = ref.read(profileProvider);
-      final isAdmin = profileState.valueOrNull?.isAdmin ?? false;
-
-      if (!loggedIn && !authRoute) return '/login';
-      if (loggedIn && authRoute && !profileState.isLoading) {
-        return isAdmin ? '/admin' : '/app/cosmos';
-      }
-      if (loggedIn && loc == '/admin' && profileState.isLoading) return null;
-      if (loggedIn && loc == '/admin' && !isAdmin) return '/app/account';
-      if (loggedIn && isAdmin && loc.startsWith('/app/')) return '/admin';
-      return null;
+      final key = ref.read(routerProfileKeyProvider);
+      return decideRedirect(
+        loggedIn: auth.value != null,
+        location: state.matchedLocation,
+        isAdmin: key.isAdmin,
+        isLoading: key.isLoading,
+      );
     },
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
