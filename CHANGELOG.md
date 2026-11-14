@@ -20,6 +20,13 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - Escritas tipadas em `ProfileRepository`: `setNotificationsEnabled`, `setShowSign`, `equip(uid, EquipSlot, itemId)`, `saveAstralMap`, `saveDailyHoroscope` e `saveDailyTarot`. As telas deixam de montar caminhos de campo do Firestore.
 - Enum `EquipSlot` (`lib/models/equip_slot.dart`) para skin, fundo e avatar; `ItemType.slot` liga o tipo do item ao slot.
 - Testes novos: `test/equip_slot_test.dart` e testes de cada escrita tipada em `test/repositories_firestore_test.dart`, incluindo a verificação de que nenhum método do perfil altera `wallet`, `inventory`, `role` ou `dailyCheckIn`.
+- `AuthRepository` (`lib/services/auth_repository.dart`) para entrar, criar conta e sair. Os erros chegam às telas como `AuthException`, com código tipado (`lib/models/auth_exception.dart`); as telas não recebem mais exceções do Firebase.
+- Cadastro com desfazimento: se o perfil não puder ser criado depois da conta, a conta recém-criada é apagada e a sessão é encerrada. Se o aparelho não conseguir apagar a conta, a mensagem pede nova tentativa e, se persistir, contato com o suporte.
+- Limite de tempo de 20 s para criar o perfil no cadastro. Ao estourar, a conta não é apagada (a gravação pode ainda ser concluída); o usuário é orientado a entrar com e-mail e senha em instantes.
+- `SignUpController` (`lib/providers/sign_up_provider.dart`) guarda o rascunho do cadastro só em memória entre as telas de dados e de boas-vindas. A senha deixa de trafegar pela navegação.
+- Limites de tamanho nos campos do cadastro (`SignUpLimits` e `signUpLengthError` em `lib/models/sign_up_data.dart`), com `maxLength` nas telas e checagem antes do envio.
+- `AdminRepository` ganha `watchAnalyticsEvents`, `seedCrystals`, `publishCatalog`, `planCatalogPublish` (regra de publicação do catálogo, pura), `summarizeAnalytics` (contagem de eventos, pura) e `AdminOperationException`.
+- Testes novos: `test/auth_models_test.dart`, `test/auth_repository_test.dart`, `test/sign_up_test.dart` e `test/admin_test.dart`, além de testes do `createProfile` em lote em `test/repositories_firestore_test.dart`. Os fakes de `FirebaseAuth` e de repositórios em `test/support/` foram ampliados.
 
 ### Alterado
 
@@ -36,6 +43,11 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - `purchaseItem` recebe `EquipSlot? equipSlot` no lugar de `String? equipField`; a interface `EconomyRepository` deixa de expor caminho de campo.
 - A sincronização de `publicProfiles` é decidida por tipo de escrita. Só equipar o avatar (direto ou na compra) sincroniza. Continua em duas gravações não atômicas; a atomicidade (opção B) segue pendente de decisão.
 - Nenhum método público de `ProfileRepository` aceita `Map` ou caminho de campo, então `wallet`, `inventory`, `role` e `dailyCheckIn` não são alcançáveis por ele.
+- As telas de login, cadastro, boas-vindas, conta e admin não importam mais `firebase_auth` nem `cloud_firestore`. Login, logout e cadastro usam `authRepositoryProvider`; o painel admin usa `adminRepositoryProvider`. O comportamento das mensagens de login não mudou.
+- `ProfileRepository.createProfile` grava `users/{uid}` e `publicProfiles/{uid}` em um único lote (`WriteBatch`). A assinatura não mudou.
+- A lógica do painel admin (eventos por período, seed de cristais e publicação do catálogo) saiu da tela. A lista inicial de cristais foi para `lib/data/crystal_seed.dart`. A publicação mantém a regra anterior: itens existentes preservam preço e status, itens novos recebem os dois, e itens fora do catálogo são desativados, nunca apagados.
+- Durante o cadastro, o app fica na tela de boas-vindas até a operação terminar, mesmo com a conta já autenticada. Isso evita sair da tela antes de exibir um erro.
+- `/welcome` sem rascunho de cadastro volta para `/register`. Ao entrar em `/register`, um rascunho anterior é descartado.
 
 ### Corrigido
 
@@ -44,6 +56,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - Compra e check-in passam a ser atômicos (transação).
 - Regras do Firestore ajustadas após revisão de segurança.
 - Fechadas brechas de inventário e de catálogo na loja.
+- Falha ao criar o perfil no fim do cadastro não era tratada e deixava a conta sem perfil. Agora a conta é desfeita (ou o usuário é orientado, se o desfazimento falhar), o mesmo vale para falha ao definir o nome de exibição.
+- O cadastro podia gravar `users/{uid}` sem `publicProfiles/{uid}` quando a segunda escrita falhava. Agora as duas gravações são um único lote.
 
 ### Removido
 
@@ -52,3 +66,5 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - `UserRepository` (`lib/services/user_repository.dart`), `userRepositoryProvider` e o `FakeUserRepository` dos testes, substituídos pelos repositórios por agregado.
 - Dependências sem uso.
 - Histórico morto do `OracleService`.
+- Nome, e-mail e senha como `state.extra` da rota `/welcome`. A senha não passa mais pelo estado de navegação.
+- Chamadas diretas a `FirebaseAuth` e `FirebaseFirestore` nas telas de login, cadastro, conta e admin.

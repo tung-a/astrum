@@ -151,13 +151,13 @@ Proposta: dividir o fake em um por repositório, no mesmo arquivo ou ao lado, ma
 3. Re-assinatura de streams (médio): se um provider de repositório passar a depender de algo que muda (por exemplo, `ref.watch(profileProvider)`), os streams reabririam. Mitigação: repositórios dependem só de `firestoreProvider`/`firebaseAuthProvider`; os testes de contagem de assinatura da etapa 2 continuam no CI.
 4. Escape hatch `updateFields` (médio): aceitava qualquer chave, inclusive `wallet.stardust`, ferindo o contrato do `EconomyRepository`; agora recusa as chaves protegidas. Mitigação: `ArgumentError` para chaves protegidas e comentário `// etapa 5: remover`; sem `@Deprecated` (daria `info` no analyze nas telas).
 5. Fakes frágeis (baixo): `noSuchMethod` falha em runtime se um provider chamar método não implementado. Mitigação: falhar rápido; cada passo roda a suíte inteira.
-6. Conflito com a etapa 6 (baixo): `createProfile` fica em `ProfileRepository` e o fluxo de cadastro continua sem rollback; registrado para a etapa 6.
+6. Conflito com a etapa 6 (baixo): `createProfile` fica em `ProfileRepository` e o fluxo de cadastro continua sem rollback; registrado para a etapa 6. Resolvido na etapa 6: `AuthRepository.register` faz rollback e `createProfile` é atômico (batch).
 7. Inicialização (baixo): providers de repositório continuam lazy; app sem config do Firebase não os lê (o teste de widget da etapa 1 cobre).
 8. Nomes: `watchShopCatalog` permanece por ora; renomear só na etapa 7 evita mexer em chamadas.
 
 ## 8. Fora do escopo desta etapa
 
-Tipar escritas e `WriteBatch` do perfil público (etapa 5), `AuthRepository` e Firebase nas telas de admin/login (etapa 6), separar `models/`/`data/` (etapa 7), mover para feature-first (etapa 8), controllers e demais interfaces (etapa 9). Nada em `firestore.rules`, `firestore.indexes.json` ou `test_rules/`.
+Tipar escritas e `WriteBatch` do perfil público (etapa 5), `AuthRepository` e Firebase nas telas de admin/login (etapa 6, concluída: ver `step6-auth.md`), separar `models/`/`data/` (etapa 7), mover para feature-first (etapa 8), controllers e demais interfaces (etapa 9). Nada em `firestore.rules`, `firestore.indexes.json` ou `test_rules/`.
 
 ## 9. Revisão
 

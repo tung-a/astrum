@@ -98,7 +98,7 @@ Nota: a renumeração acima insere exclusão de conta e aceite de amizade (antig
 - CI: fixar as actions por SHA de commit e habilitar Dependabot para `github-actions` antes de qualquer workflow que use segredos.
 - CI: fixar versões (pin) do `firebase-tools` e dos runners (`ubuntu-latest`, `macos-latest`).
 - CI: confirmar que o build Android funciona sem `google-services.json` na primeira execução manual do workflow.
-- Segurança: a senha trafega em `state.extra` da rota `/welcome`; tratar na etapa 6 (`AuthRepository`), sem passar a senha entre rotas.
+- Segurança: a senha trafegava em `state.extra` da rota `/welcome`. RESOLVIDO na etapa 6: rascunho só em memória (`SignUpController`).
 
 ## Itens abertos da etapa 4 (exigem decisão do usuário; não implementados)
 
@@ -115,4 +115,20 @@ Nota: a renumeração acima insere exclusão de conta e aceite de amizade (antig
 
 - (M1, LGPD) O avatar zodiacal `pfp_zodiac_<signo>` é derivado do signo e aparece para qualquer usuário logado mesmo com `showSign=false`, o que permite inferir o signo. Além disso, `saveAstralMap` altera `zodiacSign` sem sincronizar `publicProfiles`, deixando o avatar público defasado. Requer decisão do usuário registrada em `docs/decisions/`.
 - (B1 do consultor) Falta teste de regras no emulador em que o dono tenta atualizar `wallet` diretamente e falha. Conferido em `test_rules/firestore.rules.test.mjs`: já há casos de `wallet.stardust` negado para o dono (linhas 84-85, 95-110, 256-271), mas nenhum cobre a escrita de `wallet` inteiro como mapa nem o fluxo vindo do repositório; registrar como pendência para quando o emulador puder rodar (porta 8080 ocupada).
-- (B3 do consultor) `lib/screens/admin/admin_screen.dart` ainda usa `FirebaseFirestore.instance` direto; migrar para repositório na etapa 6.
+- (B3 do consultor) RESOLVIDO na etapa 6: `admin_screen.dart` usa `AdminRepository`; nenhuma tela usa `FirebaseFirestore.instance`.
+
+## Etapa 6 (implementada; sem commit, aguarda reviewer-consultor)
+
+Detalhes em `docs/architecture/step6-auth.md`. Entregue: `AuthRepository`/`FirebaseAuthRepository`/`AuthException`/`AuthErrorCode`; rollback do cadastro (`user.delete` + `signOut`, timeout 20 s); `createProfile` em `WriteBatch`; `SignUpController` em memória, redirect de `/welcome` e `inFlight` no `routerProfileKeyProvider`; `AdminRepository` com `watchAnalyticsEvents`, `seedCrystals`, `publishCatalog`, `planCatalogPublish`, `summarizeAnalytics`, `AdminOperationException`; `lib/data/crystal_seed.dart`. Em `lib/`, `FirebaseAuth.instance`/`FirebaseFirestore.instance` só restam em `firebase_providers.dart` (provider). `firestore.rules` e `test_rules/` inalterados; `npm test` de `test_rules/` não foi executado (continua pendente).
+
+Pendências registradas pela etapa 6 (não implementadas):
+- (Etapa 11) "Perfil incompleto/retomada": conta Auth órfã quando o `delete` do rollback falha (offline) deixa o e-mail preso (`email-already-in-use`) e o login sem perfil; exige detectar `users/{uid}` inexistente após login e reabrir `/welcome` em modo retomada.
+- (Etapa 11) Falha ambígua do commit do `createProfile` (efetivado no servidor, resposta perdida) pode deixar `users/{uid}` órfão após o rollback; limpar por admin/console.
+- (Etapa 11) Timeout do `createProfile` agora só faz `signOut` (sem `user.delete`, para não orfanar docs se o write efetivar depois). Fica a conta Auth possivelmente sem perfil: recuperação de "perfil ausente" no login (`watchProfile` com `data == null` abre o app com escritas falhando) e varredura de docs sem usuário Auth.
+- (Etapa 11, fora de escopo) `emailHash` arbitrário pode ser gravado pelo dono no próprio `publicProfile`.
+- (Etapa 11, impacto nulo) `/admin` com `isLoading` deixa passar durante o cadastro (`inFlight`); as regras negam o acesso.
+- Limites de campos do cadastro (`SignUpLimits`) espelham `profileShapeOk`; manter em sincronia se as regras mudarem. `AnalyticsService` agora exige `firestore`/`auth` (sem default de `.instance`).
+- (Etapa 11) `reauthenticate` e `deleteAccount`: só documentados como ponto de extensão em `AuthRepository`; `AuthErrorCode.requiresRecentLogin` já existe.
+- (M1) `rebuildPublicProfiles` segue falhando para terceiros (permission-denied); só isolado, com o erro convertido em `AdminOperationException`.
+- Mensagens de erro do cadastro seguem dependentes do texto do Firebase (inglês); texto novo de falha pós-Auth: "Não foi possível concluir o cadastro. Tente novamente." (+ "Se persistir, entre em contato." se o rollback falhou); revisar com designer/writer.
+- Checklist manual 8.3 e relatório `docs/qa/etapa-6.md` pelo `qa`.
