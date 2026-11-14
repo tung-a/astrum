@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-import 'package:astrum/models/chat_models.dart';
+import 'package:astrum/features/oracle/domain/chat_models.dart';
 
 class ChatStore {
   ChatStore(this._prefs);

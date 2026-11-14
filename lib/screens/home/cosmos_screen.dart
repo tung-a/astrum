@@ -10,6 +10,7 @@ import 'package:astrum/theme/cosmetics_style.dart';
 import 'package:astrum/core/astro/moon.dart';
 import 'package:astrum/core/astro/tarot.dart';
 import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/services/economy_exceptions.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';

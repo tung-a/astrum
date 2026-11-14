@@ -1,4 +1,4 @@
-import 'package:astrum/services/oracle_service.dart';
+import 'package:astrum/features/oracle/domain/oracle_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

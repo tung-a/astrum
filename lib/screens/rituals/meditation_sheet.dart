@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/services/meditation_sounds.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 

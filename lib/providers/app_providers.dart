@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
-import 'package:astrum/core/storage/prefs_providers.dart';
 import 'package:astrum/theme/cosmetics_style.dart';
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/models/friend.dart';
@@ -12,10 +11,8 @@ import 'package:astrum/models/intention_notice.dart';
 import 'package:astrum/services/admin_repository.dart';
 import 'package:astrum/services/auth_repository.dart';
 import 'package:astrum/services/catalog_repository.dart';
-import 'package:astrum/services/chat_store.dart';
 import 'package:astrum/models/catalog_entry.dart';
 import 'package:astrum/services/economy_repository.dart';
-import 'package:astrum/services/oracle_service.dart';
 import 'package:astrum/services/profile_repository.dart';
 import 'package:astrum/services/public_profile_sync.dart';
 import 'package:astrum/services/social_repository.dart';
@@ -49,11 +46,6 @@ final profileRepositoryProvider = Provider(
 
 final adminRepositoryProvider =
     Provider((ref) => AdminRepository(ref.watch(firestoreProvider)));
-
-final oracleServiceProvider = Provider((ref) => OracleService());
-
-final chatStoreProvider =
-    Provider((ref) => ChatStore(ref.watch(prefsProvider)));
 
 /// Perfil do usuario logado. Semantica switchMap: ao mudar o estado de auth
 /// (logout, login de outro usuario) o provider e reconstruido e o Riverpod
@@ -99,8 +91,6 @@ final equippedBackgroundProvider = Provider<List<Color>>((ref) {
       defaultBackgroundId;
   return cosmeticBackgrounds[id] ?? cosmeticBackgrounds[defaultBackgroundId]!;
 });
-
-final pendingOraclePromptProvider = StateProvider<String?>((ref) => null);
 
 /// Cadastro/login/logout. Depende so de providers estaveis (nao recria
 /// streams).
