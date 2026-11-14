@@ -1,6 +1,6 @@
 import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
-import 'package:astrum/models/shop_item.dart';
+import 'package:astrum/features/economy/domain/shop_item.dart';
 
 const profilePictureVariants = [
   (key: 'common', label: 'Comum', rarity: ItemRarity.common, price: 500),

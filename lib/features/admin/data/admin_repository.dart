@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
-import 'package:astrum/data/profile_pictures.dart';
-import 'package:astrum/models/shop_item.dart';
+import 'package:astrum/features/economy/domain/profile_pictures.dart';
+import 'package:astrum/features/economy/domain/shop_item.dart';
 import 'package:astrum/features/admin/data/crystal_seed.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/domain/public_profile.dart';

@@ -4,8 +4,8 @@
 library;
 
 import 'package:astrum/core/firebase/rules_contract.dart';
-import 'package:astrum/models/catalog_entry.dart';
-import 'package:astrum/services/economy_exceptions.dart';
+import 'package:astrum/features/economy/domain/catalog_entry.dart';
+import 'package:astrum/features/economy/domain/economy_exceptions.dart';
 
 /// Preco de [itemId] segundo o [catalog]. Lanca [CatalogUnavailableException]
 /// se o catalogo estiver vazio e [NotPurchasableException] se o item nao existe,

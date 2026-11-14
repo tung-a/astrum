@@ -1,9 +1,9 @@
 // Testa as transacoes de FirestoreEconomyRepository com fake_cloud_firestore.
 // Limitacao do pacote: nao aplica firestore.rules (isso fica em test_rules/) e
 // nao simula contencao/retry de transacao; so a logica da transacao e testada.
-import 'package:astrum/models/equip_slot.dart';
-import 'package:astrum/services/economy_exceptions.dart';
-import 'package:astrum/services/economy_repository.dart';
+import 'package:astrum/features/economy/domain/equip_slot.dart';
+import 'package:astrum/features/economy/domain/economy_exceptions.dart';
+import 'package:astrum/features/economy/data/economy_repository.dart';
 import 'package:astrum/features/profile/domain/public_profile.dart';
 import 'package:astrum/features/profile/data/public_profile_sync.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';

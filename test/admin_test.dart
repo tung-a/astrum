@@ -1,7 +1,7 @@
 // ignore_for_file: subtype_of_sealed_class
 
-import 'package:astrum/models/shop_item.dart';
-import 'package:astrum/data/catalog_seed.dart';
+import 'package:astrum/features/economy/domain/shop_item.dart';
+import 'package:astrum/features/economy/domain/catalog_seed.dart';
 import 'package:astrum/features/admin/data/crystal_seed.dart';
 import 'package:astrum/features/admin/data/admin_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

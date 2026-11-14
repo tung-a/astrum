@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/core/astro/synergy.dart';
-import 'package:astrum/data/profile_pictures.dart';
+import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/social/domain/friend.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';

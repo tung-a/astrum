@@ -2,7 +2,7 @@ import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/rituals/domain/ritual_event.dart';
 import 'package:astrum/features/social/domain/friend.dart';
-import 'package:astrum/models/equip_slot.dart';
+import 'package:astrum/features/economy/domain/equip_slot.dart';
 import 'package:astrum/features/admin/data/admin_repository.dart';
 import 'package:astrum/features/rituals/data/events_repository.dart';
 import 'package:astrum/features/profile/data/profile_repository.dart';

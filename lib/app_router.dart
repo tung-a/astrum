@@ -17,8 +17,8 @@ import 'package:astrum/features/oracle/presentation/oracle_screen.dart';
 import 'package:astrum/features/cosmos/presentation/cosmos_screen.dart';
 import 'package:astrum/features/rituals/presentation/rituals_screen.dart';
 import 'package:astrum/screens/shell/main_shell.dart';
-import 'package:astrum/screens/shop/inventory_screen.dart';
-import 'package:astrum/screens/shop/shop_screen.dart';
+import 'package:astrum/features/economy/presentation/inventory_screen.dart';
+import 'package:astrum/features/economy/presentation/shop_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 

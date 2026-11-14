@@ -1,6 +1,6 @@
-import 'package:astrum/services/economy.dart';
-import 'package:astrum/services/economy_exceptions.dart';
-import 'package:astrum/models/catalog_entry.dart';
+import 'package:astrum/features/economy/domain/economy.dart';
+import 'package:astrum/features/economy/domain/economy_exceptions.dart';
+import 'package:astrum/features/economy/domain/catalog_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
