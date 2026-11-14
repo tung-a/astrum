@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'core/firebase/firebase_providers.dart';
 import 'providers/app_providers.dart';
+import 'providers/sign_up_provider.dart';
 import 'screens/account/account_screen.dart';
 import 'screens/admin/admin_screen.dart';
 import 'screens/astral/astral_screen.dart';
@@ -26,12 +27,17 @@ typedef RouterProfileKey = ({bool isAdmin, bool isLoading});
 
 final routerProfileKeyProvider = Provider<RouterProfileKey>((ref) {
   final uid = ref.watch(currentUidProvider);
-  return ref.watch(profileProvider.select((p) {
+  // Cadastro em andamento conta como loading: createUser... ja loga o usuario
+  // e o router nao pode trocar de tela antes do createProfile/rollback.
+  final signUpInFlight =
+      ref.watch(signUpControllerProvider.select((s) => s.inFlight));
+  final key = ref.watch(profileProvider.select((p) {
     final profile = p.valueOrNull;
     // Perfil retido de outro usuario (troca A -> B) nao vale como admin.
     final isAdmin = profile != null && profile.uid == uid && profile.isAdmin;
     return (isAdmin: isAdmin, isLoading: p.isLoading);
   }));
+  return (isAdmin: key.isAdmin, isLoading: key.isLoading || signUpInFlight);
 });
 
 /// Decisao de redirect, pura para ser testavel.
@@ -41,9 +47,8 @@ String? decideRedirect({
   required bool isAdmin,
   required bool isLoading,
 }) {
-  final authRoute = location == '/login' ||
-      location == '/register' ||
-      location == '/welcome';
+  final authRoute =
+      location == '/login' || location == '/register' || location == '/welcome';
 
   if (!loggedIn && !authRoute) return '/login';
   if (loggedIn && authRoute && !isLoading) {
@@ -61,8 +66,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   // Seed sincrono com o usuario atual; depois acompanha authStateProvider,
   // que e a unica fonte de authStateChanges do app (profileProvider tambem
   // deriva dele, sem abrir outra assinatura).
-  final auth =
-      ValueNotifier<User?>(ref.read(firebaseAuthProvider).currentUser);
+  final auth = ValueNotifier<User?>(ref.read(firebaseAuthProvider).currentUser);
   final profileRefresh = ValueNotifier<int>(0);
   ref.listen(authStateProvider, (_, next) {
     // Erro no stream de auth e tratado como deslogado.
@@ -96,17 +100,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(
         path: '/welcome',
-        builder: (_, state) {
-          final details = state.extra;
-          final values = details is Map<String, String>
-              ? details
-              : const <String, String>{};
-          return WelcomeScreen(
-            name: values['name'] ?? '',
-            email: values['email'] ?? '',
-            password: values['password'] ?? '',
-          );
+        // Sem rascunho em memoria (processo morto, link direto) volta ao
+        // cadastro. Logado e tratado pelo redirect global.
+        redirect: (_, __) {
+          final s = ref.read(signUpControllerProvider);
+          return auth.value == null && s.draft == null && !s.inFlight
+              ? '/register'
+              : null;
         },
+        builder: (_, __) => const WelcomeScreen(),
       ),
       GoRoute(path: '/shop', builder: (_, __) => const ShopScreen()),
       GoRoute(path: '/inventory', builder: (_, __) => const InventoryScreen()),

@@ -6,7 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class FakeUser implements User {
-  FakeUser(this.uid, {this.email = 'a@b.c', this.displayName});
+  FakeUser(this.uid,
+      {this.email = 'a@b.c', this.displayName, List<String>? calls})
+      : calls = calls ?? <String>[];
 
   @override
   final String uid;
@@ -14,6 +16,25 @@ class FakeUser implements User {
   final String? email;
   @override
   final String? displayName;
+
+  /// Registro compartilhado de chamadas (ordem entre usuario e auth).
+  final List<String> calls;
+  FirebaseAuthException? updateDisplayNameError;
+  Object? deleteError;
+  int deleteCalls = 0;
+
+  @override
+  Future<void> updateDisplayName(String? name) async {
+    calls.add('updateDisplayName');
+    if (updateDisplayNameError != null) throw updateDisplayNameError!;
+  }
+
+  @override
+  Future<void> delete() async {
+    calls.add('delete');
+    deleteCalls++;
+    if (deleteError != null) throw deleteError!;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -37,6 +58,45 @@ class FakeFirebaseAuth implements FirebaseAuth {
 
   void setError(Object error) => _changes.addError(error);
 
+  // Auth por e-mail/senha: contadores, ordem e falhas injetaveis.
+  final calls = <String>[];
+  int signOutCalls = 0;
+  FirebaseAuthException? signInError;
+  FirebaseAuthException? createUserError;
+  FirebaseAuthException? nextUserUpdateNameError;
+  Object? nextUserDeleteError;
+  FakeUser? lastCreatedUser;
+
+  @override
+  Future<UserCredential> signInWithEmailAndPassword(
+      {required String email, required String password}) async {
+    calls.add('signIn');
+    if (signInError != null) throw signInError!;
+    final user = FakeUser('signed', email: email, calls: calls);
+    setUser(user);
+    return FakeUserCredential(user);
+  }
+
+  @override
+  Future<UserCredential> createUserWithEmailAndPassword(
+      {required String email, required String password}) async {
+    calls.add('createUser');
+    if (createUserError != null) throw createUserError!;
+    final user = FakeUser('new_${email.hashCode}', email: email, calls: calls)
+      ..updateDisplayNameError = nextUserUpdateNameError
+      ..deleteError = nextUserDeleteError;
+    lastCreatedUser = user;
+    setUser(user);
+    return FakeUserCredential(user);
+  }
+
+  @override
+  Future<void> signOut() async {
+    calls.add('signOut');
+    signOutCalls++;
+    setUser(null);
+  }
+
   /// Como o FirebaseAuth real: emite o usuario atual ao assinar e depois
   /// acompanha as mudancas. Cada assinatura cancelada e contabilizada.
   @override
@@ -48,6 +108,18 @@ class FakeFirebaseAuth implements FirebaseAuth {
       c.onCancel = sub.cancel;
     });
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class FakeUserCredential implements UserCredential {
+  FakeUserCredential(this._user);
+  final User _user;
+
+  @override
+  User? get user => _user;
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

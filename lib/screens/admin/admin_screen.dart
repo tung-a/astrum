@@ -1,68 +1,16 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/cosmetics.dart';
 import '../../models/app_user.dart';
 import '../../providers/app_providers.dart';
+import '../../services/admin_repository.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/cosmic_scaffold.dart';
 
 enum _RoleFilter { all, admin, user }
 
 enum _AnalyticsPeriod { today, week, month }
-
-const _initialCrystals = [
-  (
-    id: 'ametista',
-    name: 'Ametista - Transmutação',
-    description:
-        'Pedra de proteção e elevação espiritual, indicada para meditação.',
-    focus: 'Espiritualidade',
-  ),
-  (
-    id: 'quartzo-rosa',
-    name: 'Quartzo Rosa - Amor Incondicional',
-    description: 'Pedra associada ao amor, à paz e à cura interior.',
-    focus: 'Emoções',
-  ),
-  (
-    id: 'citrino',
-    name: 'Citrino - Prosperidade',
-    description: 'Pedra solar ligada à abundância e à prosperidade.',
-    focus: 'Carreira/Finanças',
-  ),
-  (
-    id: 'olho-de-tigre',
-    name: 'Olho de Tigre - Proteção e Foco',
-    description: 'Ajuda a encontrar clareza, foco e discernimento.',
-    focus: 'Estudo/Foco',
-  ),
-  (
-    id: 'turmalina-negra',
-    name: 'Turmalina Negra - Escudo',
-    description: 'Pedra tradicionalmente associada à proteção energética.',
-    focus: 'Proteção',
-  ),
-  (
-    id: 'sodalita',
-    name: 'Sodalita - Intuição e Mente',
-    description: 'Associada à clareza mental e ao pensamento objetivo.',
-    focus: 'Intelecto',
-  ),
-  (
-    id: 'quartzo-transparente',
-    name: 'Quartzo Transparente - Amplificador',
-    description: 'Cristal associado à clareza e à amplificação de intenções.',
-    focus: 'Clareza',
-  ),
-  (
-    id: 'jaspe-vermelho',
-    name: 'Jaspe Vermelho - Vitalidade',
-    description: 'Pedra associada à vitalidade e à coragem.',
-    focus: 'Energia Física',
-  ),
-];
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({super.key});
@@ -74,7 +22,7 @@ class AdminScreen extends ConsumerStatefulWidget {
 class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _search = TextEditingController();
   late Future<List<AppUser>> _users;
-  late Stream<QuerySnapshot<Map<String, dynamic>>> _analytics;
+  late Stream<List<AnalyticsEventRow>> _analytics;
   _RoleFilter _role = _RoleFilter.all;
   _AnalyticsPeriod _period = _AnalyticsPeriod.today;
 
@@ -106,41 +54,20 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     };
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _watchAnalytics(
-    _AnalyticsPeriod period,
-  ) {
-    return FirebaseFirestore.instance
-        .collection('analytics_events')
-        .where(
-          'createdAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfPeriod(period)),
-        )
-        .orderBy('createdAt', descending: true)
-        .limit(500)
-        .snapshots();
-  }
+  Stream<List<AnalyticsEventRow>> _watchAnalytics(_AnalyticsPeriod period) =>
+      ref
+          .read(adminRepositoryProvider)
+          .watchAnalyticsEvents(since: _startOfPeriod(period));
 
   Future<void> _seedCrystals() async {
-    final batch = FirebaseFirestore.instance.batch();
-    for (final crystal in _initialCrystals) {
-      final doc = FirebaseFirestore.instance
-          .collection('cristais_propriedades')
-          .doc(crystal.id);
-      batch.set(doc, {
-        'nome': crystal.name,
-        'descricao': crystal.description,
-        'foco': crystal.focus,
-      });
-    }
-
     try {
-      await batch.commit();
+      await ref.read(adminRepositoryProvider).seedCrystals();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Coleção de cristais atualizada.')),
         );
       }
-    } on FirebaseException catch (error) {
+    } on AdminOperationException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -155,38 +82,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   Future<void> _publishCatalog() async {
     final profile = ref.read(profileProvider).valueOrNull;
     if (profile == null || !profile.isAdmin) return;
-    final db = FirebaseFirestore.instance;
     try {
-      // Le o estado atual antes de gravar; se falhar, nada e gravado.
-      final existing = await db.collection('shop_items').get();
-      final existingIds = existing.docs.map((d) => d.id).toSet();
-      final seedIds = fullShopCatalog.map((i) => i.id).toSet();
-      final batch = db.batch(); // bem menos de 500 operacoes
-      for (final item in fullShopCatalog) {
-        final ref = db.collection('shop_items').doc(item.id);
-        final data = <String, dynamic>{
-          'type': catalogTypeName(item.type),
-          'rarity': catalogRarityName(item.rarity),
-        };
-        // Docs existentes mantem price e active; so docs novos recebem ambos.
-        if (!existingIds.contains(item.id)) {
-          data['price'] = item.price;
-          data['active'] = true;
-        }
-        batch.set(ref, data, SetOptions(merge: true));
-      }
-      // Itens fora do seed sao desativados, nunca apagados.
-      for (final id in existingIds.difference(seedIds)) {
-        batch.set(db.collection('shop_items').doc(id), {'active': false},
-            SetOptions(merge: true));
-      }
-      await batch.commit();
+      await ref.read(adminRepositoryProvider).publishCatalog(fullShopCatalog);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Catálogo da loja publicado.')),
         );
       }
-    } on FirebaseException catch (error) {
+    } on AdminOperationException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -207,7 +110,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           SnackBar(content: Text('$n perfis públicos recriados.')),
         );
       }
-    } on FirebaseException catch (error) {
+    } on AdminOperationException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -302,7 +205,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                StreamBuilder<List<AnalyticsEventRow>>(
                   stream: _analytics,
                   builder: (context, eventSnapshot) {
                     if (eventSnapshot.hasError) {
@@ -314,21 +217,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       return const LinearProgressIndicator();
                     }
 
-                    final events = eventSnapshot.data!.docs;
-                    final uniqueUsers = events
-                        .map((event) => event.data()['userId'])
-                        .whereType<String>()
-                        .where((uid) => uid != 'anonymous')
-                        .toSet()
-                        .length;
-                    final eventCounts = <String, int>{};
-                    for (final event in events) {
-                      final name = event.data()['eventName'] as String?;
-                      if (name != null && name.isNotEmpty) {
-                        eventCounts.update(name, (total) => total + 1,
-                            ifAbsent: () => 1);
-                      }
-                    }
+                    final summary = summarizeAnalytics(eventSnapshot.data!);
+                    final eventCounts = summary.counts;
 
                     return Card(
                       child: Padding(
@@ -337,7 +227,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                                '${events.length} eventos · $uniqueUsers usuários ativos'),
+                                '${summary.total} eventos · ${summary.uniqueUsers} usuários ativos'),
                             const SizedBox(height: 8),
                             for (final entry
                                 in eventCounts.entries.toList()

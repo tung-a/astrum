@@ -1,24 +1,17 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/astrology.dart';
+import '../../models/auth_exception.dart';
+import '../../models/sign_up_data.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/sign_up_provider.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/starfield.dart';
 
 class WelcomeScreen extends ConsumerStatefulWidget {
-  const WelcomeScreen({
-    super.key,
-    required this.name,
-    required this.email,
-    required this.password,
-  });
-
-  final String name;
-  final String email;
-  final String password;
+  const WelcomeScreen({super.key});
 
   @override
   ConsumerState<WelcomeScreen> createState() => _WelcomeScreenState();
@@ -29,6 +22,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final _time = TextEditingController();
   final _place = TextEditingController();
   bool _loading = false;
+  bool _signUpFailed = false;
 
   String? get _previewSign {
     final parsed = parseDateString(_date.text);
@@ -75,14 +69,6 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   }
 
   Future<void> _complete() async {
-    if (widget.name.isEmpty || widget.email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Dados de registro perdidos. Volte e tente de novo.')),
-      );
-      return;
-    }
     final parsed = parseDateString(_date.text);
     if (parsed == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -90,28 +76,34 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       );
       return;
     }
+    final lengthError = signUpLengthError(
+      birthDate: _date.text,
+      birthTime: _time.text,
+      birthPlace: _place.text,
+    );
+    if (lengthError != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(lengthError)));
+      return;
+    }
     final sign = sunSignFromDate(parsed.day, parsed.month);
+    // Le antes do await: o widget pode ser desmontado durante o cadastro.
+    final analytics = ref.read(analyticsServiceProvider);
+    final controller = ref.read(signUpControllerProvider.notifier);
     setState(() => _loading = true);
     try {
-      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: widget.email,
-        password: widget.password,
+      final registered = await controller.submit(
+        birthDate: _date.text,
+        birthTime: _time.text,
+        birthPlace: _place.text,
+        zodiacSign: sign,
       );
-      await cred.user!.updateDisplayName(widget.name);
-      await ref.read(profileRepositoryProvider).createProfile(
-            user: cred.user!,
-            name: widget.name,
-            birthDate: _date.text,
-            birthTime: _time.text,
-            birthPlace: _place.text,
-            zodiacSign: sign,
-          );
-      await ref.read(analyticsServiceProvider).logEvent('sign_up');
-    } on FirebaseAuthException catch (e) {
+      if (registered) await analytics.logEvent('sign_up');
+    } on AuthException catch (e) {
       if (mounted) {
+        setState(() => _signUpFailed = true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(e.message ?? 'Não foi possível criar a conta')),
+          SnackBar(content: Text(signUpErrorMessage(e))),
         );
       }
     } finally {
@@ -154,14 +146,18 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                 controller: _time,
                 keyboardType: TextInputType.number,
                 onChanged: _maskTime,
+                maxLength: SignUpLimits.birthTime,
                 decoration: const InputDecoration(
+                  counterText: '',
                   hintText: 'Hora de nascimento (HH:MM) — opcional',
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _place,
+                maxLength: SignUpLimits.birthPlace,
                 decoration: const InputDecoration(
+                  counterText: '',
                   hintText: 'Cidade de nascimento — opcional',
                 ),
               ),
@@ -195,9 +191,24 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                     : const Text('Nascer no Astrum'),
               ),
               TextButton(
-                onPressed: () => context.go('/register'),
+                onPressed: _loading
+                    ? null
+                    : () {
+                        ref.read(signUpControllerProvider.notifier).clear();
+                        context.go('/register');
+                      },
                 child: const Text('Voltar'),
               ),
+              if (_signUpFailed)
+                TextButton(
+                  onPressed: _loading
+                      ? null
+                      : () {
+                          ref.read(signUpControllerProvider.notifier).clear();
+                          context.go('/login');
+                        },
+                  child: const Text('Já tenho conta / Entrar'),
+                ),
             ],
           ),
         ),

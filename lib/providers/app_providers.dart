@@ -8,6 +8,7 @@ import '../data/cosmetics.dart';
 import '../models/app_user.dart';
 import '../services/admin_repository.dart';
 import '../services/analytics_service.dart';
+import '../services/auth_repository.dart';
 import '../services/catalog_repository.dart';
 import '../services/chat_store.dart';
 import '../services/economy.dart';
@@ -135,3 +136,12 @@ final equippedBackgroundProvider = Provider<List<Color>>((ref) {
 });
 
 final pendingOraclePromptProvider = StateProvider<String?>((ref) => null);
+
+/// Cadastro/login/logout. Depende so de providers estaveis (nao recria
+/// streams).
+final authRepositoryProvider = Provider<AuthRepository>(
+  (ref) => FirebaseAuthRepository(
+    auth: ref.watch(firebaseAuthProvider),
+    profile: ref.watch(profileRepositoryProvider),
+  ),
+);

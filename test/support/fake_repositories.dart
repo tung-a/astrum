@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:astrum/models/app_user.dart';
+import 'package:astrum/models/auth_exception.dart';
+import 'package:astrum/models/sign_up_data.dart';
+import 'package:astrum/services/auth_repository.dart';
 import 'package:astrum/providers/app_providers.dart';
 import 'package:astrum/services/events_repository.dart';
 import 'package:astrum/services/profile_repository.dart';
@@ -118,3 +121,29 @@ AppUser testUser({
       notificationsEnabled: notificationsEnabled,
       equippedSkin: equippedSkin,
     );
+
+/// Fake de [AuthRepository]: registra chamadas, falha configuravel e
+/// `completer` opcional para segurar o register (testa inFlight).
+class FakeAuthRepository implements AuthRepository {
+  final signInCalls = <({String email, String password})>[];
+  final registerCalls = <SignUpData>[];
+  int signOutCalls = 0;
+  AuthException? failWith;
+  Completer<void>? completer;
+
+  @override
+  Future<void> signIn({required String email, required String password}) async {
+    signInCalls.add((email: email, password: password));
+    if (failWith != null) throw failWith!;
+  }
+
+  @override
+  Future<void> register(SignUpData data) async {
+    registerCalls.add(data);
+    if (completer != null) await completer!.future;
+    if (failWith != null) throw failWith!;
+  }
+
+  @override
+  Future<void> signOut() async => signOutCalls++;
+}

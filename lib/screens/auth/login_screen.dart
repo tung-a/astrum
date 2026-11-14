@@ -1,9 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../models/auth_exception.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/starfield.dart';
 import '../../providers/app_providers.dart';
@@ -35,16 +35,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _loading = true;
     });
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _email.text.trim(),
-        password: _password.text,
-      );
+      await ref.read(authRepositoryProvider).signIn(
+            email: _email.text.trim(),
+            password: _password.text,
+          );
       await ref.read(analyticsServiceProvider).logEvent('login');
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       setState(() {
-        _error = e.code == 'invalid-credential'
-            ? 'Email ou senha inválidos.'
-            : 'Não foi possível entrar.';
+        _error = loginErrorMessage(e);
       });
     } finally {
       if (mounted) setState(() => _loading = false);

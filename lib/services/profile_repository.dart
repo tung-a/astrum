@@ -6,6 +6,7 @@ import '../data/astrology.dart';
 import '../models/app_user.dart';
 import '../models/equip_slot.dart';
 import 'equip_slot_field.dart';
+import 'public_profile.dart';
 import 'public_profile_sync.dart';
 
 /// Perfil do usuario logado.
@@ -46,7 +47,11 @@ class ProfileRepository {
     required String zodiacSign,
   }) async {
     final pfp = defaultProfilePictureId(zodiacSign);
-    await _userDoc(user.uid).set({
+    // Um unico commit: users/{uid} e publicProfiles/{uid} entram juntos ou
+    // nenhum entra (o rollback do cadastro nao pode deixar users/ orfao, ja
+    // que as regras proibem delete). As regras validam cada doc em separado.
+    final batch = _db.batch();
+    batch.set(_userDoc(user.uid), {
       'name': name,
       'email': user.email,
       'birthDate': birthDate,
@@ -72,8 +77,10 @@ class ProfileRepository {
         'showSign': true,
       },
     });
-    await _sync.write(user.uid,
-        name: name, avatar: pfp, email: user.email ?? '');
+    final public =
+        buildPublicProfile(name: name, avatar: pfp, email: user.email ?? '');
+    if (public != null) batch.set(_db.publicDoc(user.uid), public);
+    await batch.commit();
   }
 
   Future<void> setNotificationsEnabled(String uid, bool enabled) =>

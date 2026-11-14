@@ -15,8 +15,7 @@ import 'support/fake_firebase.dart';
 
 /// Sync que falha ao regravar publicProfiles (lacuna B1 da etapa 5).
 class _SyncFalhando extends PublicProfileSync {
-  _SyncFalhando(FirebaseFirestore db)
-      : super(db: db, auth: FakeFirebaseAuth());
+  _SyncFalhando(FirebaseFirestore db) : super(db: db, auth: FakeFirebaseAuth());
 
   @override
   Future<void> syncFromUser(String uid) async =>
@@ -24,6 +23,7 @@ class _SyncFalhando extends PublicProfileSync {
 }
 
 void main() {
+  createProfileTests();
   group('AdminRepository.rebuildPublicProfiles', () {
     // Obs.: o fake_cloud_firestore NAO aplica firestore.rules. Nas regras
     // atuais so o dono escreve publicProfiles/{uid}; um admin gravando o de
@@ -278,6 +278,87 @@ void main() {
       }
       expect(after['name'], before['name']);
       expect(after['email'], before['email']);
+    });
+  });
+}
+
+/// Db que delega ao fake mas cujo batch falha no commit (sem escrita parcial).
+class _DbCommitFalha implements FirebaseFirestore {
+  _DbCommitFalha(this.inner);
+  final FakeFirebaseFirestore inner;
+
+  @override
+  CollectionReference<Map<String, dynamic>> collection(String path) =>
+      inner.collection(path);
+
+  @override
+  WriteBatch batch() => _BatchFalha();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _BatchFalha implements WriteBatch {
+  @override
+  void set<T>(DocumentReference<T> document, T data, [SetOptions? options]) {}
+
+  @override
+  Future<void> commit() async => throw StateError('commit falhou');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+void createProfileTests() {
+  group('ProfileRepository.createProfile (batch)', () {
+    Future<void> create(ProfileRepository repo, {String name = 'Nova'}) =>
+        repo.createProfile(
+          user: FakeUser('nova', email: 'nova@example.com'),
+          name: name,
+          birthDate: '01/01/2000',
+          birthTime: '10:00',
+          birthPlace: 'SP',
+          zodiacSign: 'Aries',
+        );
+
+    test('grava users e publicProfiles com os campos esperados', () async {
+      final db = FakeFirebaseFirestore();
+      final repo = ProfileRepository(
+          db: db, sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()));
+      await create(repo);
+      final u = (await db.collection('users').doc('nova').get()).data()!;
+      expect(u['wallet'], {'stardust': 500});
+      expect(u['role'], 'user');
+      expect(u['email'], 'nova@example.com');
+      expect(u['birthPlace'], 'SP');
+      final pub =
+          (await db.collection('publicProfiles').doc('nova').get()).data()!;
+      expect(pub.keys.toSet(), {'name', 'avatar', 'emailHash'});
+    });
+
+    test('nome invalido nao grava publicProfiles', () async {
+      final db = FakeFirebaseFirestore();
+      final repo = ProfileRepository(
+          db: db, sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()));
+      await create(repo, name: '   ');
+      expect((await db.collection('users').doc('nova').get()).exists, isTrue);
+      expect((await db.collection('publicProfiles').doc('nova').get()).exists,
+          isFalse);
+    });
+
+    test('commit que falha nao deixa escrita parcial', () async {
+      final inner = FakeFirebaseFirestore();
+      final repo = ProfileRepository(
+          db: _DbCommitFalha(inner),
+          sync: PublicProfileSync(db: inner, auth: FakeFirebaseAuth()));
+      await expectLater(create(repo), throwsStateError);
+      expect(
+          (await inner.collection('users').doc('nova').get()).exists, isFalse);
+      expect(
+          (await inner.collection('publicProfiles').doc('nova').get()).exists,
+          isFalse);
     });
   });
 }

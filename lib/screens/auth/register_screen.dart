@@ -1,23 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../models/sign_up_data.dart';
+import '../../providers/sign_up_provider.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/starfield.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
   bool _obscure = true;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Reentrar no cadastro descarta rascunho anterior (nao durante envio).
+    // Adiado com Future(...) porque o Riverpod proibe alterar um provider
+    // durante o build/initState da arvore de widgets.
+    Future(() {
+      if (!mounted) return;
+      final c = ref.read(signUpControllerProvider.notifier);
+      if (!ref.read(signUpControllerProvider).inFlight) c.clear();
+    });
+  }
 
   @override
   void dispose() {
@@ -37,14 +53,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _next() {
     setState(() => _error = null);
-    if (_name.text.isEmpty ||
-        _email.text.isEmpty ||
+    final name = _name.text.trim();
+    final email = _email.text.trim();
+    if (name.isEmpty ||
+        email.isEmpty ||
         _password.text.isEmpty ||
         _confirm.text.isEmpty) {
       setState(() => _error = 'Preencha todos os campos.');
       return;
     }
-    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(_email.text.trim())) {
+    final lengthError = signUpLengthError(name: name, email: email);
+    if (lengthError != null) {
+      setState(() => _error = lengthError);
+      return;
+    }
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
       setState(() => _error = 'Email inválido.');
       return;
     }
@@ -56,14 +79,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _error = 'A senha deve ter pelo menos 6 caracteres.');
       return;
     }
-    context.go(
-      '/welcome',
-      extra: {
-        'name': _name.text.trim(),
-        'email': _email.text.trim(),
-        'password': _password.text,
-      },
-    );
+    ref.read(signUpControllerProvider.notifier).start(SignUpDraft(
+          name: name,
+          email: email,
+          password: _password.text,
+        ));
+    context.go('/welcome');
   }
 
   @override
@@ -81,7 +102,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 24),
               TextField(
                 controller: _name,
+                maxLength: SignUpLimits.name,
                 decoration: const InputDecoration(
+                  counterText: '',
                   prefixIcon: Icon(Icons.person_outline),
                   hintText: 'Nome completo',
                 ),
@@ -90,7 +113,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextField(
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
+                maxLength: SignUpLimits.email,
                 decoration: const InputDecoration(
+                  counterText: '',
                   prefixIcon: Icon(Icons.mail_outline),
                   hintText: 'Email',
                 ),

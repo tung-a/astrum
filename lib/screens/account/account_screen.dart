@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -166,7 +165,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           ...friends.map((f) => _FriendTile(friend: f, me: profile)),
           const SizedBox(height: 24),
           OutlinedButton(
-            onPressed: () => FirebaseAuth.instance.signOut(),
+            onPressed: () => ref.read(authRepositoryProvider).signOut(),
             child: const Text('Sair'),
           ),
         ],
