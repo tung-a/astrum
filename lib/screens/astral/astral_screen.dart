@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/astrology.dart';
+import '../../core/astro/zodiac.dart';
+import '../../core/astro/natal_chart.dart';
 import '../../providers/app_providers.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/cosmic_scaffold.dart';

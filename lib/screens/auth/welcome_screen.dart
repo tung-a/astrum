@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/astrology.dart';
+import '../../core/astro/zodiac.dart';
 import '../../models/auth_exception.dart';
 import '../../models/sign_up_data.dart';
 import '../../providers/app_providers.dart';

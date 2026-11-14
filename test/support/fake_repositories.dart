@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:astrum/models/app_user.dart';
+import 'package:astrum/models/ritual_event.dart';
+import 'package:astrum/models/friend.dart';
+import 'package:astrum/models/intention_notice.dart';
 import 'package:astrum/models/auth_exception.dart';
 import 'package:astrum/models/sign_up_data.dart';
 import 'package:astrum/services/auth_repository.dart';

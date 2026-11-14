@@ -4,12 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import '../../data/astrology.dart';
-import '../../data/cosmetics.dart';
+import '../../core/firebase/rules_contract.dart';
+import '../../core/astro/zodiac.dart';
+import '../../theme/cosmetics_style.dart';
 import '../../data/moon.dart';
 import '../../data/tarot.dart';
 import '../../providers/app_providers.dart';
-import '../../services/economy.dart';
+import '../../services/economy_exceptions.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/cosmic_scaffold.dart';
 import '../rituals/meditation_sheet.dart';
@@ -85,7 +86,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
       await ref
           .read(economyRepositoryProvider)
           .dailyCheckIn(uid: profile.uid, today: _today);
-      message = '+25 Poeira Estelar pelo check-in de hoje';
+      message = '+$checkInReward Poeira Estelar pelo check-in de hoje';
     } on EconomyException catch (e) {
       message = e.message;
     } catch (_) {
@@ -192,7 +193,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
                 child: Text(
                   checkedIn
                       ? 'Check-in de hoje já recebido · ${profile.stardust} ✦'
-                      : 'Check-in diário · +25 Poeira Estelar',
+                      : 'Check-in diário · +$checkInReward Poeira Estelar',
                 ),
               ),
               const SizedBox(height: 20),

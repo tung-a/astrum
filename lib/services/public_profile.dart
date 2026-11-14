@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
+import '../core/firebase/rules_contract.dart';
+
 /// SHA-256 (hex minusculo, 64 caracteres) do e-mail em minusculas e sem
 /// espacos nas pontas. E o unico identificador de busca de amigo exposto em
 /// `publicProfiles/{uid}`; o e-mail em si nunca sai de `users/{uid}`.
@@ -19,7 +21,9 @@ Map<String, dynamic>? buildPublicProfile({
   final cleanName = name.trim();
   if (email.trim().isEmpty || cleanName.isEmpty) return null;
   return {
-    'name': cleanName.length > 100 ? cleanName.substring(0, 100) : cleanName,
+    'name': cleanName.length > publicNameMax
+        ? cleanName.substring(0, publicNameMax)
+        : cleanName,
     'avatar': avatar ?? '',
     'emailHash': hashEmail(email),
   };

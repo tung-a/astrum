@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/firebase/firestore_paths.dart';
 import '../models/equip_slot.dart';
+import '../models/catalog_entry.dart';
 import 'economy.dart';
+import 'economy_exceptions.dart';
 import 'equip_slot_field.dart';
 import 'public_profile_sync.dart';
 

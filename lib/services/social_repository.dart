@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/firebase/firestore_paths.dart';
-import '../models/app_user.dart';
+import '../models/friend.dart';
+import '../models/intention_notice.dart';
 import 'public_profile.dart';
 
 /// Amigos, busca por e-mail e intencoes/notificacoes.

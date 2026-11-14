@@ -6,7 +6,7 @@
 // itens abertos (M3, B1). Quando o usuario decidir a correcao, estes testes
 // devem ser atualizados junto com ela.
 import 'package:astrum/core/firebase/firebase_providers.dart';
-import 'package:astrum/data/astrology.dart';
+import 'package:astrum/data/profile_pictures.dart';
 import 'package:astrum/models/equip_slot.dart';
 import 'package:astrum/providers/app_providers.dart';
 import 'package:astrum/services/admin_repository.dart';

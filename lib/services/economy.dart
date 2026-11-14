@@ -3,60 +3,9 @@
 /// `isPurchase()` e `isCheckin()` em firestore.rules.
 library;
 
-const int checkInReward = 25;
-
-/// Erros de economia (cada um vira uma mensagem na tela).
-sealed class EconomyException implements Exception {
-  const EconomyException(this.message);
-  final String message;
-
-  @override
-  String toString() => message;
-}
-
-class AlreadyOwnedException extends EconomyException {
-  const AlreadyOwnedException() : super('Você já possui este item.');
-}
-
-class InsufficientFundsException extends EconomyException {
-  const InsufficientFundsException()
-      : super('Poeira Estelar insuficiente.');
-}
-
-/// Item sem entrada ativa no catalogo (shop_items) ou com preco invalido: as
-/// regras do Firestore recusariam a gravacao.
-class NotPurchasableException extends EconomyException {
-  const NotPurchasableException()
-      : super('Este item não está disponível para compra.');
-}
-
-/// Catalogo vazio (shop_items nao publicado ou ainda nao carregado): nao ha
-/// preco confiavel, entao nao se compra com preco local.
-class CatalogUnavailableException extends EconomyException {
-  const CatalogUnavailableException() : super('Catálogo indisponível.');
-}
-
-/// Entrada do catalogo `shop_items/{itemId}` (preco validado pelas regras).
-class CatalogEntry {
-  const CatalogEntry({
-    required this.price,
-    required this.type,
-    required this.rarity,
-    required this.active,
-  });
-
-  final int price;
-  final String type;
-  final String rarity;
-  final bool active;
-
-  factory CatalogEntry.fromMap(Map<String, dynamic> data) => CatalogEntry(
-        price: (data['price'] as num?)?.toInt() ?? -1,
-        type: data['type'] as String? ?? '',
-        rarity: data['rarity'] as String? ?? '',
-        active: data['active'] == true,
-      );
-}
+import '../core/firebase/rules_contract.dart';
+import '../models/catalog_entry.dart';
+import 'economy_exceptions.dart';
 
 /// Preco de [itemId] segundo o [catalog]. Lanca [CatalogUnavailableException]
 /// se o catalogo estiver vazio e [NotPurchasableException] se o item nao existe,
@@ -68,11 +17,6 @@ int resolvePrice(Map<String, CatalogEntry> catalog, String itemId) {
     throw const NotPurchasableException();
   }
   return entry.price;
-}
-
-class AlreadyCheckedInException extends EconomyException {
-  const AlreadyCheckedInException()
-      : super('Você já fez o check-in de hoje.');
 }
 
 class PurchaseResult {

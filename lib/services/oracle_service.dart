@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import '../data/astrology.dart';
+import '../core/astro/zodiac.dart';
 import '../data/moon.dart';
 import '../data/tarot.dart';
 

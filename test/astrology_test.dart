@@ -1,7 +1,9 @@
 import 'dart:io';
 
-import 'package:astrum/data/astrology.dart';
-import 'package:astrum/data/cosmetics.dart';
+import 'package:astrum/core/astro/zodiac.dart';
+import 'package:astrum/core/astro/synergy.dart';
+import 'package:astrum/data/profile_pictures.dart';
+import 'package:astrum/data/catalog_seed.dart';
 import 'package:astrum/data/moon.dart';
 import 'package:flutter_test/flutter_test.dart';
 

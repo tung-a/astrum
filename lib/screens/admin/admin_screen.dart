@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/cosmetics.dart';
+import '../../data/catalog_seed.dart';
 import '../../models/app_user.dart';
 import '../../providers/app_providers.dart';
 import '../../services/admin_repository.dart';

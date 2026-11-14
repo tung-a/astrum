@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'economy.dart';
+import '../models/catalog_entry.dart';
 
 /// Leitura do catalogo da loja (shop_items).
 class CatalogRepository {

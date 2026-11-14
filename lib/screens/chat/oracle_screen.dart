@@ -3,7 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
-import '../../models/app_user.dart';
+import '../../models/chat_models.dart';
 import '../../providers/app_providers.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/cosmic_scaffold.dart';

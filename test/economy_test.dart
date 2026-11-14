@@ -1,4 +1,6 @@
 import 'package:astrum/services/economy.dart';
+import 'package:astrum/services/economy_exceptions.dart';
+import 'package:astrum/models/catalog_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -42,8 +44,8 @@ void main() {
     });
 
     test('preco zero adiciona o item sem mexer no saldo', () {
-      final r = computePurchase(
-          stardust: 10, inventory: [], itemId: 'a', price: 0);
+      final r =
+          computePurchase(stardust: 10, inventory: [], itemId: 'a', price: 0);
       expect(r.stardust, 10);
       expect(r.inventory, ['a']);
     });
@@ -89,8 +91,7 @@ void main() {
   group('computeCheckIn', () {
     test('primeiro check-in credita 25', () {
       expect(
-          computeCheckIn(
-              stardust: 100, lastCheckIn: null, today: '2026-11-08'),
+          computeCheckIn(stardust: 100, lastCheckIn: null, today: '2026-11-08'),
           125);
     });
 

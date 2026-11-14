@@ -2,28 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/astrology.dart';
-import '../../data/cosmetics.dart';
+import '../../core/firebase/rules_contract.dart';
+import '../../core/astro/zodiac.dart';
+import '../../core/astro/synergy.dart';
+import '../../data/profile_pictures.dart';
 import '../../models/app_user.dart';
+import '../../models/friend.dart';
 import '../../providers/app_providers.dart';
 import '../../theme/astrum_colors.dart';
 import '../../widgets/cosmic_scaffold.dart';
 
-const intentions = [
-  (id: 'luz', label: 'Luz', icon: Icons.wb_sunny, color: AstrumColors.luz),
-  (
-    id: 'coragem',
-    label: 'Coragem',
-    icon: Icons.local_fire_department,
-    color: AstrumColors.coragem
-  ),
-  (id: 'cura', label: 'Cura', icon: Icons.spa, color: AstrumColors.cura),
-  (
-    id: 'clareza',
-    label: 'Clareza',
-    icon: Icons.water_drop,
-    color: AstrumColors.clareza
-  ),
+/// Icone e cor de cada intencao, por id. Os ids e rotulos vem do contrato
+/// (`intentionLabels`), que espelha `labelOk` em firestore.rules.
+const intentionStyles = <String, ({IconData icon, Color color})>{
+  'luz': (icon: Icons.wb_sunny, color: AstrumColors.luz),
+  'coragem': (icon: Icons.local_fire_department, color: AstrumColors.coragem),
+  'cura': (icon: Icons.spa, color: AstrumColors.cura),
+  'clareza': (icon: Icons.water_drop, color: AstrumColors.clareza),
+};
+
+final intentions = [
+  for (final e in intentionLabels.entries)
+    (
+      id: e.key,
+      label: e.value,
+      icon: intentionStyles[e.key]!.icon,
+      color: intentionStyles[e.key]!.color
+    ),
 ];
 
 class AccountScreen extends ConsumerStatefulWidget {

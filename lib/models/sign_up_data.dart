@@ -1,11 +1,13 @@
+import '../core/firebase/rules_contract.dart';
+
 /// Tamanhos maximos aceitos por `profileShapeOk` em firestore.rules
 /// (manter em sincronia com as regras).
 class SignUpLimits {
-  static const name = 100;
-  static const email = 254;
-  static const birthDate = 20;
-  static const birthTime = 10;
-  static const birthPlace = 200;
+  static const name = profileNameMax;
+  static const email = profileEmailMax;
+  static const birthDate = profileBirthDateMax;
+  static const birthTime = profileBirthTimeMax;
+  static const birthPlace = profileBirthPlaceMax;
 }
 
 /// Mensagem de erro se algum campo estoura o limite das regras; null se ok.

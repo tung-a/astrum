@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/firebase/firestore_paths.dart';
-import '../models/app_user.dart';
+import '../models/ritual_event.dart';
 
 /// Eventos/rituais em users/{uid}/events.
 class EventsRepository {

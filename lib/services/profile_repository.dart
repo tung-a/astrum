@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../core/firebase/firestore_paths.dart';
-import '../data/astrology.dart';
+import '../core/firebase/rules_contract.dart';
+import '../core/astro/natal_chart.dart';
+import '../data/profile_pictures.dart';
 import '../models/app_user.dart';
 import '../models/equip_slot.dart';
 import 'equip_slot_field.dart';
@@ -57,18 +59,17 @@ class ProfileRepository {
       'birthDate': birthDate,
       'birthTime': birthTime,
       'birthPlace': birthPlace,
-      'role': 'user',
+      'role': roleUser,
       'zodiacSign': zodiacSign,
       'astrologyData': {'sun': zodiacSign, 'moon': null, 'ascendant': null},
-      'wallet': {'stardust': 500},
+      'wallet': {'stardust': initialStardust},
       'inventory': [
-        'skin_classic',
-        'bg_void',
+        ...defaultInventory,
         if (pfp.isNotEmpty) pfp,
       ],
       'equipped': {
-        'skin': 'skin_classic',
-        'background': 'bg_void',
+        'skin': defaultSkinId,
+        'background': defaultBackgroundId,
         'profilePicture': pfp.isEmpty ? null : pfp,
       },
       'preferences': {

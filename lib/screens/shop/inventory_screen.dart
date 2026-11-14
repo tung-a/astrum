@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/cosmetics.dart';
+import '../../models/shop_item.dart';
+import '../../data/catalog_seed.dart';
+import '../../data/profile_pictures.dart';
 import '../../models/app_user.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/cosmic_scaffold.dart';

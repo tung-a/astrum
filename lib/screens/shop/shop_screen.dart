@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/cosmetics.dart';
+import '../../models/shop_item.dart';
+import '../../data/catalog_seed.dart';
+import '../../theme/cosmetics_style.dart';
+import '../../data/profile_pictures.dart';
 import '../../models/app_user.dart';
 import '../../providers/app_providers.dart';
-import '../../services/economy.dart';
+import '../../services/economy_exceptions.dart';
+import '../../models/catalog_entry.dart';
 import '../../widgets/cosmic_scaffold.dart';
 
 class ShopScreen extends ConsumerStatefulWidget {

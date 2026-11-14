@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/app_user.dart';
+import '../models/intention_notice.dart';
 import '../providers/app_providers.dart';
 import '../theme/astrum_colors.dart';
 import 'starfield.dart';

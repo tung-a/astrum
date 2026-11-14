@@ -1,21 +1,22 @@
 import 'dart:convert';
 
-import '../data/astrology.dart';
+import '../core/firebase/rules_contract.dart';
+import '../core/astro/natal_chart.dart';
 
 class AppUser {
   const AppUser({
     required this.uid,
     required this.email,
     required this.name,
-    this.role = 'user',
+    this.role = roleUser,
     this.zodiacSign = '',
     this.birthDate = '',
     this.birthTime = '',
     this.birthPlace = '',
     this.stardust = 0,
-    this.inventory = const ['skin_classic', 'bg_void'],
-    this.equippedSkin = 'skin_classic',
-    this.equippedBackground = 'bg_void',
+    this.inventory = defaultInventory,
+    this.equippedSkin = defaultSkinId,
+    this.equippedBackground = defaultBackgroundId,
     this.equippedProfilePicture,
     this.dailyHoroscope,
     this.dailyTarot,
@@ -47,7 +48,7 @@ class AppUser {
   final bool publicProfile;
   final bool showSign;
 
-  bool get isAdmin => role == 'admin';
+  bool get isAdmin => role == roleAdmin;
 
   factory AppUser.fromFirebase({
     required String uid,
@@ -58,22 +59,23 @@ class AppUser {
     final wallet = data?['wallet'] as Map<String, dynamic>?;
     final equipped = data?['equipped'] as Map<String, dynamic>?;
     final prefs = data?['preferences'] as Map<String, dynamic>?;
-    final inventory = (data?['inventory'] as List?)?.cast<String>() ??
-        const ['skin_classic', 'bg_void'];
+    final inventory =
+        (data?['inventory'] as List?)?.cast<String>() ?? defaultInventory;
 
     return AppUser(
       uid: uid,
       email: email,
       name: (data?['name'] as String?) ?? displayName,
-      role: (data?['role'] as String?) ?? 'user',
+      role: (data?['role'] as String?) ?? roleUser,
       zodiacSign: (data?['zodiacSign'] as String?) ?? '',
       birthDate: (data?['birthDate'] as String?) ?? '',
       birthTime: (data?['birthTime'] as String?) ?? '',
       birthPlace: (data?['birthPlace'] as String?) ?? '',
       stardust: (wallet?['stardust'] as num?)?.toInt() ?? 0,
       inventory: inventory,
-      equippedSkin: (equipped?['skin'] as String?) ?? 'skin_classic',
-      equippedBackground: (equipped?['background'] as String?) ?? 'bg_void',
+      equippedSkin: (equipped?['skin'] as String?) ?? defaultSkinId,
+      equippedBackground:
+          (equipped?['background'] as String?) ?? defaultBackgroundId,
       equippedProfilePicture: equipped?['profilePicture'] as String?,
       dailyHoroscope: data?['dailyHoroscope'] as Map<String, dynamic>?,
       dailyTarot: data?['dailyTarot'] as Map<String, dynamic>?,
@@ -126,87 +128,4 @@ class AppUser {
           'showSign': showSign,
         },
       };
-}
-
-class RitualEvent {
-  const RitualEvent({
-    required this.id,
-    required this.title,
-    required this.time,
-    required this.date,
-    this.duration = 30,
-    this.energy,
-  });
-
-  final String id;
-  final String title;
-  final String time;
-  final String date;
-  final int duration;
-  final String? energy;
-
-  factory RitualEvent.fromDoc(String id, Map<String, dynamic> data) =>
-      RitualEvent(
-        id: id,
-        title: data['title'] as String? ?? '',
-        time: data['time'] as String? ?? '',
-        date: data['date'] as String? ?? '',
-        duration: (data['duration'] as num?)?.toInt() ?? 30,
-        energy: data['energy'] as String?,
-      );
-}
-
-class ChatConversation {
-  const ChatConversation({
-    required this.id,
-    required this.title,
-    required this.messages,
-  });
-
-  final String id;
-  final String title;
-  final List<ChatTurnStored> messages;
-}
-
-class ChatTurnStored {
-  const ChatTurnStored({required this.role, required this.text});
-  final String role;
-  final String text;
-
-  Map<String, dynamic> toJson() => {'role': role, 'text': text};
-
-  factory ChatTurnStored.fromJson(Map<String, dynamic> json) => ChatTurnStored(
-        role: json['role'] as String? ?? 'user',
-        text: json['text'] as String? ?? '',
-      );
-}
-
-class Friend {
-  const Friend({
-    required this.id,
-    required this.name,
-    this.email = '',
-    this.zodiacSign = '',
-    this.avatar = '',
-  });
-
-  final String id;
-  final String name;
-  final String email;
-  final String zodiacSign;
-  final String avatar;
-}
-
-class IntentionNotice {
-  const IntentionNotice({
-    required this.id,
-    required this.intentionId,
-    required this.intentionLabel,
-    required this.fromName,
-  });
-
-  final String id;
-  final String intentionId;
-  final String intentionLabel;
-  final String fromName;
 }

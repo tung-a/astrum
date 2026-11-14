@@ -2,7 +2,7 @@
 // Limitacao do pacote: nao aplica firestore.rules (isso fica em test_rules/) e
 // nao simula contencao/retry de transacao; so a logica da transacao e testada.
 import 'package:astrum/models/equip_slot.dart';
-import 'package:astrum/services/economy.dart';
+import 'package:astrum/services/economy_exceptions.dart';
 import 'package:astrum/services/economy_repository.dart';
 import 'package:astrum/services/public_profile.dart';
 import 'package:astrum/services/public_profile_sync.dart';

@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/firebase/firestore_paths.dart';
-import '../data/astrology.dart';
-import '../data/cosmetics.dart';
+import '../core/firebase/rules_contract.dart';
+import '../data/profile_pictures.dart';
+import '../models/shop_item.dart';
 import '../data/crystal_seed.dart';
 import '../models/app_user.dart';
 import 'public_profile.dart';
@@ -39,7 +40,7 @@ AnalyticsSummary summarizeAnalytics(List<AnalyticsEventRow> rows) {
   final counts = <String, int>{};
   for (final r in rows) {
     final uid = r.userId;
-    if (uid != null && uid != 'anonymous') users.add(uid);
+    if (uid != null && uid != anonymousUserId) users.add(uid);
     final name = r.eventName;
     if (name != null && name.isNotEmpty) {
       counts.update(name, (n) => n + 1, ifAbsent: () => 1);

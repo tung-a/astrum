@@ -4,14 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/firebase/firebase_providers.dart';
-import '../data/cosmetics.dart';
+import '../core/firebase/rules_contract.dart';
+import '../theme/cosmetics_style.dart';
 import '../models/app_user.dart';
+import '../models/ritual_event.dart';
+import '../models/friend.dart';
+import '../models/intention_notice.dart';
 import '../services/admin_repository.dart';
 import '../services/analytics_service.dart';
 import '../services/auth_repository.dart';
 import '../services/catalog_repository.dart';
 import '../services/chat_store.dart';
-import '../services/economy.dart';
+import '../models/catalog_entry.dart';
 import '../services/economy_repository.dart';
 import '../services/events_repository.dart';
 import '../services/oracle_service.dart';
@@ -125,14 +129,14 @@ final intentionProvider = StreamProvider<IntentionNotice?>((ref) {
 
 final equippedSkinProvider = Provider<SkinStyle>((ref) {
   final id =
-      ref.watch(profileProvider).valueOrNull?.equippedSkin ?? 'skin_classic';
-  return cosmeticStyles[id] ?? cosmeticStyles['skin_classic']!;
+      ref.watch(profileProvider).valueOrNull?.equippedSkin ?? defaultSkinId;
+  return cosmeticStyles[id] ?? cosmeticStyles[defaultSkinId]!;
 });
 
 final equippedBackgroundProvider = Provider<List<Color>>((ref) {
-  final id =
-      ref.watch(profileProvider).valueOrNull?.equippedBackground ?? 'bg_void';
-  return cosmeticBackgrounds[id] ?? cosmeticBackgrounds['bg_void']!;
+  final id = ref.watch(profileProvider).valueOrNull?.equippedBackground ??
+      defaultBackgroundId;
+  return cosmeticBackgrounds[id] ?? cosmeticBackgrounds[defaultBackgroundId]!;
 });
 
 final pendingOraclePromptProvider = StateProvider<String?>((ref) => null);
