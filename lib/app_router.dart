@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/providers/sign_up_provider.dart';
 import 'package:astrum/screens/account/account_screen.dart';
 import 'package:astrum/screens/admin/admin_screen.dart';

@@ -6,6 +6,7 @@ import 'package:astrum/app_router.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/models/auth_exception.dart';
 import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/core/analytics/analytics_providers.dart';
 import 'package:astrum/providers/sign_up_provider.dart';
 import 'package:astrum/screens/auth/login_screen.dart';
 import 'package:astrum/screens/auth/welcome_screen.dart';

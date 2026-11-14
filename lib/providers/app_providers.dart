@@ -1,17 +1,16 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:astrum/core/firebase/session_providers.dart';
+import 'package:astrum/core/storage/prefs_providers.dart';
 import 'package:astrum/theme/cosmetics_style.dart';
 import 'package:astrum/models/app_user.dart';
 import 'package:astrum/models/ritual_event.dart';
 import 'package:astrum/models/friend.dart';
 import 'package:astrum/models/intention_notice.dart';
 import 'package:astrum/services/admin_repository.dart';
-import 'package:astrum/core/analytics/analytics_service.dart';
 import 'package:astrum/services/auth_repository.dart';
 import 'package:astrum/services/catalog_repository.dart';
 import 'package:astrum/services/chat_store.dart';
@@ -22,10 +21,6 @@ import 'package:astrum/services/oracle_service.dart';
 import 'package:astrum/services/profile_repository.dart';
 import 'package:astrum/services/public_profile_sync.dart';
 import 'package:astrum/services/social_repository.dart';
-
-final authStateProvider = StreamProvider<User?>((ref) {
-  return ref.watch(firebaseAuthProvider).authStateChanges();
-});
 
 final publicProfileSyncProvider = Provider(
   (ref) => PublicProfileSync(
@@ -62,17 +57,6 @@ final adminRepositoryProvider =
 
 final oracleServiceProvider = Provider((ref) => OracleService());
 
-final analyticsServiceProvider = Provider(
-  (ref) => AnalyticsService(
-    firestore: ref.watch(firestoreProvider),
-    auth: ref.watch(firebaseAuthProvider),
-  ),
-);
-
-final prefsProvider = Provider<SharedPreferences>((ref) {
-  throw StateError('prefs not overridden');
-});
-
 final chatStoreProvider =
     Provider((ref) => ChatStore(ref.watch(prefsProvider)));
 
@@ -93,18 +77,6 @@ final profileProvider = StreamProvider<AppUser?>((ref) {
 /// Catalogo da loja (shop_items): fonte unica de preco e disponibilidade.
 final shopCatalogProvider = StreamProvider<Map<String, CatalogEntry>>((ref) {
   return ref.watch(catalogRepositoryProvider).watchShopCatalog();
-});
-
-/// uid do usuario logado. Os providers de streams por usuario dependem so
-/// disto (via `select`), para nao reabrir listeners quando saldo, horoscopo
-/// ou itens equipados mudam em `users/{uid}`.
-final currentUidProvider = Provider<String?>((ref) {
-  // Vem da auth, nao do perfil: durante o loading do perfil de outro usuario o
-  // valueOrNull do perfil ainda retem o anterior. AsyncError tambem retem o
-  // valor anterior, entao hasError e testado primeiro (erro conta como null).
-  return ref.watch(authStateProvider.select(
-    (a) => a.hasError ? null : a.valueOrNull?.uid,
-  ));
 });
 
 final eventsProvider = StreamProvider<List<RitualEvent>>((ref) {

@@ -7,6 +7,7 @@ import 'package:astrum/models/auth_exception.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/core/widgets/starfield.dart';
 import 'package:astrum/providers/app_providers.dart';
+import 'package:astrum/core/analytics/analytics_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
