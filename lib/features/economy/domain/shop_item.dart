@@ -46,3 +46,10 @@ String rarityLabel(ItemRarity rarity) => switch (rarity) {
       ItemRarity.epic => 'Épico',
       ItemRarity.legendary => 'Lendário',
     };
+
+/// Rotulo do filtro por tipo (loja e inventario).
+String itemTypeLabel(ItemType type) => switch (type) {
+      ItemType.cardSkin => 'Cartas',
+      ItemType.background => 'Fundos',
+      ItemType.profilePicture => 'Avatares',
+    };

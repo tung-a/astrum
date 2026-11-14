@@ -1,10 +1,9 @@
 import 'package:astrum/features/economy/domain/catalog_entry.dart';
 import 'package:astrum/features/economy/domain/catalog_seed.dart';
-import 'package:astrum/features/economy/domain/economy_exceptions.dart';
 import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:astrum/features/economy/domain/shop_item.dart';
 import 'package:astrum/features/economy/presentation/economy_providers.dart';
-import 'package:astrum/features/profile/domain/app_user.dart';
+import 'package:astrum/features/economy/presentation/shop_controller.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/shared/cosmetics_style.dart';
 import 'package:astrum/shared/cosmic_scaffold.dart';
@@ -20,11 +19,11 @@ class ShopScreen extends ConsumerStatefulWidget {
 
 class _ShopScreenState extends ConsumerState<ShopScreen> {
   ItemType _filter = ItemType.cardSkin;
-  bool _buying = false;
 
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider).valueOrNull;
+    final buying = ref.watch(shopControllerProvider.select((s) => s.buying));
     if (profile == null) {
       return const CosmicScaffold(
           body: Center(child: CircularProgressIndicator()));
@@ -60,7 +59,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             children: [
               for (final type in ItemType.values)
                 ChoiceChip(
-                  label: Text(_label(type)),
+                  label: Text(itemTypeLabel(type)),
                   selected: _filter == type,
                   onSelected: (_) => setState(() => _filter = type),
                 ),
@@ -77,10 +76,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                 ),
                 isThreeLine: item.description.isNotEmpty,
                 trailing: FilledButton(
-                  onPressed:
-                      _buying ? null : () => _selectItem(profile.uid, item),
+                  onPressed: buying ? null : () => _selectItem(item),
                   child: Text(
-                    _isEquipped(profile, item)
+                    profile.isEquipped(item)
                         ? 'Em uso'
                         : profile.inventory.contains(item.id)
                             ? 'Equipar'
@@ -94,47 +92,12 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     );
   }
 
-  String _label(ItemType type) => switch (type) {
-        ItemType.cardSkin => 'Cartas',
-        ItemType.background => 'Fundos',
-        ItemType.profilePicture => 'Avatares',
-      };
-
-  bool _isEquipped(AppUser profile, ShopItem item) => switch (item.type) {
-        ItemType.cardSkin => profile.equippedSkin == item.id,
-        ItemType.background => profile.equippedBackground == item.id,
-        ItemType.profilePicture => profile.equippedProfilePicture == item.id,
-      };
-
-  Future<void> _selectItem(String uid, ShopItem item) async {
-    if (_buying) return;
-    final profile = ref.read(profileProvider).valueOrNull;
-    if (profile == null) return;
-    final profileRepo = ref.read(profileRepositoryProvider);
-    final economy = ref.read(economyRepositoryProvider);
+  Future<void> _selectItem(ShopItem item) async {
     final messenger = ScaffoldMessenger.of(context);
-
-    setState(() => _buying = true);
-    try {
-      if (profile.inventory.contains(item.id)) {
-        // Equipar nao mexe em saldo nem inventario.
-        await profileRepo.equip(uid, item.type.slot, item.id);
-      } else {
-        // Saldo e posse sao validados dentro da transacao.
-        await economy.purchaseItem(
-          uid: uid,
-          itemId: item.id,
-          equipSlot: item.type.slot,
-        );
-      }
-    } on EconomyException catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
-    } catch (_) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Não foi possível concluir. Tente novamente.'),
-      ));
-    } finally {
-      if (mounted) setState(() => _buying = false);
+    final message =
+        await ref.read(shopControllerProvider.notifier).selectItem(item);
+    if (message != null) {
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     }
   }
 }

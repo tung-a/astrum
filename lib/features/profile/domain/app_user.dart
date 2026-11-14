@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:astrum/features/economy/domain/shop_item.dart';
 
 class AppUser {
   const AppUser({
@@ -49,6 +50,13 @@ class AppUser {
   final bool showSign;
 
   bool get isAdmin => role == roleAdmin;
+
+  /// Se [item] e o cosmetico equipado no slot do seu tipo.
+  bool isEquipped(ShopItem item) => switch (item.type) {
+        ItemType.cardSkin => equippedSkin == item.id,
+        ItemType.background => equippedBackground == item.id,
+        ItemType.profilePicture => equippedProfilePicture == item.id,
+      };
 
   factory AppUser.fromFirebase({
     required String uid,

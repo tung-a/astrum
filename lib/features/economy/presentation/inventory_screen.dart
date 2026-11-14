@@ -1,7 +1,7 @@
 import 'package:astrum/features/economy/domain/catalog_seed.dart';
 import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:astrum/features/economy/domain/shop_item.dart';
-import 'package:astrum/features/profile/domain/app_user.dart';
+import 'package:astrum/features/economy/presentation/shop_controller.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
@@ -40,11 +40,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             children: [
               for (final type in ItemType.values)
                 ChoiceChip(
-                  label: Text(switch (type) {
-                    ItemType.cardSkin => 'Cartas',
-                    ItemType.background => 'Fundos',
-                    ItemType.profilePicture => 'Avatares',
-                  }),
+                  label: Text(itemTypeLabel(type)),
                   selected: _filter == type,
                   onSelected: (_) => setState(() => _filter = type),
                 ),
@@ -63,11 +59,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 title: Text(item.name),
                 subtitle: Text(rarityLabel(item.rarity)),
                 trailing: TextButton(
-                  onPressed: _isEquipped(profile, item)
-                      ? null
-                      : () => _equip(profile, item),
-                  child:
-                      Text(_isEquipped(profile, item) ? 'Em uso' : 'Equipar'),
+                  onPressed:
+                      profile.isEquipped(item) ? null : () => _equip(item),
+                  child: Text(profile.isEquipped(item) ? 'Em uso' : 'Equipar'),
                 ),
               ),
             ),
@@ -76,16 +70,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
-  bool _isEquipped(AppUser profile, ShopItem item) => switch (item.type) {
-        ItemType.cardSkin => profile.equippedSkin == item.id,
-        ItemType.background => profile.equippedBackground == item.id,
-        ItemType.profilePicture => profile.equippedProfilePicture == item.id,
-      };
-
-  Future<void> _equip(AppUser profile, ShopItem item) async {
-    await ref
-        .read(profileRepositoryProvider)
-        .equip(profile.uid, item.type.slot, item.id);
+  Future<void> _equip(ShopItem item) async {
+    await ref.read(shopControllerProvider.notifier).equip(item);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${item.name} equipado.')),
