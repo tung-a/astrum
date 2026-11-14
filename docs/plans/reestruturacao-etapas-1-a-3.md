@@ -105,4 +105,14 @@ Nota: a renumeração acima insere exclusão de conta e aceite de amizade (antig
 - (M1) `rebuildPublicProfiles` falha com permission-denied para terceiros: `firestore.rules` só deixa o dono escrever `publicProfiles/{uid}`. Opções: remover a função; permitir `isAdmin()` na regra (com teste em `test_rules/`); ou cada cliente migrar o próprio perfil ao logar.
 - (M3, LGPD) `preferences.publicProfile=false` é ignorado (o perfil público é gravado mesmo assim); o hash de e-mail sem sal permite enumeração de e-mails conhecidos; não há exclusão do `publicProfile` (`allow delete: if false`). Relacionar à etapa 11 (exclusão de conta), que exigirá ajustar a regra de delete.
 - (B1) Falha do sync de `publicProfiles` após a transação de compra é propagada à UI como erro, mesmo com a compra já efetivada. Decidir se o sync vira best-effort (erro engolido/registrado) ou se entra na transação.
-- `npm test` de `test_rules/` não foi executado na etapa 4 porque a porta 8080 estava ocupada; rodar antes de fechar a etapa.
+- `npm test` de `test_rules/` não foi executado na etapa 4 porque a porta 8080 estava ocupada; rodar antes de fechar a etapa. Na etapa 5 também não foi executado (porta 8080 ocupada por outro processo; não encerrado nem reutilizado). Continua pendente.
+
+## Etapa 5: decisão pendente do usuário
+
+- (Opção B, resolve B1) Atomicidade de `users/{uid}` e `publicProfiles/{uid}`: `equip(profilePicture)` e `purchaseItem` com avatar passariam a gravar os dois documentos na mesma transação (detalhes em `docs/architecture/step5-typed-writes.md`, seção 5). Muda o comportamento de falha: ou tudo grava ou nada, e avatar inválido em `publicProfiles` (>100 chars) passaria a reprovar a equipagem inteira. Requer `reviewer-consultor`. NÃO implementada: a etapa 5 manteve o comportamento atual (grava `users`, depois sincroniza `publicProfiles`), então B1 segue aberto. Também segue latente que `saveAstralMap` altera `zodiacSign` sem sincronizar `publicProfiles` (avatar público padrão pode ficar defasado).
+
+## Itens abertos da etapa 5 (não implementados; decisão do usuário em `docs/decisions/` quando aplicável)
+
+- (M1, LGPD) O avatar zodiacal `pfp_zodiac_<signo>` é derivado do signo e aparece para qualquer usuário logado mesmo com `showSign=false`, o que permite inferir o signo. Além disso, `saveAstralMap` altera `zodiacSign` sem sincronizar `publicProfiles`, deixando o avatar público defasado. Requer decisão do usuário registrada em `docs/decisions/`.
+- (B1 do consultor) Falta teste de regras no emulador em que o dono tenta atualizar `wallet` diretamente e falha. Conferido em `test_rules/firestore.rules.test.mjs`: já há casos de `wallet.stardust` negado para o dono (linhas 84-85, 95-110, 256-271), mas nenhum cobre a escrita de `wallet` inteiro como mapa nem o fluxo vindo do repositório; registrar como pendência para quando o emulador puder rodar (porta 8080 ocupada).
+- (B3 do consultor) `lib/screens/admin/admin_screen.dart` ainda usa `FirebaseFirestore.instance` direto; migrar para repositório na etapa 6.

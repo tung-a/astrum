@@ -1,6 +1,6 @@
 # Etapa 4: quebrar `UserRepository` em repositórios por agregado
 
-Status: concluído (passos 0 a 7 implementados). Desvios: (1) `AdminRepository` recebe só `db`, sem `PublicProfileSync`: `rebuildPublicProfiles` precisa contar só os perfis realmente gravados e `PublicProfileSync.write` não devolve se gravou; além disso `syncFromUser` tem derivação de e-mail diferente (fallback para `auth.currentUser`). Mantém `buildPublicProfile` + `set`. (2) `watchProfile(User)` mudou de assinatura na etapa 3 (antes observava `authStateChanges`); a etapa 4 apenas moveu o método assim. (3) `fake_cloud_firestore` suporta `runTransaction` e as transações de `FirestoreEconomyRepository` têm teste; o fake não aplica regras nem simula contenção/retentativa. (4) `updateFields` agora lança `ArgumentError` para chaves `wallet*`, `inventory*`, `dailyCheckIn*` e `role*` (imposto no código). Revisado pelo `reviewer` e pelo `reviewer-consultor` (aprovado com ressalvas, registradas em "Itens abertos da etapa 4" do plano) e validado pelo qa (`docs/qa/etapa-4.md`).
+Status: concluído (passos 0 a 7 implementados). Etapa 5 concluída: `updateFields`, `_blockedPrefixes` e `PublicProfileSync.touches` foram removidos e `equipField` virou `EquipSlot? equipSlot` (ver `step5-typed-writes.md`); as menções abaixo a esses itens são históricas. Desvios: (1) `AdminRepository` recebe só `db`, sem `PublicProfileSync`: `rebuildPublicProfiles` precisa contar só os perfis realmente gravados e `PublicProfileSync.write` não devolve se gravou; além disso `syncFromUser` tem derivação de e-mail diferente (fallback para `auth.currentUser`). Mantém `buildPublicProfile` + `set`. (2) `watchProfile(User)` mudou de assinatura na etapa 3 (antes observava `authStateChanges`); a etapa 4 apenas moveu o método assim. (3) `fake_cloud_firestore` suporta `runTransaction` e as transações de `FirestoreEconomyRepository` têm teste; o fake não aplica regras nem simula contenção/retentativa. (4) `updateFields` agora lança `ArgumentError` para chaves `wallet*`, `inventory*`, `dailyCheckIn*` e `role*` (imposto no código). Revisado pelo `reviewer` e pelo `reviewer-consultor` (aprovado com ressalvas, registradas em "Itens abertos da etapa 4" do plano) e validado pelo qa (`docs/qa/etapa-4.md`).
 
 Base: `docs/architecture/restructuring.md` (seção 6, etapa 4), `docs/plans/reestruturacao-etapas-1-a-3.md` e `docs/decisions/2026-11-restructuring-decisions.md`.
 
@@ -9,7 +9,7 @@ Base: `docs/architecture/restructuring.md` (seção 6, etapa 4), `docs/plans/ree
 - Spark, sem Cloud Functions. `firestore.rules` e comportamento observável intocados: cada método é movido literalmente (mesmo corpo, mesmas gravações, mesma ordem, mesmas exceções).
 - `EconomyRepository` é `abstract interface class`, para trocar o executor depois (compra de Poeira Estelar).
 - Arquivos continuam em `lib/services/` (sem subpasta nova); feature-first só na etapa 8.
-- `updateFields(Map)` continua, isolado em `ProfileRepository` (removido na etapa 5).
+- `updateFields(Map)` continua, isolado em `ProfileRepository` (substituído por escritas tipadas na etapa 5).
 - `flutter analyze` e `flutter test` verdes ao fim de cada commit.
 
 ## 1. Repositórios
@@ -19,7 +19,7 @@ Todos recebem `FirebaseFirestore db` (e `FirebaseAuth auth` só quando precisam)
 | Repositório | Arquivo | Responsabilidade | Métodos movidos | Dependências |
 |---|---|---|---|---|
 | `PublicProfileSync` (helper, concreto) | `public_profile_sync.dart` | Gravar `publicProfiles/{uid}` a partir dos dados do usuário | `_writePublicProfile` (vira `write`), `syncPublicProfile` (vira `syncFromUser`), `_touchesPublicProfile` (vira `static touches(keys)`) | `db`, `auth` (fallback de e-mail em `syncFromUser`), `public_profile.dart`, `data/astrology.dart` |
-| `ProfileRepository` | `profile_repository.dart` | Perfil do usuário logado | `watchProfile(User)` (assinatura da etapa 3), `createProfile`, `updateFields` (temporário) | `db`, `PublicProfileSync` |
+| `ProfileRepository` | `profile_repository.dart` | Perfil do usuário logado | `watchProfile(User)` (assinatura da etapa 3), `createProfile`, `updateFields` (substituído por escritas tipadas na etapa 5) | `db`, `PublicProfileSync` |
 | `EventsRepository` | `events_repository.dart` | Eventos/rituais em `users/{uid}/events` | `watchEvents`, `addEvent`, `deleteEvent` | `db` |
 | `SocialRepository` | `social_repository.dart` | Amigos, busca por e-mail e intenções/notificações | `watchFriends`, `findUserByEmail`, `addFriend`, `sendIntention`, `watchUnreadIntention`, `markNotificationRead` | `db`, `public_profile.dart` (`hashEmail`) |
 | `CatalogRepository` | `catalog_repository.dart` | Leitura do catálogo `shop_items` | `watchShopCatalog` (renomear para `watchCatalog` só na etapa 7, para o diff ficar pequeno) | `db`, `economy.dart` (`CatalogEntry`) |
@@ -53,7 +53,7 @@ abstract interface class EconomyRepository {
 }
 ```
 
-- Contrato: todo ganho ou gasto de `wallet.stardust` passa por aqui; nenhum outro repositório pode gravar `wallet.*`. `ProfileRepository.updateFields` lança `ArgumentError` para chaves que começam com `wallet`, `inventory`, `dailyCheckIn` ou `role` (imposto no código, com teste; a etapa 5 remove o escape hatch).
+- Contrato: todo ganho ou gasto de `wallet.stardust` passa por aqui; nenhum outro repositório pode gravar `wallet.*`. `ProfileRepository.updateFields` lançava `ArgumentError` para chaves que começam com `wallet`, `inventory`, `dailyCheckIn` ou `role` (substituído por escritas tipadas na etapa 5).
 - `FirestoreEconomyRepository` é a implementação atual, com o corpo movido sem alteração. Um futuro `CallableEconomyRepository` (Function) implementa a mesma interface e troca-se no `economyRepositoryProvider`.
 - Dívida conhecida, a ser tratada na etapa 5: `equipField` expõe caminho de campo do Firestore (`'equipped.skin'`) na interface; trocar por um enum de slot (`EquipSlot`). Não mudar agora para manter a assinatura estável para as telas.
 - Os demais repositórios usam classe concreta; fakes de teste usam `implements` (padrão já em uso).

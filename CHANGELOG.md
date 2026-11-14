@@ -17,6 +17,9 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - Regras do Firestore com testes em `test_rules/`, cobrindo check-in e compra da loja.
 - Catálogo da loja lido de `shop_items` no Firestore, com preço validado pelas regras.
 - Perfil público mínimo (`publicProfiles`) para busca de amigo.
+- Escritas tipadas em `ProfileRepository`: `setNotificationsEnabled`, `setShowSign`, `equip(uid, EquipSlot, itemId)`, `saveAstralMap`, `saveDailyHoroscope` e `saveDailyTarot`. As telas deixam de montar caminhos de campo do Firestore.
+- Enum `EquipSlot` (`lib/models/equip_slot.dart`) para skin, fundo e avatar; `ItemType.slot` liga o tipo do item ao slot.
+- Testes novos: `test/equip_slot_test.dart` e testes de cada escrita tipada em `test/repositories_firestore_test.dart`, incluindo a verificação de que nenhum método do perfil altera `wallet`, `inventory`, `role` ou `dailyCheckIn`.
 
 ### Alterado
 
@@ -29,6 +32,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - O app usa uma única assinatura de `authStateChanges`, compartilhada pelo router e pelo perfil.
 - `AnalyticsService` recebe as instâncias do Firebase por construtor, fornecidas pelos providers.
 - `test/widget_test.dart` foi ampliado.
+- As telas de conta, mapa astral, cosmos, inventário e loja usam os métodos tipados de `ProfileRepository`. As chaves gravadas, a ordem das escritas e as exceções não mudaram.
+- `purchaseItem` recebe `EquipSlot? equipSlot` no lugar de `String? equipField`; a interface `EconomyRepository` deixa de expor caminho de campo.
+- A sincronização de `publicProfiles` é decidida por tipo de escrita. Só equipar o avatar (direto ou na compra) sincroniza. Continua em duas gravações não atômicas; a atomicidade (opção B) segue pendente de decisão.
+- Nenhum método público de `ProfileRepository` aceita `Map` ou caminho de campo, então `wallet`, `inventory`, `role` e `dailyCheckIn` não são alcançáveis por ele.
 
 ### Corrigido
 
@@ -37,9 +44,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - Compra e check-in passam a ser atômicos (transação).
 - Regras do Firestore ajustadas após revisão de segurança.
 - Fechadas brechas de inventário e de catálogo na loja.
-- `updateFields` do perfil recusa, com `ArgumentError` e antes de qualquer gravação, chaves que começam com `wallet`, `inventory`, `dailyCheckIn` ou `role`. Saldo, inventário, check-in e papel de usuário só mudam pelos caminhos próprios.
 
 ### Removido
+
+- `ProfileRepository.updateFields`, a trava por prefixo que recusava chaves `wallet*`, `inventory*`, `dailyCheckIn*` e `role*` (com `ArgumentError`) e `PublicProfileSync.touches`. Não há mais escrita genérica por caminho de campo.
 
 - `UserRepository` (`lib/services/user_repository.dart`), `userRepositoryProvider` e o `FakeUserRepository` dos testes, substituídos pelos repositórios por agregado.
 - Dependências sem uso.

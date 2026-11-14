@@ -86,6 +86,7 @@ O `npm test` chama o comando `firebase`, então é preciso ter firebase-tools in
 - `docs/architecture/restructuring.md`: análise da arquitetura atual e proposta de reestruturação (feature-first leve, repositórios por agregado).
 - `docs/plans/reestruturacao-etapas-1-a-3.md`: plano de migração em etapas. As etapas 1 a 3 (CI, correções de custo com `select` e redirect, providers de infraestrutura) estão na branch.
 - `docs/architecture/step4-repositories.md`: etapa 4, divisão do `UserRepository` em repositórios por agregado (concluída na branch).
+- `docs/architecture/step5-typed-writes.md`: etapa 5, escritas tipadas no perfil e `EquipSlot` no equipar e na compra (concluída na branch; a atomicidade entre `users` e `publicProfiles` continua pendente).
 - As demais etapas estão no backlog.
 - `docs/decisions/2026-11-restructuring-decisions.md`: decisões de escopo sobre economia, plataformas, exclusão de conta e chat.
 

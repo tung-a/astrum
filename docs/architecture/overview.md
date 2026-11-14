@@ -6,9 +6,10 @@ Estrutura de `lib/`: `config/`, `core/` (infraestrutura: `core/firebase/` com `f
 
 `lib/services/` (etapa 4, repositórios por agregado; `UserRepository` foi removido):
 
-- Repositórios: `ProfileRepository` (perfil do usuário logado), `EventsRepository` (`users/{uid}/events`), `SocialRepository` (amigos, busca por e-mail e intenções), `CatalogRepository` (`shop_items`), `AdminRepository` (operações de admin).
+- Repositórios: `ProfileRepository` (perfil do usuário logado; escritas tipadas na etapa 5: `setNotificationsEnabled`, `setShowSign`, `equip(uid, EquipSlot, itemId)`, `saveAstralMap`, `saveDailyHoroscope`, `saveDailyTarot`; nenhum método público aceita `Map` ou caminho de campo, e `wallet`/`inventory`/`role`/`dailyCheckIn` são inalcançáveis por ele), `EventsRepository` (`users/{uid}/events`), `SocialRepository` (amigos, busca por e-mail e intenções), `CatalogRepository` (`shop_items`), `AdminRepository` (operações de admin).
 - Economia: `EconomyRepository` é uma interface, com implementação `FirestoreEconomyRepository` (compra e check-in em transação). Todo crédito e débito de saldo passa por ela.
-- Perfil público: `PublicProfileSync` grava `publicProfiles/{uid}` e é usado por `ProfileRepository` e pela economia.
+- Perfil público: `PublicProfileSync` grava `publicProfiles/{uid}` e é usado por `ProfileRepository` e pela economia. O sync é decidido por tipo de escrita: só `equip(EquipSlot.profilePicture)` e a compra com `equipSlot: profilePicture` sincronizam (grava `users`, depois `publicProfiles`; não atômico, ver opção B em `docs/plans/reestruturacao-etapas-1-a-3.md`).
+- Slots de cosmético: `EquipSlot` em `lib/models/equip_slot.dart`; o caminho do Firestore fica em `lib/services/equip_slot_field.dart`; `ItemType.slot` (em `lib/data/cosmetics.dart`) liga a UI ao slot.
 - Integrações e lógica pura: `economy.dart`, `oracle_service.dart`, `chat_store.dart`, `analytics_service.dart`, `public_profile.dart`, `meditation_sounds.dart`.
 
 ## Firestore (coleções em uso)
@@ -20,6 +21,7 @@ Estrutura de `lib/`: `config/`, `core/` (infraestrutura: `core/firebase/` com `f
 
 ## Decisões
 
-- [restructuring.md](restructuring.md): análise da arquitetura atual e proposta de reestruturação (feature-first leve, repositórios por agregado, migração em etapas). Plano de execução em `docs/plans/reestruturacao-etapas-1-a-3.md`; decisões do usuário em `docs/decisions/2026-11-restructuring-decisions.md`. Etapas 1 a 3 na branch; demais no backlog.
+- [restructuring.md](restructuring.md): análise da arquitetura atual e proposta de reestruturação (feature-first leve, repositórios por agregado, migração em etapas). Plano de execução em `docs/plans/reestruturacao-etapas-1-a-3.md`; decisões do usuário em `docs/decisions/2026-11-restructuring-decisions.md`. Etapas 1 a 5 na branch; demais no backlog.
+- [step5-typed-writes.md](step5-typed-writes.md): etapa 5, escritas tipadas no perfil e `EquipSlot` no equipar/comprar; passos 1 a 6 implementados, opção B (atomicidade) não adotada.
 - [step4-repositories.md](step4-repositories.md): etapa 4, quebra de `UserRepository` em repositórios por agregado (Events, Social, Catalog, Economy atrás de interface, Profile, Admin) e `PublicProfileSync`; concluída, ordem de commits e fakes de teste.
 - [chat-sync.md](chat-sync.md): sincronização do histórico do oráculo com o Firestore (proposto, aguardando revisão e decisões do usuário).

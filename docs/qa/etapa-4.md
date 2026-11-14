@@ -26,7 +26,7 @@ Comparei com `git show HEAD:lib/services/user_repository.dart`:
 - `purchaseItem`: corpo da transação idêntico (leitura do perfil e de `shop_items`, `resolvePrice`, `computePurchase`, mesmo `tx.update`). O `.then` que sincroniza só quando `equipField != null && touches([equipField])` é idêntico.
 - `dailyCheckIn`: corpo idêntico (`computeCheckIn`, mesmo `tx.update` com `wallet.stardust` e `dailyCheckIn`).
 - `syncFromUser` (antigo `syncPublicProfile`): mesma leitura, mesmo fallback de avatar (`defaultProfilePictureId`) e mesmo fallback de e-mail (`auth.currentUser`).
-- `updateFields`: única mudança é a guarda `ArgumentError` (desvio 4, intencional). Gravação e sync pós-gravação mantidos.
+- `updateFields` (substituído por escritas tipadas na etapa 5): única mudança é a guarda `ArgumentError` (desvio 4, intencional). Gravação e sync pós-gravação mantidos.
 - `watchProfile`: assinatura mudou por causa da etapa 3 (desvio 2), já documentado.
 - Divergência esperada e documentada: `AdminRepository.rebuildPublicProfiles` não usa `PublicProfileSync` (desvio 1). Coberta pelo teste de desvio 1 abaixo.
 
