@@ -12,8 +12,8 @@ final publicProfileSyncProvider = Provider(
   ),
 );
 
-final profileRepositoryProvider = Provider(
-  (ref) => ProfileRepository(
+final profileRepositoryProvider = Provider<ProfileRepository>(
+  (ref) => FirestoreProfileRepository(
     db: ref.watch(firestoreProvider),
     sync: ref.watch(publicProfileSyncProvider),
   ),

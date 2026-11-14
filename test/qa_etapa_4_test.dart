@@ -71,7 +71,7 @@ void main() {
     test(
         'createProfile: saldo 500, inventario padrao, pfp zodiacal e publicProfiles',
         () async {
-      final repo = ProfileRepository(
+      final repo = FirestoreProfileRepository(
         db: db,
         sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()),
       );
@@ -151,7 +151,7 @@ void main() {
         'avatar': 'pfp_x',
         'emailHash': hashEmail('luna@example.com'),
       });
-      final repo = ProfileRepository(
+      final repo = FirestoreProfileRepository(
         db: db,
         sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()),
       );

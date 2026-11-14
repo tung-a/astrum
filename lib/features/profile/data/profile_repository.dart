@@ -10,9 +10,40 @@ import 'package:astrum/features/profile/domain/public_profile.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-/// Perfil do usuario logado.
-class ProfileRepository {
-  ProfileRepository({
+/// Perfil do usuario logado. Nenhum metodo publico aceita Map ou caminho de
+/// campo (wallet/inventory/role/dailyCheckIn inalcancaveis).
+abstract interface class ProfileRepository {
+  /// Perfil do [user]; quem escolhe o usuario e o profileProvider.
+  Stream<AppUser?> watchProfile(User user);
+
+  Future<void> createProfile({
+    required User user,
+    required String name,
+    required String birthDate,
+    required String birthTime,
+    required String birthPlace,
+    required String zodiacSign,
+  });
+
+  Future<void> setNotificationsEnabled(String uid, bool enabled);
+
+  Future<void> setShowSign(String uid, bool enabled);
+
+  /// Equipa [itemId] no [slot]; so o avatar sincroniza publicProfiles.
+  Future<void> equip(String uid, EquipSlot slot, String itemId);
+
+  /// Grava o mapa astral e o signo solar (primeira posicao) na mesma escrita.
+  Future<void> saveAstralMap(String uid, List<PlanetPosition> chart);
+
+  Future<void> saveDailyHoroscope(String uid,
+      {required String date, required String content});
+
+  Future<void> saveDailyTarot(String uid,
+      {required String date, required String card, required String meaning});
+}
+
+class FirestoreProfileRepository implements ProfileRepository {
+  FirestoreProfileRepository({
     required FirebaseFirestore db,
     required PublicProfileSync sync,
   })  : _db = db,
@@ -28,6 +59,7 @@ class ProfileRepository {
   /// observar e o profileProvider (via authStateProvider), que cancela a
   /// assinatura anterior ao trocar de usuario; o repositorio nao abre
   /// authStateChanges.
+  @override
   Stream<AppUser?> watchProfile(User user) {
     return _userDoc(user.uid).snapshots().map((snap) {
       return AppUser.fromFirebase(
@@ -39,6 +71,7 @@ class ProfileRepository {
     });
   }
 
+  @override
   Future<void> createProfile({
     required User user,
     required String name,
@@ -83,21 +116,25 @@ class ProfileRepository {
     await batch.commit();
   }
 
+  @override
   Future<void> setNotificationsEnabled(String uid, bool enabled) =>
       _update(uid, {'preferences.notifications': enabled});
 
+  @override
   Future<void> setShowSign(String uid, bool enabled) =>
       _update(uid, {'preferences.showSign': enabled});
 
   /// Equipa [itemId] no [slot]; so o avatar sincroniza publicProfiles.
   /// Se o sync falhar apos o update, o equipado ja esta gravado em users/{uid}
   /// e o erro sobe ao chamador (comportamento preservado; ver opcao B no plano).
+  @override
   Future<void> equip(String uid, EquipSlot slot, String itemId) async {
     await _update(uid, {slot.fieldPath: itemId});
     if (slot.touchesPublicProfile) await _sync.syncFromUser(uid);
   }
 
   /// Grava o mapa astral e o signo solar (primeira posicao) na mesma escrita.
+  @override
   Future<void> saveAstralMap(String uid, List<PlanetPosition> chart) async {
     await _update(uid, {
       'astralMapJson': AppUser.encodeAstralMap(chart),
@@ -105,12 +142,14 @@ class ProfileRepository {
     });
   }
 
+  @override
   Future<void> saveDailyHoroscope(String uid,
           {required String date, required String content}) =>
       _update(uid, {
         'dailyHoroscope': {'date': date, 'content': content},
       });
 
+  @override
   Future<void> saveDailyTarot(String uid,
           {required String date,
           required String card,

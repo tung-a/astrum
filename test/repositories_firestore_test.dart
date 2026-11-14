@@ -116,7 +116,7 @@ void main() {
 
   group('ProfileRepository (escritas tipadas)', () {
     late FakeFirebaseFirestore db;
-    late ProfileRepository repo;
+    late FirestoreProfileRepository repo;
 
     Future<Map<String, dynamic>> user() async =>
         (await db.collection('users').doc('u').get()).data()!;
@@ -125,7 +125,7 @@ void main() {
 
     setUp(() async {
       db = FakeFirebaseFirestore();
-      repo = ProfileRepository(
+      repo = FirestoreProfileRepository(
         db: db,
         sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()),
       );
@@ -243,7 +243,7 @@ void main() {
     test(
         'B1 (caracterizacao): equip(profilePicture) com falha do sync propaga '
         'erro, mas equipped ja esta gravado em users', () async {
-      final falhando = ProfileRepository(
+      final falhando = FirestoreProfileRepository(
         db: db,
         sync: _SyncFalhando(db),
       );
@@ -315,7 +315,8 @@ class _BatchFalha implements WriteBatch {
 
 void createProfileTests() {
   group('ProfileRepository.createProfile (batch)', () {
-    Future<void> create(ProfileRepository repo, {String name = 'Nova'}) =>
+    Future<void> create(FirestoreProfileRepository repo,
+            {String name = 'Nova'}) =>
         repo.createProfile(
           user: FakeUser('nova', email: 'nova@example.com'),
           name: name,
@@ -327,7 +328,7 @@ void createProfileTests() {
 
     test('grava users e publicProfiles com os campos esperados', () async {
       final db = FakeFirebaseFirestore();
-      final repo = ProfileRepository(
+      final repo = FirestoreProfileRepository(
           db: db, sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()));
       await create(repo);
       final u = (await db.collection('users').doc('nova').get()).data()!;
@@ -342,7 +343,7 @@ void createProfileTests() {
 
     test('nome invalido nao grava publicProfiles', () async {
       final db = FakeFirebaseFirestore();
-      final repo = ProfileRepository(
+      final repo = FirestoreProfileRepository(
           db: db, sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()));
       await create(repo, name: '   ');
       expect((await db.collection('users').doc('nova').get()).exists, isTrue);
@@ -352,7 +353,7 @@ void createProfileTests() {
 
     test('commit que falha nao deixa escrita parcial', () async {
       final inner = FakeFirebaseFirestore();
-      final repo = ProfileRepository(
+      final repo = FirestoreProfileRepository(
           db: _DbCommitFalha(inner),
           sync: PublicProfileSync(db: inner, auth: FakeFirebaseAuth()));
       await expectLater(create(repo), throwsStateError);

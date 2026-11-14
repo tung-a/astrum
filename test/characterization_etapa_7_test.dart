@@ -169,7 +169,7 @@ void main() {
 
   test('payload completo de createProfile', () async {
     final db = FakeFirebaseFirestore();
-    final repo = ProfileRepository(
+    final repo = FirestoreProfileRepository(
         db: db, sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()));
     await repo.createProfile(
       user: FakeUser('nova', email: 'nova@example.com'),
@@ -210,7 +210,7 @@ void main() {
 
   test('createProfile sem signo: inventario base e sem avatar', () async {
     final db = FakeFirebaseFirestore();
-    final repo = ProfileRepository(
+    final repo = FirestoreProfileRepository(
         db: db, sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()));
     await repo.createProfile(
       user: FakeUser('n2', email: 'n2@example.com'),
