@@ -38,9 +38,9 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
               'Gere um horóscopo do dia curto e inspirador para o signo de ${profile.zodiacSign}. Foco: autoconhecimento. Máximo de 3 frases.',
           sign: profile.zodiacSign,
         );
-    await ref.read(profileRepositoryProvider).updateFields(profile.uid, {
-      'dailyHoroscope': {'date': _today, 'content': text},
-    });
+    await ref
+        .read(profileRepositoryProvider)
+        .saveDailyHoroscope(profile.uid, date: _today, content: text);
   }
 
   Future<void> _drawTarot() async {
@@ -59,13 +59,12 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
             );
       } catch (_) {}
       if (!mounted) return;
-      await ref.read(profileRepositoryProvider).updateFields(profile.uid, {
-        'dailyTarot': {
-          'date': _today,
-          'card': card.name,
-          'meaning': meaning,
-        },
-      });
+      await ref.read(profileRepositoryProvider).saveDailyTarot(
+            profile.uid,
+            date: _today,
+            card: card.name,
+            meaning: meaning,
+          );
     } catch (_) {
       messenger.showSnackBar(const SnackBar(
         content: Text('Não foi possível salvar a carta. Tente novamente.'),

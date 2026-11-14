@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -78,11 +76,7 @@ class AstralScreen extends ConsumerWidget {
                     birth: birth, birthPlace: profile.birthPlace);
                 await ref
                     .read(profileRepositoryProvider)
-                    .updateFields(profile.uid, {
-                  'astralMapJson':
-                      jsonEncode(computed.map((e) => e.toJson()).toList()),
-                  'zodiacSign': computed.first.sign,
-                });
+                    .saveAstralMap(profile.uid, computed);
               },
               child: const Text('Calcular mapa no dispositivo'),
             )

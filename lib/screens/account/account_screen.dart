@@ -132,8 +132,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             value: profile.notificationsEnabled,
             onChanged: (enabled) => ref
                 .read(profileRepositoryProvider)
-                .updateFields(
-                    profile.uid, {'preferences.notifications': enabled}),
+                .setNotificationsEnabled(profile.uid, enabled),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -141,7 +140,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             value: profile.showSign,
             onChanged: (enabled) => ref
                 .read(profileRepositoryProvider)
-                .updateFields(profile.uid, {'preferences.showSign': enabled}),
+                .setShowSign(profile.uid, enabled),
           ),
           const SizedBox(height: 20),
           const Text('Constelação', style: TextStyle(fontSize: 18)),

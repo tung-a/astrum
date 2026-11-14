@@ -39,10 +39,4 @@ class PublicProfileSync {
       email: data['email'] as String? ?? _auth.currentUser?.email ?? '',
     );
   }
-
-  static bool touches(Iterable<String> keys) => keys.any((k) =>
-      k == 'name' ||
-      k == 'email' ||
-      k == 'equipped' ||
-      k == 'equipped.profilePicture');
 }

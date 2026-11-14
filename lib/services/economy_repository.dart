@@ -1,18 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/firebase/firestore_paths.dart';
+import '../models/equip_slot.dart';
 import 'economy.dart';
+import 'equip_slot_field.dart';
 import 'public_profile_sync.dart';
 
 /// Todo credito e debito de `wallet.stardust` passa por aqui; nenhum outro
 /// repositorio pode gravar `wallet.*`.
 abstract interface class EconomyRepository {
-  /// Compra atomica; se [equipField] vier, equipa na mesma gravacao.
+  /// Compra atomica; se [equipSlot] vier, equipa na mesma gravacao.
   /// Lanca [EconomyException] sem gravar quando invalida.
   Future<void> purchaseItem({
     required String uid,
     required String itemId,
-    String? equipField,
+    EquipSlot? equipSlot,
   });
 
   /// Check-in diario; [today] = yyyy-MM-dd. Lanca [AlreadyCheckedInException].
@@ -35,13 +37,13 @@ class FirestoreEconomyRepository implements EconomyRepository {
   /// Compra atomica: le o perfil e o preco do catalogo (shop_items) dentro da
   /// transacao, valida e grava saldo e inventario completo (a regra exige o
   /// inventario antigo + 1 item, e o item novo no fim da lista).
-  /// Se [equipField] for informado, equipa o item na mesma gravacao.
+  /// Se [equipSlot] for informado, equipa o item na mesma gravacao.
   /// Lanca [EconomyException] sem gravar nada quando a compra nao e valida.
   @override
   Future<void> purchaseItem({
     required String uid,
     required String itemId,
-    String? equipField,
+    EquipSlot? equipSlot,
   }) {
     final ref = _userDoc(uid);
     final itemRef = _db.shopItemDoc(itemId);
@@ -52,8 +54,8 @@ class FirestoreEconomyRepository implements EconomyRepository {
       if (data == null) throw StateError('Perfil não encontrado.');
       final itemData = itemSnap.data();
       if (itemData == null) throw const NotPurchasableException();
-      final price = resolvePrice(
-          {itemId: CatalogEntry.fromMap(itemData)}, itemId);
+      final price =
+          resolvePrice({itemId: CatalogEntry.fromMap(itemData)}, itemId);
       final result = computePurchase(
         stardust: ((data['wallet'] as Map?)?['stardust'] as num?)?.toInt() ?? 0,
         inventory: ((data['inventory'] as List?) ?? const []).cast<String>(),
@@ -63,10 +65,10 @@ class FirestoreEconomyRepository implements EconomyRepository {
       tx.update(ref, {
         'wallet.stardust': result.stardust,
         'inventory': result.inventory,
-        if (equipField != null) equipField: itemId,
+        if (equipSlot != null) equipSlot.fieldPath: itemId,
       });
     }).then((_) async {
-      if (equipField != null && PublicProfileSync.touches([equipField])) {
+      if (equipSlot?.touchesPublicProfile ?? false) {
         await _sync.syncFromUser(uid);
       }
     });

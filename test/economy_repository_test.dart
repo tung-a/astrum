@@ -1,6 +1,7 @@
 // Testa as transacoes de FirestoreEconomyRepository com fake_cloud_firestore.
 // Limitacao do pacote: nao aplica firestore.rules (isso fica em test_rules/) e
 // nao simula contencao/retry de transacao; so a logica da transacao e testada.
+import 'package:astrum/models/equip_slot.dart';
 import 'package:astrum/services/economy.dart';
 import 'package:astrum/services/economy_repository.dart';
 import 'package:astrum/services/public_profile.dart';
@@ -31,10 +32,13 @@ void main() {
       'inventory': ['skin_classic', 'bg_void'],
       'equipped': {'skin': 'skin_classic', 'background': 'bg_void'},
     });
-    Future<void> item(String id, int price, {bool active = true}) => db
-        .collection('shop_items')
-        .doc(id)
-        .set({'price': price, 'type': 'skin', 'rarity': 'common', 'active': active});
+    Future<void> item(String id, int price, {bool active = true}) =>
+        db.collection('shop_items').doc(id).set({
+          'price': price,
+          'type': 'skin',
+          'rarity': 'common',
+          'active': active
+        });
     await item('skin_a', 40);
     await item('skin_expensive', 500);
     await item('skin_off', 10, active: false);
@@ -43,14 +47,14 @@ void main() {
   group('purchaseItem', () {
     test('sucesso: debita, acrescenta ao fim do inventario e equipa', () async {
       await repo.purchaseItem(
-          uid: 'u1', itemId: 'skin_a', equipField: 'equipped.skin');
+          uid: 'u1', itemId: 'skin_a', equipSlot: EquipSlot.skin);
       final d = (await user())!;
       expect((d['wallet'] as Map)['stardust'], 60);
       expect(d['inventory'], ['skin_classic', 'bg_void', 'skin_a']);
       expect((d['equipped'] as Map)['skin'], 'skin_a');
     });
 
-    test('sem equipField nao altera equipped nem publicProfiles', () async {
+    test('sem equipSlot nao altera equipped nem publicProfiles', () async {
       await repo.purchaseItem(uid: 'u1', itemId: 'skin_a');
       final d = (await user())!;
       expect((d['equipped'] as Map)['skin'], 'skin_classic');
@@ -59,11 +63,16 @@ void main() {
     });
 
     test('equipar foto de perfil sincroniza publicProfiles', () async {
-      await db.collection('shop_items').doc('pfp_a').set(
-          {'price': 10, 'type': 'profilePicture', 'rarity': 'common', 'active': true});
+      await db.collection('shop_items').doc('pfp_a').set({
+        'price': 10,
+        'type': 'profilePicture',
+        'rarity': 'common',
+        'active': true
+      });
       await repo.purchaseItem(
-          uid: 'u1', itemId: 'pfp_a', equipField: 'equipped.profilePicture');
-      final pub = (await db.collection('publicProfiles').doc('u1').get()).data();
+          uid: 'u1', itemId: 'pfp_a', equipSlot: EquipSlot.profilePicture);
+      final pub =
+          (await db.collection('publicProfiles').doc('u1').get()).data();
       expect(pub?['avatar'], 'pfp_a');
       expect(pub?['name'], 'Luna');
       expect(pub?['emailHash'], hashEmail('luna@example.com'));
@@ -71,14 +80,13 @@ void main() {
 
     test('equipar skin nao sincroniza publicProfiles', () async {
       await repo.purchaseItem(
-          uid: 'u1', itemId: 'skin_a', equipField: 'equipped.skin');
+          uid: 'u1', itemId: 'skin_a', equipSlot: EquipSlot.skin);
       expect((await db.collection('publicProfiles').doc('u1').get()).exists,
           isFalse);
     });
 
     test('saldo insuficiente lanca e nao grava', () async {
-      await expectLater(
-          repo.purchaseItem(uid: 'u1', itemId: 'skin_expensive'),
+      await expectLater(repo.purchaseItem(uid: 'u1', itemId: 'skin_expensive'),
           throwsA(isA<InsufficientFundsException>()));
       final d = (await user())!;
       expect((d['wallet'] as Map)['stardust'], 100);

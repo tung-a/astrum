@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/firebase/firestore_paths.dart';
 import '../data/astrology.dart';
 import '../models/app_user.dart';
+import '../models/equip_slot.dart';
+import 'equip_slot_field.dart';
 import 'public_profile_sync.dart';
 
 /// Perfil do usuario logado.
@@ -74,19 +76,44 @@ class ProfileRepository {
         name: name, avatar: pfp, email: user.email ?? '');
   }
 
-  static const _blockedPrefixes = ['wallet', 'inventory', 'dailyCheckIn', 'role'];
+  Future<void> setNotificationsEnabled(String uid, bool enabled) =>
+      _update(uid, {'preferences.notifications': enabled});
 
-  // etapa 5: remover. EconomyRepository e o unico escritor de `wallet.*`
-  // (e de inventory/dailyCheckIn); isso e imposto aqui: chaves proibidas
-  // lancam ArgumentError antes de qualquer gravacao.
-  Future<void> updateFields(String uid, Map<String, dynamic> data) async {
-    for (final k in data.keys) {
-      if (_blockedPrefixes.any(k.startsWith)) {
-        throw ArgumentError.value(
-            k, 'data', 'campo protegido; use o repositorio proprio');
-      }
-    }
-    await _userDoc(uid).update(data);
-    if (PublicProfileSync.touches(data.keys)) await _sync.syncFromUser(uid);
+  Future<void> setShowSign(String uid, bool enabled) =>
+      _update(uid, {'preferences.showSign': enabled});
+
+  /// Equipa [itemId] no [slot]; so o avatar sincroniza publicProfiles.
+  /// Se o sync falhar apos o update, o equipado ja esta gravado em users/{uid}
+  /// e o erro sobe ao chamador (comportamento preservado; ver opcao B no plano).
+  Future<void> equip(String uid, EquipSlot slot, String itemId) async {
+    await _update(uid, {slot.fieldPath: itemId});
+    if (slot.touchesPublicProfile) await _sync.syncFromUser(uid);
   }
+
+  /// Grava o mapa astral e o signo solar (primeira posicao) na mesma escrita.
+  Future<void> saveAstralMap(String uid, List<PlanetPosition> chart) async {
+    await _update(uid, {
+      'astralMapJson': AppUser.encodeAstralMap(chart),
+      'zodiacSign': chart.first.sign,
+    });
+  }
+
+  Future<void> saveDailyHoroscope(String uid,
+          {required String date, required String content}) =>
+      _update(uid, {
+        'dailyHoroscope': {'date': date, 'content': content},
+      });
+
+  Future<void> saveDailyTarot(String uid,
+          {required String date,
+          required String card,
+          required String meaning}) =>
+      _update(uid, {
+        'dailyTarot': {'date': date, 'card': card, 'meaning': meaning},
+      });
+
+  // Unico ponto de escrita do perfil; privado, nenhum metodo publico aceita
+  // Map ou caminho de campo (wallet/inventory/role/dailyCheckIn inalcancaveis).
+  Future<void> _update(String uid, Map<String, dynamic> data) =>
+      _userDoc(uid).update(data);
 }

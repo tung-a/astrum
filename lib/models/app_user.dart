@@ -85,6 +85,12 @@ class AppUser {
     );
   }
 
+  /// Par de [parseAstralMap]. Lanca [StateError] em lista vazia.
+  static String encodeAstralMap(List<PlanetPosition> chart) {
+    if (chart.isEmpty) throw StateError('Mapa astral vazio.');
+    return jsonEncode(chart.map((e) => e.toJson()).toList());
+  }
+
   static List<PlanetPosition> parseAstralMap(dynamic raw) {
     if (raw is! String || raw.isEmpty) return const [];
     try {

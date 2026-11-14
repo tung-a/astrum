@@ -7,6 +7,7 @@
 // devem ser atualizados junto com ela.
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/data/astrology.dart';
+import 'package:astrum/models/equip_slot.dart';
 import 'package:astrum/providers/app_providers.dart';
 import 'package:astrum/services/admin_repository.dart';
 import 'package:astrum/services/catalog_repository.dart';
@@ -57,7 +58,7 @@ void main() {
       );
 
       await repo.purchaseItem(
-          uid: 'u1', itemId: 'skin_free', equipField: 'equipped.skin');
+          uid: 'u1', itemId: 'skin_free', equipSlot: EquipSlot.skin);
 
       final d = (await db.collection('users').doc('u1').get()).data()!;
       expect((d['wallet'] as Map)['stardust'], 100);
@@ -65,7 +66,8 @@ void main() {
       expect((d['equipped'] as Map)['skin'], 'skin_free');
     });
 
-    test('createProfile: saldo 500, inventario padrao, pfp zodiacal e publicProfiles',
+    test(
+        'createProfile: saldo 500, inventario padrao, pfp zodiacal e publicProfiles',
         () async {
       final repo = ProfileRepository(
         db: db,
@@ -97,7 +99,8 @@ void main() {
       expect(pub['emailHash'], hashEmail('nova@example.com'));
     });
 
-    test('B1 (caracterizacao): falha do sync apos compra com foto propaga erro, '
+    test(
+        'B1 (caracterizacao): falha do sync apos compra com foto propaga erro, '
         'mas a compra ja esta gravada', () async {
       await db.collection('shop_items').doc('pfp_a').set({
         'price': 10,
@@ -109,7 +112,7 @@ void main() {
 
       await expectLater(
         repo.purchaseItem(
-            uid: 'u1', itemId: 'pfp_a', equipField: 'equipped.profilePicture'),
+            uid: 'u1', itemId: 'pfp_a', equipSlot: EquipSlot.profilePicture),
         throwsA(isA<StateError>()),
       );
 
@@ -120,7 +123,8 @@ void main() {
   });
 
   group('perfil publico e LGPD (M3, caracterizacao)', () {
-    test('rebuildPublicProfiles grava perfil mesmo com preferences.publicProfile=false',
+    test(
+        'rebuildPublicProfiles grava perfil mesmo com preferences.publicProfile=false',
         () async {
       await db.collection('users').doc('m').set({
         'name': 'Mia',
@@ -133,11 +137,12 @@ void main() {
 
       // u1 (do setUp) + m: o preference publicProfile=false nao e consultada.
       expect(n, 2);
-      expect(
-          (await db.collection('publicProfiles').doc('m').get()).exists, isTrue);
+      expect((await db.collection('publicProfiles').doc('m').get()).exists,
+          isTrue);
     });
 
-    test('updateFields com preferences.publicProfile=false nao remove o publicProfiles existente',
+    test(
+        'equip(profilePicture) com preferences.publicProfile=false ignora a preferencia e regrava o publicProfiles',
         () async {
       await db.collection('publicProfiles').doc('u1').set({
         'name': 'Luna',
@@ -149,15 +154,22 @@ void main() {
         sync: PublicProfileSync(db: db, auth: FakeFirebaseAuth()),
       );
 
-      await repo.updateFields('u1', {'preferences.publicProfile': false});
+      await db
+          .collection('users')
+          .doc('u1')
+          .update({'preferences.publicProfile': false});
 
-      expect(
-          (await db.collection('publicProfiles').doc('u1').get()).exists, isTrue);
+      await repo.equip('u1', EquipSlot.profilePicture, 'pfp_y');
+
+      final pub = await db.collection('publicProfiles').doc('u1').get();
+      expect(pub.exists, isTrue);
+      expect(pub.data()!['avatar'], 'pfp_y');
     });
   });
 
   group('desvios documentados da etapa 4', () {
-    test('desvio 1: syncFromUser usa e-mail do auth quando o perfil nao tem; '
+    test(
+        'desvio 1: syncFromUser usa e-mail do auth quando o perfil nao tem; '
         'AdminRepository nao usa (pula o usuario)', () async {
       await db.collection('users').doc('s').set({
         'name': 'Sem Email',
@@ -176,8 +188,8 @@ void main() {
       final n = await AdminRepository(db).rebuildPublicProfiles();
       // Admin: u1 (tem e-mail) ja e gravado; 's' sem e-mail nao gera perfil.
       expect(n, 1);
-      expect(
-          (await db.collection('publicProfiles').doc('s').get()).exists, isFalse);
+      expect((await db.collection('publicProfiles').doc('s').get()).exists,
+          isFalse);
     });
   });
 
@@ -185,8 +197,10 @@ void main() {
     test('AdminRepository.listUsers limita a 80 usuarios e le e-mail e nome',
         () async {
       for (var i = 0; i < 85; i++) {
-        await db.collection('users').doc('x$i').set(
-            {'name': 'N$i', 'email': 'n$i@x.com', 'zodiacSign': 'Aries'});
+        await db
+            .collection('users')
+            .doc('x$i')
+            .set({'name': 'N$i', 'email': 'n$i@x.com', 'zodiacSign': 'Aries'});
       }
 
       final list = await AdminRepository(db).listUsers();
@@ -197,9 +211,12 @@ void main() {
       expect(any.name, startsWith('N'));
     });
 
-    test('CatalogRepository.watchShopCatalog mapeia shop_items pelo id', () async {
-      await db.collection('shop_items').doc('skin_a').set(
-          {'price': 40, 'type': 'skin', 'rarity': 'rare', 'active': true});
+    test('CatalogRepository.watchShopCatalog mapeia shop_items pelo id',
+        () async {
+      await db
+          .collection('shop_items')
+          .doc('skin_a')
+          .set({'price': 40, 'type': 'skin', 'rarity': 'rare', 'active': true});
       await db.collection('shop_items').doc('bg_b').set({
         'price': 0,
         'type': 'background',
@@ -216,9 +233,11 @@ void main() {
     });
   });
 
-  group('risco 3: repositorios reais nao sao recriados a cada mudanca de perfil',
+  group(
+      'risco 3: repositorios reais nao sao recriados a cada mudanca de perfil',
       () {
-    test('eventsRepositoryProvider e economyRepositoryProvider mantem a instancia '
+    test(
+        'eventsRepositoryProvider e economyRepositoryProvider mantem a instancia '
         'ao trocar de usuario', () async {
       final auth = FakeFirebaseAuth(FakeUser('u1'));
       final container = ProviderContainer(overrides: [
@@ -238,9 +257,10 @@ void main() {
       auth.setUser(null);
       await pumpEventQueue();
 
-      expect(identical(container.read(eventsRepositoryProvider), events), isTrue);
       expect(
-          identical(container.read(economyRepositoryProvider), economy), isTrue);
+          identical(container.read(eventsRepositoryProvider), events), isTrue);
+      expect(identical(container.read(economyRepositoryProvider), economy),
+          isTrue);
     });
   });
 }

@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../models/equip_slot.dart';
 import 'astrology.dart';
 
 enum ItemRarity { common, rare, epic, legendary }
 
 enum ItemType { cardSkin, background, profilePicture }
+
+extension ItemTypeSlot on ItemType {
+  EquipSlot get slot => switch (this) {
+        ItemType.cardSkin => EquipSlot.skin,
+        ItemType.background => EquipSlot.background,
+        ItemType.profilePicture => EquipSlot.profilePicture,
+      };
+}
 
 class SkinStyle {
   const SkinStyle({

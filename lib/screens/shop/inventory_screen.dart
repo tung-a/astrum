@@ -82,15 +82,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       };
 
   Future<void> _equip(AppUser profile, ShopItem item) async {
-    final field = switch (item.type) {
-      ItemType.cardSkin => 'equipped.skin',
-      ItemType.background => 'equipped.background',
-      ItemType.profilePicture => 'equipped.profilePicture',
-    };
-    await ref.read(profileRepositoryProvider).updateFields(
-      profile.uid,
-      {field: item.id},
-    );
+    await ref
+        .read(profileRepositoryProvider)
+        .equip(profile.uid, item.type.slot, item.id);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${item.name} equipado.')),

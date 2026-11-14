@@ -106,11 +106,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     if (_buying) return;
     final profile = ref.read(profileProvider).valueOrNull;
     if (profile == null) return;
-    final field = switch (item.type) {
-      ItemType.cardSkin => 'equipped.skin',
-      ItemType.background => 'equipped.background',
-      ItemType.profilePicture => 'equipped.profilePicture',
-    };
     final profileRepo = ref.read(profileRepositoryProvider);
     final economy = ref.read(economyRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
@@ -119,13 +114,13 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     try {
       if (profile.inventory.contains(item.id)) {
         // Equipar nao mexe em saldo nem inventario.
-        await profileRepo.updateFields(uid, {field: item.id});
+        await profileRepo.equip(uid, item.type.slot, item.id);
       } else {
         // Saldo e posse sao validados dentro da transacao.
         await economy.purchaseItem(
           uid: uid,
           itemId: item.id,
-          equipField: field,
+          equipSlot: item.type.slot,
         );
       }
     } on EconomyException catch (e) {
