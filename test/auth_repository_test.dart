@@ -1,8 +1,8 @@
 import 'dart:async';
 
+import 'package:astrum/features/auth/data/auth_repository.dart';
 import 'package:astrum/features/auth/domain/auth_exception.dart';
 import 'package:astrum/features/auth/domain/sign_up_data.dart';
-import 'package:astrum/features/auth/data/auth_repository.dart';
 import 'package:astrum/features/profile/data/profile_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';

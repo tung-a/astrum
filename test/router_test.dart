@@ -1,7 +1,7 @@
 import 'package:astrum/app/router.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
-import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/auth/presentation/login_screen.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

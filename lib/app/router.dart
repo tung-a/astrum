@@ -1,24 +1,23 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-
+import 'package:astrum/app/shell/main_shell.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
-import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
-import 'package:astrum/features/auth/presentation/sign_up_provider.dart';
-import 'package:astrum/features/profile/presentation/account_screen.dart';
 import 'package:astrum/features/admin/presentation/admin_screen.dart';
 import 'package:astrum/features/astral/presentation/astral_screen.dart';
 import 'package:astrum/features/auth/presentation/login_screen.dart';
 import 'package:astrum/features/auth/presentation/register_screen.dart';
+import 'package:astrum/features/auth/presentation/sign_up_provider.dart';
 import 'package:astrum/features/auth/presentation/welcome_screen.dart';
-import 'package:astrum/features/oracle/presentation/oracle_screen.dart';
 import 'package:astrum/features/cosmos/presentation/cosmos_screen.dart';
-import 'package:astrum/features/rituals/presentation/rituals_screen.dart';
-import 'package:astrum/app/shell/main_shell.dart';
 import 'package:astrum/features/economy/presentation/inventory_screen.dart';
 import 'package:astrum/features/economy/presentation/shop_screen.dart';
+import 'package:astrum/features/oracle/presentation/oracle_screen.dart';
+import 'package:astrum/features/profile/presentation/account_screen.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:astrum/features/rituals/presentation/rituals_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 

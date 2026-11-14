@@ -1,7 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/features/rituals/domain/ritual_event.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Eventos/rituais em users/{uid}/events.
 class EventsRepository {

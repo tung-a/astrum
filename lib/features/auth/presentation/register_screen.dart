@@ -1,11 +1,10 @@
+import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/core/widgets/starfield.dart';
+import 'package:astrum/features/auth/domain/sign_up_data.dart';
+import 'package:astrum/features/auth/presentation/sign_up_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import 'package:astrum/features/auth/domain/sign_up_data.dart';
-import 'package:astrum/features/auth/presentation/sign_up_provider.dart';
-import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/core/widgets/starfield.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});

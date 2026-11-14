@@ -1,9 +1,9 @@
 // ignore_for_file: subtype_of_sealed_class
 
-import 'package:astrum/features/economy/domain/shop_item.dart';
-import 'package:astrum/features/economy/domain/catalog_seed.dart';
-import 'package:astrum/features/admin/data/crystal_seed.dart';
 import 'package:astrum/features/admin/data/admin_repository.dart';
+import 'package:astrum/features/admin/data/crystal_seed.dart';
+import 'package:astrum/features/economy/domain/catalog_seed.dart';
+import 'package:astrum/features/economy/domain/shop_item.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';

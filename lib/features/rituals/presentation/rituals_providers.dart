@@ -1,9 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/features/rituals/data/events_repository.dart';
 import 'package:astrum/features/rituals/domain/ritual_event.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final eventsRepositoryProvider =
     Provider((ref) => EventsRepository(ref.watch(firestoreProvider)));

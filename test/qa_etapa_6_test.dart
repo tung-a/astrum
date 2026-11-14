@@ -3,15 +3,15 @@
 import 'dart:async';
 
 import 'package:astrum/app/router.dart';
+import 'package:astrum/core/analytics/analytics_providers.dart';
+import 'package:astrum/core/analytics/analytics_service.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
+import 'package:astrum/features/admin/data/admin_repository.dart';
 import 'package:astrum/features/auth/domain/auth_exception.dart';
 import 'package:astrum/features/auth/presentation/auth_providers.dart';
-import 'package:astrum/core/analytics/analytics_providers.dart';
-import 'package:astrum/features/auth/presentation/sign_up_provider.dart';
 import 'package:astrum/features/auth/presentation/login_screen.dart';
+import 'package:astrum/features/auth/presentation/sign_up_provider.dart';
 import 'package:astrum/features/auth/presentation/welcome_screen.dart';
-import 'package:astrum/features/admin/data/admin_repository.dart';
-import 'package:astrum/core/analytics/analytics_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';

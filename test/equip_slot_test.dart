@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:astrum/core/astro/natal_chart.dart';
-import 'package:astrum/features/economy/domain/shop_item.dart';
-import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/economy/domain/equip_slot.dart';
 import 'package:astrum/features/economy/domain/equip_slot_field.dart';
+import 'package:astrum/features/economy/domain/shop_item.dart';
+import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

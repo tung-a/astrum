@@ -1,15 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
-import 'package:astrum/core/astro/natal_chart.dart';
-import 'package:astrum/features/economy/domain/profile_pictures.dart';
-import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/economy/domain/equip_slot.dart';
 import 'package:astrum/features/economy/domain/equip_slot_field.dart';
-import 'package:astrum/features/profile/domain/public_profile.dart';
+import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:astrum/features/profile/data/public_profile_sync.dart';
+import 'package:astrum/features/profile/domain/app_user.dart';
+import 'package:astrum/features/profile/domain/public_profile.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Perfil do usuario logado.
 class ProfileRepository {

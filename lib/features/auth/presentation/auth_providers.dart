@@ -1,8 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/features/auth/data/auth_repository.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Cadastro/login/logout. Depende so de providers estaveis (nao recria
 /// streams).

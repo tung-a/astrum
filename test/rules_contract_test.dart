@@ -4,11 +4,11 @@
 import 'dart:io';
 
 import 'package:astrum/core/firebase/rules_contract.dart';
-import 'package:astrum/features/economy/domain/shop_item.dart';
-import 'package:astrum/features/economy/domain/catalog_seed.dart';
-import 'package:astrum/shared/cosmetics_style.dart';
 import 'package:astrum/features/auth/domain/sign_up_data.dart';
+import 'package:astrum/features/economy/domain/catalog_seed.dart';
+import 'package:astrum/features/economy/domain/shop_item.dart';
 import 'package:astrum/features/profile/presentation/account_screen.dart';
+import 'package:astrum/shared/cosmetics_style.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/rules_contract_check.dart';

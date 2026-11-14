@@ -1,9 +1,9 @@
 import 'package:astrum/app/router.dart';
 import 'package:astrum/core/firebase/firebase_providers.dart';
-import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/features/social/presentation/social_providers.dart';
-import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
+import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

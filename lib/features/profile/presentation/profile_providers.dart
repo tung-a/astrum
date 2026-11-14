@@ -1,10 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:astrum/core/firebase/firebase_providers.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/features/profile/data/profile_repository.dart';
 import 'package:astrum/features/profile/data/public_profile_sync.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final publicProfileSyncProvider = Provider(
   (ref) => PublicProfileSync(

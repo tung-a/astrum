@@ -1,13 +1,12 @@
+import 'package:astrum/core/analytics/analytics_providers.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:astrum/features/rituals/domain/ritual_event.dart';
+import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
+import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-
-import 'package:astrum/features/rituals/domain/ritual_event.dart';
-import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
-import 'package:astrum/core/analytics/analytics_providers.dart';
-import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/shared/cosmic_scaffold.dart';
 
 class RitualsScreen extends ConsumerStatefulWidget {
   const RitualsScreen({super.key});

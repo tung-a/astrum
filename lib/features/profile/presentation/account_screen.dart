@@ -1,18 +1,17 @@
+import 'package:astrum/core/astro/synergy.dart';
+import 'package:astrum/core/astro/zodiac.dart';
+import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/features/auth/presentation/auth_providers.dart';
+import 'package:astrum/features/economy/domain/profile_pictures.dart';
+import 'package:astrum/features/profile/domain/app_user.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:astrum/features/social/domain/friend.dart';
+import 'package:astrum/features/social/presentation/social_providers.dart';
+import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import 'package:astrum/core/firebase/rules_contract.dart';
-import 'package:astrum/core/astro/zodiac.dart';
-import 'package:astrum/core/astro/synergy.dart';
-import 'package:astrum/features/economy/domain/profile_pictures.dart';
-import 'package:astrum/features/profile/domain/app_user.dart';
-import 'package:astrum/features/social/domain/friend.dart';
-import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/features/auth/presentation/auth_providers.dart';
-import 'package:astrum/features/social/presentation/social_providers.dart';
-import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/shared/cosmic_scaffold.dart';
 
 /// Icone e cor de cada intencao, por id. Os ids e rotulos vem do contrato
 /// (`intentionLabels`), que espelha `labelOk` em firestore.rules.

@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:astrum/core/astro/zodiac.dart';
-import 'package:astrum/core/astro/synergy.dart';
-import 'package:astrum/features/economy/domain/profile_pictures.dart';
-import 'package:astrum/features/economy/domain/catalog_seed.dart';
 import 'package:astrum/core/astro/moon.dart';
+import 'package:astrum/core/astro/synergy.dart';
+import 'package:astrum/core/astro/zodiac.dart';
+import 'package:astrum/features/economy/domain/catalog_seed.dart';
+import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

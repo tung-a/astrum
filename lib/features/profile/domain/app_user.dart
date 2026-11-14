@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/astro/natal_chart.dart';
+import 'package:astrum/core/firebase/rules_contract.dart';
 
 class AppUser {
   const AppUser({

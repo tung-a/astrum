@@ -1,7 +1,7 @@
-import 'package:astrum/core/firebase/firebase_providers.dart';
-import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/core/analytics/analytics_providers.dart';
+import 'package:astrum/core/firebase/firebase_providers.dart';
+import 'package:astrum/core/firebase/session_providers.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

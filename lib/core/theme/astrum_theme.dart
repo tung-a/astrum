@@ -1,7 +1,6 @@
+import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-import 'package:astrum/core/theme/astrum_colors.dart';
 
 class AstrumTheme {
   static ThemeData get dark {

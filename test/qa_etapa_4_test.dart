@@ -6,17 +6,17 @@
 // itens abertos (M3, B1). Quando o usuario decidir a correcao, estes testes
 // devem ser atualizados junto com ela.
 import 'package:astrum/core/firebase/firebase_providers.dart';
-import 'package:astrum/features/economy/domain/profile_pictures.dart';
-import 'package:astrum/features/economy/domain/equip_slot.dart';
-import 'package:astrum/features/economy/presentation/economy_providers.dart';
-import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/features/admin/data/admin_repository.dart';
 import 'package:astrum/features/economy/data/catalog_repository.dart';
 import 'package:astrum/features/economy/data/economy_repository.dart';
+import 'package:astrum/features/economy/domain/equip_slot.dart';
+import 'package:astrum/features/economy/domain/profile_pictures.dart';
+import 'package:astrum/features/economy/presentation/economy_providers.dart';
 import 'package:astrum/features/profile/data/profile_repository.dart';
-import 'package:astrum/features/profile/domain/public_profile.dart';
 import 'package:astrum/features/profile/data/public_profile_sync.dart';
+import 'package:astrum/features/profile/domain/public_profile.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

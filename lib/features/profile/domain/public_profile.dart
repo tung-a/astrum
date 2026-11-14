@@ -1,8 +1,7 @@
 import 'dart:convert';
 
-import 'package:crypto/crypto.dart';
-
 import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:crypto/crypto.dart';
 
 /// SHA-256 (hex minusculo, 64 caracteres) do e-mail em minusculas e sem
 /// espacos nas pontas. E o unico identificador de busca de amigo exposto em

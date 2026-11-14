@@ -1,14 +1,13 @@
+import 'package:astrum/core/analytics/analytics_providers.dart';
+import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/features/oracle/domain/chat_models.dart';
+import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-
-import 'package:astrum/features/oracle/domain/chat_models.dart';
-import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
-import 'package:astrum/core/analytics/analytics_providers.dart';
-import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/shared/cosmic_scaffold.dart';
 
 const _starters = [
   'Qual a energia de hoje?',

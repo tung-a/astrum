@@ -1,9 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:astrum/app/router.dart';
 import 'package:astrum/core/config/env.dart';
 import 'package:astrum/core/theme/astrum_theme.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AstrumApp extends ConsumerWidget {
   const AstrumApp({super.key});

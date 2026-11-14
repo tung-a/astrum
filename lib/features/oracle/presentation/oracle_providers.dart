@@ -1,8 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:astrum/core/storage/prefs_providers.dart';
 import 'package:astrum/features/oracle/data/chat_store.dart';
 import 'package:astrum/features/oracle/domain/oracle_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final oracleServiceProvider = Provider((ref) => OracleService());
 

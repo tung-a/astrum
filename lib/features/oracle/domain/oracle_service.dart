@@ -1,8 +1,8 @@
 import 'dart:math';
 
-import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/core/astro/moon.dart';
 import 'package:astrum/core/astro/tarot.dart';
+import 'package:astrum/core/astro/zodiac.dart';
 
 class OracleService {
   const OracleService();

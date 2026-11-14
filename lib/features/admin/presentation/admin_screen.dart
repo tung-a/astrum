@@ -1,13 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/features/admin/data/admin_repository.dart';
+import 'package:astrum/features/admin/presentation/admin_providers.dart';
 import 'package:astrum/features/economy/domain/catalog_seed.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/features/admin/presentation/admin_providers.dart';
-import 'package:astrum/features/admin/data/admin_repository.dart';
-import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/shared/cosmic_scaffold.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum _RoleFilter { all, admin, user }
 

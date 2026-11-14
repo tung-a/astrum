@@ -1,16 +1,15 @@
+import 'package:astrum/features/economy/domain/catalog_entry.dart';
+import 'package:astrum/features/economy/domain/catalog_seed.dart';
+import 'package:astrum/features/economy/domain/economy_exceptions.dart';
+import 'package:astrum/features/economy/domain/profile_pictures.dart';
+import 'package:astrum/features/economy/domain/shop_item.dart';
+import 'package:astrum/features/economy/presentation/economy_providers.dart';
+import 'package:astrum/features/profile/domain/app_user.dart';
+import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:astrum/shared/cosmetics_style.dart';
+import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:astrum/features/economy/domain/shop_item.dart';
-import 'package:astrum/features/economy/domain/catalog_seed.dart';
-import 'package:astrum/shared/cosmetics_style.dart';
-import 'package:astrum/features/economy/domain/profile_pictures.dart';
-import 'package:astrum/features/profile/domain/app_user.dart';
-import 'package:astrum/features/economy/presentation/economy_providers.dart';
-import 'package:astrum/features/profile/presentation/profile_providers.dart';
-import 'package:astrum/features/economy/domain/economy_exceptions.dart';
-import 'package:astrum/features/economy/domain/catalog_entry.dart';
-import 'package:astrum/shared/cosmic_scaffold.dart';
 
 class ShopScreen extends ConsumerStatefulWidget {
   const ShopScreen({super.key});

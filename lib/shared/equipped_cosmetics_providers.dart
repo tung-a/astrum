@@ -1,9 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/shared/cosmetics_style.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final equippedSkinProvider = Provider<SkinStyle>((ref) {
   final id =

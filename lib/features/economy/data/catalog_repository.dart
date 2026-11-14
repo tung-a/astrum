@@ -1,6 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:astrum/features/economy/domain/catalog_entry.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Leitura do catalogo da loja (shop_items).
 class CatalogRepository {
