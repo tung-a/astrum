@@ -262,7 +262,7 @@ Se um passo falhar a verificação, reverter só o passo (`git restore --staged 
 | Windows: pasta aberta pelo IDE/analyzer | `git mv` pode falhar com arquivo em uso; fechar o analisador do IDE ou repetir. |
 | Ciclo entre providers durante a migração | Ordem da seção 4 e regra "`app_providers.dart` nunca importa um arquivo novo". |
 | Teste de fronteira estrito demais quebra um passo intermediário | Camada indefinida (pasta legada) é ignorada até o passo 13; o caso 8 só é ativado no passo 13. |
-| `shared/` virar depósito | Regra de admissão: só entra arquivo de UI que precisa ler providers de mais de uma feature e é usado por mais de uma tela. Hoje são 3 arquivos. Revisar na etapa 9 (extrair `CosmicScaffold` do estado de feature é melhoria futura, não parte desta etapa). |
+| `shared/` virar depósito | Regra de admissão (reescrita no fechamento da etapa): só entra em `shared/` UI ou estilo usado por 3 ou mais features, ou lido por um widget transversal (`CosmicScaffold`). Exceções conscientes, registradas como dívida: `cosmetics_style.dart` (depende de `ItemRarity` de economy/domain, então não pode ir para `core/`) e `equipped_cosmetics_providers.dart` (lido pelo `CosmicScaffold`); movê-los para uma feature criaria dependência inversa ou ciclo. Hoje são 3 arquivos. Revisar na etapa 9 (extrair `CosmicScaffold` do estado de feature é melhoria futura, não parte desta etapa). |
 | Docs apontam caminhos antigos | Passo 15; `step4..step7` ficam como estão (histórico). |
 | Regras do Firestore e `test_rules/` | Nenhum caminho de `lib/` aparece neles nem em `.github/workflows` (grep). `npm test` não é necessário; o `rules_contract_test` (Dart) lê `firestore.rules` por caminho de raiz e não muda. |
 
