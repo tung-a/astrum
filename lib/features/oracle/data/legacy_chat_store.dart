@@ -12,6 +12,24 @@ class LegacyChatStore implements LegacyChatRepository {
   static const _uuid = Uuid();
 
   String _key(String uid) => 'astrum.chat.$uid';
+  String _bakKey(String uid) => '${_key(uid)}.bak';
+  String _flagKey(String uid) => 'astrum.chat.migrated.$uid';
+
+  /// JSON cru do legado (null = ausente), usado so pelo migrador.
+  String? rawJson(String uid) => _prefs.getString(_key(uid));
+
+  /// Marca de migracao ('done', 'empty' ou 'corrupt'); null = nao migrado.
+  String? migratedFlag(String uid) => _prefs.getString(_flagKey(uid));
+
+  Future<void> markMigrated(String uid, String flag) =>
+      _prefs.setString(_flagKey(uid), flag);
+
+  /// Copia o JSON cru para `<chave>.bak` (nunca apaga o original).
+  Future<void> backup(String uid, String raw) =>
+      _prefs.setString(_bakKey(uid), raw);
+
+  /// Remove o original; so depois de [backup] e da conferencia no servidor.
+  Future<void> removeOriginal(String uid) => _prefs.remove(_key(uid));
 
   @override
   Future<List<ChatConversation>> load(String uid) async {
