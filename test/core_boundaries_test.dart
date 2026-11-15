@@ -196,7 +196,7 @@ void main() {
     expect(layerOf('app/router.dart'), _app);
     expect(layerOf('main.dart'), _app);
     expect(layerOf('services/auth_repository.dart'), isNull);
-    expect(featureOf('features/oracle/data/chat_store.dart'), 'oracle');
+    expect(featureOf('features/oracle/data/legacy_chat_store.dart'), 'oracle');
     expect(featureOf('core/astro/zodiac.dart'), isNull);
     expect(_import.firstMatch("import 'package:astrum/core/a.dart';")![1],
         'core/a.dart');

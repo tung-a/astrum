@@ -180,7 +180,7 @@ void main() {
   });
 
   test(
-      'caracterizacao: ChatStore real grava a mesma chave e o mesmo JSON '
+      'caracterizacao: LegacyChatStore real grava a mesma chave e o mesmo JSON '
       '(1 mensagem e nova conversa)', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();

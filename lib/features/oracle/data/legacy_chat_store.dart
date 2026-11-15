@@ -1,12 +1,12 @@
 import 'dart:convert';
 
-import 'package:astrum/features/oracle/data/chat_repository.dart';
+import 'package:astrum/features/oracle/data/legacy_chat_repository.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-class ChatStore implements ChatRepository {
-  ChatStore(this._prefs);
+class LegacyChatStore implements LegacyChatRepository {
+  LegacyChatStore(this._prefs);
 
   final SharedPreferences _prefs;
   static const _uuid = Uuid();

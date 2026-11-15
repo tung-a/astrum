@@ -1,23 +1,23 @@
 import 'dart:convert';
 
-import 'package:astrum/features/oracle/data/chat_repository.dart';
-import 'package:astrum/features/oracle/data/chat_store.dart';
+import 'package:astrum/features/oracle/data/legacy_chat_repository.dart';
+import 'package:astrum/features/oracle/data/legacy_chat_store.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   late SharedPreferences prefs;
-  late ChatStore store;
+  late LegacyChatStore store;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
-    store = ChatStore(prefs);
+    store = LegacyChatStore(prefs);
   });
 
-  test('e um ChatRepository', () {
-    expect(store, isA<ChatRepository>());
+  test('e um LegacyChatRepository', () {
+    expect(store, isA<LegacyChatRepository>());
   });
 
   test('sem historico, load devolve uma conversa vazia "Conversa 1"', () async {
