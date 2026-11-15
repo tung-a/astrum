@@ -368,6 +368,17 @@ test('conversas: set sobre conversa existente (colisao de isNew) negado, com ou 
   if (snap.data().messageCount !== 3) throw new Error('conversa foi alterada');
 });
 
+test('conversas: colisao de isNew com createdAt igual mas contador 3->1 negada (regra do contador isolada)', async () => {
+  const db = as('alice');
+  await seedConv('c1', 3);
+  const ref = doc(db, 'users/alice/conversations/c1');
+  const existing = (await getDoc(ref)).data();
+  // createdAt identico ao existente: so o contador (3 -> 1, diminui) viola a regra
+  await assertFails(setDoc(ref, conv(1, { createdAt: existing.createdAt })));
+  const snap = await getDoc(ref);
+  if (snap.data().messageCount !== 3) throw new Error('conversa foi alterada');
+});
+
 test('conversas: update de conversa alheia com increment negado', async () => {
   await seedConv('c1', 0);
   await assertFails(updateDoc(doc(as('bob'), 'users/alice/conversations/c1'), {
@@ -381,7 +392,7 @@ test('conversas: update de conversa alheia com increment negado', async () => {
 // dono com messageCount +1 SEM mensagem no batch (a regra da mensagem exige o
 // contador, mas a da conversa nao exige a mensagem). E autoprejuizo: so o dono
 // infla o proprio contador (ate 500, ficando sem espaco para mensagens reais)
-// e a migracao detecta a divergencia (confere por ids). Registrado como risco
+// e a migracao detecta a divergencia (confere por CONTAGEM de mensagens, nao por ids). Registrado como risco
 // aceito no step10-chat-sync.md; se a regra mudar, este teste deve ser revisto.
 test('caracterizacao: update do dono com +1 sem mensagem e aceito (autoprejuizo)', async () => {
   const db = as('alice');
