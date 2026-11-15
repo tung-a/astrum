@@ -118,6 +118,16 @@ Desenho guiado pelas regras: não há batch com várias mensagens da mesma conve
 8. Vários uids no aparelho: chaves por uid, cada um migra o seu.
 9. O `.bak` e o cache do Firestore guardam conteúdo no aparelho; expurgo do `.bak` e `ChatStore` na etapa 13 (higiene) ou numa versão posterior, e na exclusão de conta (etapa 11) apagar `astrum.chat.*`, `.bak` e a flag.
 
+Ajustes da revisão (passos 0 a 4):
+
+- **Exclusão** (`deleteConversation`/`deleteAllConversations`): toda paginação lê do **servidor** (`Source.server`); offline falha com `ChatOfflineException` sem apagar nada; filhos primeiro; a conversa só é apagada depois de uma página vazia de mensagens lida do servidor; idempotente.
+- **Legado alterado durante a migração**: antes de `.bak`/remoção, `rawJson` deve ser igual ao lido no início; se mudou, `incomplete` e nada é apagado.
+- **Datas sintéticas estáveis**: a base `now` é gravada em prefs (`astrum.chat.migbase.<uid>`) na 1ª tentativa e reutilizada nas retomadas (removida ao concluir); execução única por uid no processo (chamadas concorrentes compartilham a mesma execução).
+- **Lacuna permanente**: esgotadas as rodadas, lista os ids existentes no servidor (`remoteMessageIds`) e envia só os que faltam.
+- **Parse tolerante** (como `fromJson`): `role`/`text` atípicos, mensagens não-mapa e ids inválidos (fallback `legacy-<índice>`) não corrompem; só raiz não-mapa ou `conversations` não-lista é `corrupt`.
+- **`.bak` confirmado**: `backup`/`markMigrated` devolvem o `bool` do `setString`; falha aborta e o original nunca é removido sem `.bak` confirmado.
+- Registrado sem implementar: (8) `+1` sem mensagem é aceito pela regra (autoprejuízo, caracterizado em `test_rules/`); (10) `fieldOverrides` isentando `messages.text` de indexação em `firestore.indexes.json` como otimização futura, e o ritmo de ~1 escrita/s por documento da conversa na migração. A decisão do usuário sobre o corte das 500 mais recentes foi substituída pela divisão em partes.
+
 Custo da migração: usuário com `M` mensagens válidas e `C` conversas = `2M` escritas + `~2M` leituras de regra, `C` leituras de contagem e `C` leituras de verificação. Exemplo `M=200`: 400 escritas, ~400+ leituras. Atenção à cota diária (seção 8).
 
 ## 6. Estratégia de sincronização
