@@ -378,4 +378,47 @@ void main() {
     expect(await migrator().run('u1'), MigrationResult.migrated);
     expect(prefs.getString('astrum.chat.u1.bak'), raw);
   });
+
+  test('conversa com mais de 500 mensagens e dividida em partes, sem perda',
+      () async {
+    await prefs.setString(
+        'astrum.chat.u1',
+        _legacy([
+          [for (var i = 0; i < 1100; i++) ('user', 'm$i')],
+        ], ids: [
+          'big'
+        ]));
+    expect(await migrator().run('u1'), MigrationResult.migrated);
+    expect(await count('u1', 'big'), 500);
+    expect(await count('u1', 'big-p2'), 500);
+    expect(await count('u1', 'big-p3'), 100);
+    final p2 = await messages('u1', 'big-p2');
+    expect(p2.first['text'], 'm500');
+    expect(p2.first['id'], 'm0001');
+    final c2 = (await db.doc('users/u1/conversations/big-p2').get()).data()!;
+    expect(c2['title'], 'Conversa 1 (parte 2)');
+    expect(repo.accepted, 1100);
+  });
+
+  test('conversa dividida: queda no meio retoma pela contagem de cada parte',
+      () async {
+    await prefs.setString(
+        'astrum.chat.u1',
+        _legacy([
+          [for (var i = 0; i < 600; i++) ('user', 'm$i')],
+        ], ids: [
+          'big'
+        ]));
+    repo.failOnAccepted = 530; // parte 1 completa, parte 2 com 30
+    expect(await migrator().run('u1'), MigrationResult.incomplete);
+    expect(await count('u1', 'big'), 500);
+    expect(await count('u1', 'big-p2'), 30);
+    repo.failOnAccepted = null;
+    final before = repo.accepted;
+    expect(await migrator().run('u1'), MigrationResult.migrated);
+    expect(repo.accepted - before, 70);
+    expect(await count('u1', 'big-p2'), 100);
+    expect((await messages('u1', 'big-p2')).map((m) => m['text']).toList(),
+        [for (var i = 500; i < 600; i++) 'm$i']);
+  });
 }

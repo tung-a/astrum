@@ -76,15 +76,62 @@ void main() {
     }
   });
 
-  test('mais de 500 mensagens: mantem as 500 mais recentes', () {
+  test('exatamente 500 mensagens: uma conversa so', () {
     final plan = planLegacyImport([
-      c('a', [for (var i = 0; i < 520; i++) t('user', 'm$i')]),
+      c('a', [for (var i = 0; i < 500; i++) t('user', 'm$i')]),
     ], now);
-    final msgs = plan.single.messages;
-    expect(msgs, hasLength(chatMessagesMax));
-    expect(msgs.first.text, 'm20');
-    expect(msgs.first.id, 'm0001');
-    expect(msgs.last.id, 'm0500');
+    expect(plan, hasLength(1));
+    expect(plan.single.messages, hasLength(chatMessagesMax));
+  });
+
+  test('mais de 500 mensagens: divide em partes de ate 500, sem perder nada',
+      () {
+    final plan = planLegacyImport([
+      c('a', [for (var i = 0; i < 1203; i++) t('user', 'm$i')], title: 'Amor'),
+      c('b', [t('user', 'x')]),
+    ], now);
+    expect(plan.map((p) => p.id), ['a', 'a-p2', 'a-p3', 'b']);
+    expect(plan.map((p) => p.title),
+        ['Amor', 'Amor (parte 2)', 'Amor (parte 3)', 'T']);
+    expect(plan.map((p) => p.messages.length), [500, 500, 203, 1]);
+    for (final p in plan) {
+      expect(p.messages.first.id, 'm0001');
+    }
+    expect(plan[0].messages.first.text, 'm0');
+    expect(plan[0].messages.last.text, 'm499');
+    expect(plan[1].messages.first.text, 'm500');
+    expect(plan[2].messages.last.text, 'm1202');
+    expect(plan[2].messages.last.id, 'm0203');
+    for (var i = 1; i < plan.length; i++) {
+      expect(plan[i].updatedAt.isAfter(plan[i - 1].updatedAt), isTrue);
+    }
+    expect(plan.last.updatedAt, now);
+  });
+
+  test('titulo da parte respeita 80 unidades UTF-16 (sem partir emoji)', () {
+    final long = '${'a' * 78}\u{1F52E}'; // 80 unidades
+    final plan = planLegacyImport([
+      c('a', [for (var i = 0; i < 501; i++) t('user', 'm$i')], title: long),
+    ], now);
+    expect(plan[0].title, long);
+    expect(plan[1].title, '${'a' * 70} (parte 2)');
+    final emoji = planLegacyImport([
+      c('a', [for (var i = 0; i < 501; i++) t('user', 'm$i')],
+          title: '${'a' * 69}\u{1F52E}'),
+    ], now)[1]
+        .title;
+    expect(emoji, '${'a' * 69} (parte 2)'); // descartou o par cortado
+    expect(emoji.length, lessThanOrEqualTo(chatTitleMax));
+  });
+
+  test('divisao e deterministica entre execucoes', () {
+    final input = [
+      c('a', [for (var i = 0; i < 700; i++) t('user', 'm$i')]),
+    ];
+    final a = planLegacyImport(input, now);
+    final b = planLegacyImport(input, now);
+    expect(a.map((p) => (p.id, p.title, p.messages.length)).toList(),
+        b.map((p) => (p.id, p.title, p.messages.length)).toList());
   });
 
   test('e deterministico (mesma entrada, mesmo plano)', () {
