@@ -253,6 +253,83 @@ test('mensagens: conversa criada no mesmo batch com contador 1 ok; contador 2 ne
   await assertSucceeds(make(1));
 });
 
+// ---- conversas: increment(1), limites, titulo com emoji, imutabilidade, isolamento (etapa 10, passo 1)
+const sendInc = (db, convId, id, m, by = 1) => {
+  const b = writeBatch(db);
+  b.set(doc(db, `users/alice/conversations/${convId}/messages/${id}`), m);
+  b.update(doc(db, `users/alice/conversations/${convId}`), { messageCount: increment(by), updatedAt: Timestamp.now() });
+  return b.commit();
+};
+const seedConv = (id, n, uid = 'alice') =>
+  env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `users/${uid}/conversations/${id}`), conv(n)));
+
+test('conversas: messageCount via increment(1) ok; increment(2), increment(0) e increment(-1) negados', async () => {
+  const db = as('alice');
+  await seedConv('c1', 0);
+  await assertFails(sendInc(db, 'c1', 'm0001', msg(), 2));
+  await assertFails(sendInc(db, 'c1', 'm0001', msg(), 0));
+  await assertSucceeds(sendInc(db, 'c1', 'm0001', msg()));
+  await assertSucceeds(sendInc(db, 'c1', 'm0002', msg({ role: 'model' })));
+  await assertFails(sendInc(db, 'c1', 'm0003', msg(), -1));
+});
+
+test('conversas: 1a mensagem cria a conversa com contador 1 e a mensagem no mesmo batch; depois increment ok', async () => {
+  const db = as('alice');
+  const b = writeBatch(db);
+  b.set(doc(db, 'users/alice/conversations/n1'), conv(1, { title: 'primeira pergunta' }));
+  b.set(doc(db, 'users/alice/conversations/n1/messages/m0001'), msg());
+  await assertSucceeds(b.commit());
+  await assertSucceeds(sendInc(db, 'n1', 'm0002', msg({ role: 'model' })));
+});
+
+test('conversas: 500a mensagem ok via increment; 501a negada', async () => {
+  const db = as('alice');
+  await seedConv('c1', 499);
+  await assertSucceeds(sendInc(db, 'c1', 'm0500', msg()));
+  await assertFails(sendInc(db, 'c1', 'm0501', msg()));
+  await assertFails(updateDoc(doc(db, 'users/alice/conversations/c1'), { messageCount: 501 }));
+});
+
+test('conversas: titulo de 80 unidades UTF-16 com emoji ok; 81 e vazio negados', async () => {
+  const db = as('alice');
+  const emoji = '\u{1F52E}'; // 2 unidades UTF-16
+  const t80 = 'a'.repeat(78) + emoji; // 80 unidades
+  if (t80.length !== 80) throw new Error(`titulo de teste com ${t80.length} unidades`);
+  await assertSucceeds(setDoc(doc(db, 'users/alice/conversations/e1'), conv(0, { title: t80 })));
+  await assertSucceeds(setDoc(doc(db, 'users/alice/conversations/e2'), conv(0, { title: emoji.repeat(40) })));
+  await assertFails(setDoc(doc(db, 'users/alice/conversations/e3'), conv(0, { title: 'a'.repeat(81) })));
+  await assertFails(setDoc(doc(db, 'users/alice/conversations/e4'), conv(0, { title: '' })));
+});
+
+test('mensagens: imutaveis (reenviar o mesmo id, set e update negados)', async () => {
+  const db = as('alice');
+  await seedConv('c1', 0);
+  await assertSucceeds(sendInc(db, 'c1', 'm0001', msg({ text: 'original' })));
+  // reenviar o mesmo id vira update: negado, mesmo com o contador subindo 1
+  await assertFails(sendInc(db, 'c1', 'm0001', msg({ text: 'trocada' })));
+  await assertFails(setDoc(doc(db, 'users/alice/conversations/c1/messages/m0001'), msg({ text: 'trocada' })));
+  await assertFails(updateDoc(doc(db, 'users/alice/conversations/c1/messages/m0001'), { text: 'trocada' }));
+  const snap = await getDoc(doc(db, 'users/alice/conversations/c1/messages/m0001'));
+  if (snap.data().text !== 'original') throw new Error('mensagem foi alterada');
+});
+
+test('conversas: outro uid nao le, cria, atualiza, apaga nem envia mensagem', async () => {
+  await seedConv('c1', 1);
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'users/alice/conversations/c1/messages/m0001'), msg()));
+  const bob = as('bob');
+  await assertFails(getDoc(doc(bob, 'users/alice/conversations/c1')));
+  await assertFails(getDocs(collection(bob, 'users/alice/conversations')));
+  await assertFails(getDoc(doc(bob, 'users/alice/conversations/c1/messages/m0001')));
+  await assertFails(setDoc(doc(bob, 'users/alice/conversations/c2'), conv(0)));
+  await assertFails(updateDoc(doc(bob, 'users/alice/conversations/c1'), { updatedAt: Timestamp.now() }));
+  await assertFails(deleteDoc(doc(bob, 'users/alice/conversations/c1')));
+  await assertFails(deleteDoc(doc(bob, 'users/alice/conversations/c1/messages/m0001')));
+  await assertFails(sendInc(bob, 'c1', 'm0002', msg()));
+  // o dono continua lendo
+  await assertSucceeds(getDoc(doc(as('alice'), 'users/alice/conversations/c1')));
+});
+
 // ---- catalogo da loja (shop_items)
 test('compra: saldo debitado igual ao preco do catalogo ok; diferente negado', async () => {
   const ref = doc(as('alice'), 'users/alice');
