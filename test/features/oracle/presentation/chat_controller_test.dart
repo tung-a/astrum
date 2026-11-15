@@ -1,26 +1,52 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:astrum/core/analytics/analytics_providers.dart';
-import 'package:astrum/core/storage/prefs_providers.dart';
+import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:astrum/features/oracle/presentation/chat_controller.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../support/fake_repositories.dart';
 import '../../../support/fake_services.dart';
+import '../../../support/in_memory_chat_repository.dart';
 import '../../../support/make_container.dart';
 
+/// Repositorio que registra as gravacoes e pode falhar sob comando.
+class _SpyRepo extends InMemoryChatRepository {
+  final appends = <({String uid, String convId, String role, bool isNew})>[];
+  Object? appendError;
+
+  @override
+  Future<void> appendMessage(
+    String uid, {
+    required String convId,
+    required ChatTurnStored message,
+    required DateTime updatedAt,
+    String? title,
+    bool isNew = false,
+  }) {
+    appends.add((uid: uid, convId: convId, role: message.role, isNew: isNew));
+    if (appendError != null) return Future.error(appendError!);
+    return super.appendMessage(uid,
+        convId: convId,
+        message: message,
+        updatedAt: updatedAt,
+        title: title,
+        isNew: isNew);
+  }
+}
+
 void main() {
-  late FakeChatRepository chats;
+  late _SpyRepo repo;
   late FakeOracleService oracle;
   late FakeAnalytics analytics;
+  final uidSource = StateProvider<String?>((ref) => 'u1');
 
   setUp(() {
-    chats = FakeChatRepository();
+    repo = _SpyRepo();
     oracle = FakeOracleService(reply: 'resposta do oraculo');
     analytics = FakeAnalytics();
   });
@@ -28,19 +54,24 @@ void main() {
   Future<ProviderContainer> setup({
     bool loggedIn = true,
     bool hydrate = true,
+    bool switchable = false,
   }) async {
     final c = await makeContainer(
       user: loggedIn ? testUser() : null,
       overrides: [
-        chatRepositoryProvider.overrideWithValue(chats),
+        if (switchable)
+          currentUidProvider.overrideWith((ref) => ref.watch(uidSource)),
+        chatRepositoryProvider.overrideWithValue(repo),
         oracleServiceProvider.overrideWithValue(oracle),
         analyticsServiceProvider.overrideWithValue(analytics),
       ],
     );
     addTearDown(c.dispose);
-    // Mantem o autoDispose vivo.
-    c.listen(chatControllerProvider, (_, __) {});
-    if (hydrate) await c.read(chatControllerProvider.notifier).hydrate();
+    c.listen(chatControllerProvider, (_, __) {}); // mantem o autoDispose vivo
+    if (hydrate) {
+      await c.read(chatControllerProvider.notifier).hydrate();
+      await pumpEventQueue();
+    }
     return c;
   }
 
@@ -48,37 +79,65 @@ void main() {
       c.read(chatControllerProvider.notifier);
   ChatState st(ProviderContainer c) => c.read(chatControllerProvider);
 
+  Future<void> seed(String uid, String convId, int n,
+      {String? title, DateTime? at}) async {
+    final base = at ?? DateTime(2026, 1, 1);
+    for (var i = 0; i < n; i++) {
+      await repo.appendMessage(uid,
+          convId: convId,
+          message: ChatTurnStored(
+              id: 'm$i',
+              role: i.isEven ? 'user' : 'model',
+              text: 'texto $i',
+              createdAt: base.add(Duration(seconds: i))),
+          updatedAt: base.add(Duration(seconds: i)),
+          title: title,
+          isNew: i == 0);
+    }
+  }
+
   group('hydrate', () {
-    test('carrega do repositorio, indice 0, e e idempotente', () async {
+    test('sem conversas: rascunho "Conversa 1", nada gravado, idempotente',
+        () async {
       final c = await setup(hydrate: false);
       expect(st(c).hydrated, isFalse);
       expect(st(c).current.id, 'x'); // placeholder antes de hidratar
 
       await ctl(c).hydrate();
       await ctl(c).hydrate();
+      await pumpEventQueue();
 
-      expect(chats.loads, ['u1']);
       expect(st(c).hydrated, isTrue);
-      expect(st(c).conversations.single.id, 'conv-1');
-      expect(st(c).index, 0);
+      expect(st(c).conversations.map((e) => e.title), ['Conversa 1']);
+      expect(repo.appends, isEmpty);
     });
 
-    test('sem perfil nao carrega', () async {
-      final c = await setup(loggedIn: false);
+    test('abre na conversa mais recente; lista da mais recente para a antiga',
+        () async {
+      await seed('u1', 'velha', 2, title: 'Velha', at: DateTime(2026, 1, 1));
+      await seed('u1', 'nova', 2, title: 'Nova', at: DateTime(2026, 2, 1));
+      final c = await setup();
 
-      expect(chats.loads, isEmpty);
+      expect(st(c).conversations.map((e) => e.id), ['nova', 'velha']);
+      expect(st(c).current.id, 'nova');
+      expect(st(c).current.messages.map((m) => m.text), ['texto 0', 'texto 1']);
+    });
+
+    test('sem usuario nao assina nada', () async {
+      final c = await setup(loggedIn: false);
+      await ctl(c).hydrate();
+
       expect(st(c).hydrated, isFalse);
     });
 
-    test('reabrir a tela (novo controller) recarrega o historico salvo',
-        () async {
+    test('reabrir a tela (novo controller) recarrega o historico', () async {
       final c1 = await setup();
       await ctl(c1).send('Oi');
+      await pumpEventQueue();
       c1.dispose();
 
       final c2 = await setup();
 
-      expect(chats.loads, ['u1', 'u1']);
       expect(st(c2).current.messages.map((m) => m.text),
           ['Oi', 'resposta do oraculo']);
     });
@@ -100,16 +159,17 @@ void main() {
       await ctl(c).send('');
       await ctl(c).send('   ');
 
-      expect(chats.saves, isEmpty);
+      expect(repo.appends, isEmpty);
       expect(oracle.calls, isEmpty);
       expect(st(c).loading, isFalse);
     });
 
-    test('1a mensagem vira o titulo; usuario, resposta, analytics e 2 saves',
+    test('1a mensagem cria a conversa (titulo), grava 2 mensagens e conta',
         () async {
       final c = await setup();
 
       await ctl(c).send('  Qual a energia de hoje?  ');
+      await pumpEventQueue();
 
       final conv = st(c).current;
       expect(conv.title, 'Qual a energia de hoje?');
@@ -120,22 +180,21 @@ void main() {
       expect(oracle.calls.single.prompt, 'Qual a energia de hoje?');
       expect(analytics.events, ['send_message_chat']);
       expect(st(c).loading, isFalse);
-      // Caracterizacao: 2 gravacoes por mensagem, ambas da lista inteira.
-      expect(chats.saves, hasLength(2));
-      expect(chats.saves[0].all.single.messages, hasLength(1));
-      expect(chats.saves[1].all.single.messages, hasLength(2));
-      expect(chats.saves.map((s) => s.uid), ['u1', 'u1']);
+      expect(repo.appends.map((a) => (a.role, a.isNew)),
+          [('user', true), ('model', false)]);
+      expect(await repo.remoteMessageCount('u1', conv.id), 2);
     });
 
-    test('2a mensagem mantem o titulo', () async {
+    test('2a mensagem mantem o titulo e a conversa', () async {
       final c = await setup();
 
       await ctl(c).send('Primeira');
       await ctl(c).send('Segunda');
+      await pumpEventQueue();
 
+      expect(st(c).conversations, hasLength(1));
       expect(st(c).current.title, 'Primeira');
       expect(st(c).current.messages, hasLength(4));
-      expect(chats.saves, hasLength(4));
     });
 
     test('envio durante uma resposta em andamento e ignorado', () async {
@@ -149,185 +208,264 @@ void main() {
       await ctl(c).send('Segunda');
       gate.complete('ok');
       await first;
+      await pumpEventQueue();
 
       expect(oracle.calls, hasLength(1));
       expect(st(c).current.messages, hasLength(2));
     });
-  });
 
-  group('newConversation e select', () {
-    test('cria "Conversa 2", seleciona e grava uma vez', () async {
-      final c = await setup();
+    test('createdAt e estritamente crescente mesmo com relogio parado',
+        () async {
+      final c = await setup(); // relogio fixo do makeContainer
+      await ctl(c).send('Oi');
+      await pumpEventQueue();
 
-      await ctl(c).newConversation();
-
-      expect(st(c).conversations.map((e) => e.title),
-          ['Conversa 1', 'Conversa 2']);
-      expect(st(c).index, 1);
-      expect(chats.saves, hasLength(1));
-      // A conversa 1 vazia entra no snapshot (nao se perde ao reabrir).
-      expect(chats.saves.single.all, hasLength(2));
+      final msgs = st(c).current.messages;
+      expect(msgs[1].createdAt!.isAfter(msgs[0].createdAt!), isTrue);
     });
 
-    test('select troca a conversa atual', () async {
-      final c = await setup();
-      await ctl(c).newConversation();
-
-      ctl(c).select(0);
-
-      expect(st(c).current.id, 'conv-1');
-    });
-  });
-
-  test(
-      'caracterizacao: LegacyChatStore real grava a mesma chave e o mesmo JSON '
-      '(1 mensagem e nova conversa)', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final real = await makeContainer(user: testUser(), overrides: [
-      prefsProvider.overrideWithValue(prefs),
-      oracleServiceProvider.overrideWithValue(oracle),
-      analyticsServiceProvider.overrideWithValue(analytics),
-    ]);
-    addTearDown(real.dispose);
-    real.listen(chatControllerProvider, (_, __) {});
-    await real.read(chatControllerProvider.notifier).hydrate();
-    final id = st(real).current.id;
-
-    await ctl(real).send('Oi');
-
-    expect(prefs.getKeys(), {'astrum.chat.u1'});
-    expect(
-        prefs.getString('astrum.chat.u1'),
-        '{"conversations":[{"id":"$id","title":"Oi","messages":['
-        '{"role":"user","text":"Oi"},'
-        '{"role":"model","text":"resposta do oraculo"}]}]}');
-
-    await ctl(real).newConversation();
-
-    final json = jsonDecode(prefs.getString('astrum.chat.u1')!) as Map;
-    final list = json['conversations'] as List;
-    expect(list, hasLength(2));
-    expect((list[0] as Map)['id'], id);
-    expect((list[1] as Map)['title'], 'Conversa 2');
-    expect((list[1] as Map)['messages'], isEmpty);
-  });
-
-  test('descartado durante a resposta: nao lanca e nao faz a 2a gravacao',
-      () async {
-    final gate = Completer<String>();
-    oracle.completer = gate;
-    final c = await makeContainer(user: testUser(), overrides: [
-      chatRepositoryProvider.overrideWithValue(chats),
-      oracleServiceProvider.overrideWithValue(oracle),
-      analyticsServiceProvider.overrideWithValue(analytics),
-    ]);
-    addTearDown(c.dispose);
-    final sub = c.listen(chatControllerProvider, (_, __) {});
-    await c.read(chatControllerProvider.notifier).hydrate();
-    final future = c.read(chatControllerProvider.notifier).send('Oi');
-    await Future<void>.delayed(Duration.zero);
-
-    sub.close();
-    await c.pump();
-    gate.complete('tarde');
-    await future;
-
-    expect(chats.saves, hasLength(1));
-  });
-
-  group('comportamento corrigido (defeitos do chat)', () {
-    const erro = 'Não foi possível obter a resposta. Tente novamente.';
-
-    test('(1) se o oraculo lanca, loading e liberado e ha resposta de erro',
+    test('se o oraculo lanca, loading e liberado e ha resposta de erro',
         () async {
       oracle.failWith = StateError('oraculo fora');
       final c = await setup();
 
       await ctl(c).send('Oi');
+      await pumpEventQueue();
 
       expect(st(c).loading, isFalse);
-      expect(st(c).current.messages.map((m) => (m.role, m.text)),
-          [('user', 'Oi'), ('model', erro)]);
-      // Novo envio volta a funcionar.
+      expect(st(c).current.messages.map((m) => (m.role, m.text)), [
+        ('user', 'Oi'),
+        ('model', 'Não foi possível obter a resposta. Tente novamente.')
+      ]);
       oracle.failWith = null;
       await ctl(c).send('Outra');
       expect(oracle.calls, hasLength(2));
-      expect(st(c).current.messages.last.text, 'resposta do oraculo');
     });
 
-    test('(1) se o save lanca, loading e liberado e ha resposta de erro',
+    test('falha de gravacao nao trava loading nem vaza o texto no log',
         () async {
-      chats.saveError = StateError('prefs fora');
+      repo.appendError = StateError('permission-denied');
+      final logs = <String>[];
+      final old = debugPrint;
+      debugPrint = (String? m, {int? wrapWidth}) => logs.add(m ?? '');
+      addTearDown(() => debugPrint = old);
       final c = await setup();
 
-      await ctl(c).send('Oi');
+      await ctl(c).send('segredo de amor');
+      await pumpEventQueue();
 
       expect(st(c).loading, isFalse);
-      expect(st(c).current.messages.last.text, erro);
-      expect(oracle.calls, isEmpty);
+      expect(repo.appends, hasLength(2));
+      expect(logs, isNotEmpty);
+      expect(logs.join(), isNot(contains('segredo')));
     });
 
-    test(
-        '(2) trocar de conversa durante a resposta grava a resposta na '
-        'conversa que originou o envio', () async {
-      final gate = Completer<String>();
-      oracle.completer = gate;
-      final c = await setup();
-      await ctl(c).newConversation(); // indice 1 = "Conversa 2"
-      ctl(c).select(0);
-
-      final future = ctl(c).send('Pergunta na conversa 1');
-      await Future<void>.delayed(Duration.zero);
-      ctl(c).select(1); // o usuario troca antes da resposta
-      gate.complete('resposta');
-      await future;
-
-      final conv1 = st(c).conversations[0];
-      final conv2 = st(c).conversations[1];
-      expect(conv1.messages.map((m) => (m.role, m.text)),
-          [('user', 'Pergunta na conversa 1'), ('model', 'resposta')]);
-      expect(conv2.messages, isEmpty);
-      expect(st(c).index, 1); // conversa ativa continua a escolhida
-      expect(st(c).loading, isFalse);
-    });
-
-    test(
-        '(1) se a 2a gravacao (da resposta) falha, a resposta fica na tela e '
-        'loading e liberado', () async {
-      chats = _FailSecondSave();
-      final c = await setup();
-
-      await ctl(c).send('Oi');
-
-      expect(st(c).loading, isFalse);
-      expect(st(c).current.messages.map((m) => (m.role, m.text)),
-          [('user', 'Oi'), ('model', 'resposta do oraculo')]);
-      expect(chats.saves, hasLength(2));
-    });
-
-    test('(3) enviar antes da hidratacao e ignorado (sem RangeError)',
-        () async {
+    test('enviar antes da hidratacao e ignorado', () async {
       final c = await setup(hydrate: false);
 
       await ctl(c).send('Oi');
 
       expect(oracle.calls, isEmpty);
-      expect(chats.saves, isEmpty);
+      expect(repo.appends, isEmpty);
       expect(st(c).loading, isFalse);
     });
-  });
-}
 
-/// Repositorio que aceita a 1a gravacao (mensagem do usuario) e falha a 2a
-/// (resposta do oraculo).
-class _FailSecondSave extends FakeChatRepository {
-  @override
-  Future<void> save(String uid, List<ChatConversation> all) async {
-    if (saves.isNotEmpty) {
-      saves.add((uid: uid, all: List.of(all)));
-      throw StateError('prefs fora na 2a gravacao');
-    }
-    return super.save(uid, all);
-  }
+    test('mensagem acima de 10000 caracteres e truncada', () async {
+      final c = await setup();
+
+      await ctl(c).send('a' * 10050);
+      await pumpEventQueue();
+
+      expect(st(c).current.messages.first.text.length, 10000);
+      expect(oracle.calls.single.prompt.length, 10000);
+    });
+  });
+
+  group('newConversation e select', () {
+    test('rascunho nao grava; o documento nasce na 1a mensagem', () async {
+      await seed('u1', 'a', 2, title: 'Antiga');
+      final c = await setup();
+      final before = repo.appends.length;
+
+      await ctl(c).newConversation();
+
+      expect(st(c).conversations.map((e) => e.title), ['Conversa 2', 'Antiga']);
+      expect(st(c).index, 0);
+      expect(repo.appends.length, before);
+      expect(await repo.remoteMessageCount('u1', st(c).current.id), isNull);
+
+      await ctl(c).send('Nova pergunta');
+      await pumpEventQueue();
+
+      expect(st(c).conversations, hasLength(2)); // rascunho virou conversa
+      expect(st(c).conversations.first.title, 'Nova pergunta');
+      expect(await repo.remoteMessageCount('u1', st(c).current.id), 2);
+    });
+
+    test('newConversation repetida reaproveita o rascunho vazio', () async {
+      final c = await setup();
+      final id = st(c).current.id;
+
+      await ctl(c).newConversation();
+      await ctl(c).newConversation();
+
+      expect(st(c).conversations, hasLength(1));
+      expect(st(c).current.id, id);
+    });
+
+    test('select troca a conversa e carrega as mensagens dela', () async {
+      await seed('u1', 'a', 2, title: 'A', at: DateTime(2026, 1, 1));
+      await seed('u1', 'b', 4, title: 'B', at: DateTime(2026, 2, 1));
+      final c = await setup();
+      expect(st(c).current.id, 'b');
+
+      ctl(c).select(1);
+      await pumpEventQueue();
+
+      expect(st(c).current.id, 'a');
+      expect(st(c).current.messages, hasLength(2));
+    });
+
+    test('a resposta vai para a conversa que originou o envio', () async {
+      await seed('u1', 'a', 2, title: 'A', at: DateTime(2026, 1, 1));
+      await seed('u1', 'b', 2, title: 'B', at: DateTime(2026, 2, 1));
+      final gate = Completer<String>();
+      oracle.completer = gate;
+      final c = await setup(); // abre em 'b'
+
+      final future = ctl(c).send('Pergunta em B');
+      await Future<void>.delayed(Duration.zero);
+      ctl(c).select(1); // 'a'
+      gate.complete('resposta');
+      await future;
+      await pumpEventQueue();
+
+      expect(await repo.remoteMessageCount('u1', 'b'), 4);
+      expect(await repo.remoteMessageCount('u1', 'a'), 2);
+      expect(st(c).loading, isFalse);
+      expect(st(c).current.id, 'a');
+    });
+  });
+
+  group('sincronizacao e usuario', () {
+    test('conversa excluida em outro aparelho: resposta e descartada',
+        () async {
+      await seed('u1', 'a', 2, title: 'A');
+      repo.appends.clear();
+      final gate = Completer<String>();
+      oracle.completer = gate;
+      final c = await setup();
+
+      final future = ctl(c).send('Oi');
+      await Future<void>.delayed(Duration.zero);
+      await repo.deleteConversation('u1', 'a'); // outro aparelho
+      await pumpEventQueue();
+      gate.complete('resposta');
+      await future;
+
+      expect(repo.appends.where((a) => a.role == 'model'), isEmpty);
+      expect(st(c).loading, isFalse);
+    });
+
+    test('mensagens de outro aparelho aparecem pelos listeners', () async {
+      await seed('u1', 'a', 2, title: 'A');
+      final c = await setup();
+
+      await repo.appendMessage('u1',
+          convId: 'a',
+          message: ChatTurnStored(
+              id: 'x',
+              role: 'user',
+              text: 'do outro aparelho',
+              createdAt: DateTime(2026, 3, 1)),
+          updatedAt: DateTime(2026, 3, 1));
+      await pumpEventQueue();
+
+      expect(st(c).current.messages.last.text, 'do outro aparelho');
+    });
+
+    test('troca de uid reinicia o estado e ignora resposta pendente do antigo',
+        () async {
+      await seed('u2', 'b', 2, title: 'Do u2');
+      repo.appends.clear();
+      final gate = Completer<String>();
+      oracle.completer = gate;
+      final c = await setup(switchable: true);
+
+      final future = ctl(c).send('Oi do u1');
+      await Future<void>.delayed(Duration.zero);
+      c.read(uidSource.notifier).state = 'u2';
+      await pumpEventQueue();
+      expect(st(c).hydrated, isFalse);
+      expect(st(c).loading, isFalse);
+      await ctl(c).hydrate();
+      await pumpEventQueue();
+      expect(st(c).conversations.map((e) => e.id), ['b']);
+
+      gate.complete('resposta tardia');
+      await future;
+      await pumpEventQueue();
+
+      // So a mensagem do usuario do u1 foi gravada; nada novo no u2.
+      expect(repo.appends.where((a) => a.uid == 'u2'), isEmpty);
+      expect(repo.appends.where((a) => a.role == 'model'), isEmpty);
+      expect(await repo.remoteMessageCount('u2', 'b'), 2);
+      expect(st(c).current.messages, hasLength(2));
+    });
+
+    test('logout limpa o estado', () async {
+      await seed('u1', 'a', 2, title: 'A');
+      final c = await setup(switchable: true);
+      expect(st(c).hydrated, isTrue);
+
+      c.read(uidSource.notifier).state = null;
+      await pumpEventQueue();
+      await ctl(c).hydrate();
+
+      expect(st(c).hydrated, isFalse);
+      expect(st(c).conversations, isEmpty);
+    });
+  });
+
+  group('limite de 500 mensagens', () {
+    test('com 500 mensagens mostra o aviso e nao envia', () async {
+      await seed('u1', 'a', 500, title: 'Cheia');
+      final c = await setup();
+
+      expect(st(c).current.messages, hasLength(501));
+      expect(st(c).current.messages.last.text,
+          'Esta conversa atingiu o limite. Inicie uma nova conversa.');
+      expect(st(c).limitReached, isTrue);
+
+      await ctl(c).send('Mais uma');
+
+      expect(oracle.calls, isEmpty);
+      expect(repo.appends, hasLength(500)); // so as do seed
+      expect(await repo.remoteMessageCount('u1', 'a'), 500);
+    });
+
+    test('com 498 ainda cabe pergunta e resposta', () async {
+      await seed('u1', 'a', 498, title: 'Quase');
+      final c = await setup();
+      expect(st(c).limitReached, isFalse);
+
+      await ctl(c).send('Cabe');
+      await pumpEventQueue();
+
+      expect(await repo.remoteMessageCount('u1', 'a'), 500);
+      expect(st(c).limitReached, isTrue);
+    });
+
+    test('nova conversa permite continuar depois do limite', () async {
+      await seed('u1', 'a', 500, title: 'Cheia');
+      final c = await setup();
+
+      await ctl(c).newConversation();
+      await ctl(c).send('Recomecar');
+      await pumpEventQueue();
+
+      expect(st(c).current.messages.map((m) => m.text),
+          ['Recomecar', 'resposta do oraculo']);
+    });
+  });
 }

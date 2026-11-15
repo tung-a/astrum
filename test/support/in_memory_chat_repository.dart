@@ -76,12 +76,6 @@ class InMemoryChatRepository implements ChatRepository {
       _of(uid)[convId]?.messages.length;
 
   @override
-  Future<Set<String>> remoteMessageIds(String uid, String convId) async => {
-        for (final m in _of(uid)[convId]?.messages ?? const <ChatTurnStored>[])
-          if (m.id != null) m.id!,
-      };
-
-  @override
   Future<void> deleteConversation(String uid, String convId) async {
     _of(uid).remove(convId);
     _changes.add(null);

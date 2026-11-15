@@ -9,8 +9,7 @@ class ChatOfflineException implements Exception {
 }
 
 /// Historico do oraculo na nuvem (users/{uid}/conversations), incremental e
-/// por streams (docs/architecture/step10-chat-sync.md, secao 4.2). Ainda nao
-/// esta ligado ao controller: o chat segue no armazenamento local legado.
+/// por streams (docs/architecture/step10-chat-sync.md, secao 4.2).
 abstract interface class ChatRepository {
   /// Ate 50 conversas, mais recente primeiro (`messages` vazio; so metadados).
   Stream<List<ChatConversation>> watchConversations(String uid);
@@ -34,13 +33,9 @@ abstract interface class ChatRepository {
 
   /// `messageCount` da conversa; null = nao existe. Por padrao enxerga as
   /// escritas locais pendentes; [fromServer] exige o servidor (verificacao
-  /// final da migracao) e falha offline.
+  /// final) e falha offline.
   Future<int?> remoteMessageCount(String uid, String convId,
       {bool fromServer = false});
-
-  /// Ids das mensagens existentes no SERVIDOR (ate o teto de 500 da regra);
-  /// falha offline. Usado so pelo migrador para preencher lacunas.
-  Future<Set<String>> remoteMessageIds(String uid, String convId);
 
   /// Apaga as mensagens (em lotes, lendo do servidor) e depois a conversa.
   /// Offline lanca [ChatOfflineException] sem apagar nada. Idempotente.

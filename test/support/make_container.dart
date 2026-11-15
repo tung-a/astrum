@@ -1,4 +1,5 @@
 import 'package:astrum/core/clock/clock_providers.dart';
+import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,7 @@ Future<ProviderContainer> makeContainer({
 }) async {
   final c = ProviderContainer(overrides: [
     profileProvider.overrideWith((ref) => Stream<AppUser?>.value(user)),
+    currentUidProvider.overrideWithValue(user?.uid),
     clockProvider.overrideWithValue(() => now ?? testNow),
     ...overrides,
   ]);

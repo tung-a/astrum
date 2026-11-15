@@ -17,10 +17,5 @@ String titleFrom(String firstMessage) {
   return t.isEmpty ? 'Conversa' : t;
 }
 
-/// Titulo de uma parte de conversa dividida: o titulo base cortado para que
-/// base + [suffix] caiba em [chatTitleMax] (sem partir par substituto).
-String titleWithSuffix(String baseTitle, String suffix) =>
-    _cut(titleFrom(baseTitle), chatTitleMax - suffix.length) + suffix;
-
 /// Texto de mensagem limitado a [chatTextMax] (sem partir par substituto).
 String clampText(String text) => _cut(text, chatTextMax);

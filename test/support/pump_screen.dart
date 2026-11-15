@@ -1,3 +1,4 @@
+import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/core/theme/astrum_theme.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
@@ -28,6 +29,7 @@ Future<void> pumpScreen(
   await tester.pumpWidget(ProviderScope(
     overrides: [
       profileProvider.overrideWith((ref) => Stream<AppUser?>.value(user)),
+      currentUidProvider.overrideWithValue(user?.uid),
       eventsProvider
           .overrideWith((ref) => Stream<List<RitualEvent>>.value(const [])),
       intentionProvider

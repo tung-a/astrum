@@ -1,5 +1,7 @@
+import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/features/oracle/presentation/chat_controller.dart';
+import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,13 @@ const _starters = [
   'Qual cristal usar?',
   'Como está a lua hoje?',
 ];
+
+const chatNoticeTitle = 'Seu histórico fica na nuvem';
+const chatNoticeBody =
+    'As conversas com o oráculo são armazenadas na nuvem (Firebase, região de '
+    'São Paulo, southamerica-east1) para sincronizar entre os seus aparelhos. '
+    'Elas ficam guardadas até você apagá-las, sem prazo de expiração, e '
+    'poderão ser apagadas junto com a sua conta.';
 
 class OracleScreen extends ConsumerStatefulWidget {
   const OracleScreen({super.key});
@@ -32,15 +41,48 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
     super.dispose();
   }
 
+  bool _noticeOpen = false;
+
+  /// Mostra o aviso de privacidade uma vez por uid; devolve false se nao deu
+  /// para seguir (aviso ja aberto ou tela descartada).
+  Future<bool> _ensureNotice() async {
+    final uid = ref.read(currentUidProvider);
+    if (uid == null) return false;
+    final store = ref.read(chatNoticeStoreProvider);
+    if (store.seen(uid)) return true;
+    if (_noticeOpen) return false;
+    _noticeOpen = true;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text(chatNoticeTitle),
+        content: const Text(chatNoticeBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Entendi'),
+          ),
+        ],
+      ),
+    );
+    _noticeOpen = false;
+    await store.markSeen(uid);
+    return mounted;
+  }
+
   /// Envia [preset] (chip) ou o texto do campo; limpa o campo so quando o
-  /// envio e aceito (nao vazio e sem resposta em andamento).
-  Future<void> _send({String? preset}) {
+  /// envio e aceito (hidratado, nao vazio e sem resposta em andamento), para
+  /// nao perder o texto digitado antes de o historico carregar.
+  Future<void> _send({String? preset}) async {
     final text = (preset ?? _input.text).trim();
-    if (text.isEmpty || ref.read(chatControllerProvider).loading) {
-      return Future.value();
+    final chat = ref.read(chatControllerProvider);
+    if (text.isEmpty || chat.loading || !chat.hydrated || chat.limitReached) {
+      return;
     }
+    if (!await _ensureNotice()) return;
     _input.clear();
-    return ref.read(chatControllerProvider.notifier).send(text);
+    await ref.read(chatControllerProvider.notifier).send(text);
   }
 
   @override
@@ -89,8 +131,9 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
                     .map(
                       (q) => ActionChip(
                         label: Text(q),
-                        onPressed:
-                            profile == null ? null : () => _send(preset: q),
+                        onPressed: profile == null || !chat.hydrated
+                            ? null
+                            : () => _send(preset: q),
                       ),
                     )
                     .toList(),
@@ -163,8 +206,9 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
                 ),
                 const SizedBox(width: 8),
                 IconButton.filled(
-                  onPressed:
-                      chat.loading || profile == null ? null : () => _send(),
+                  onPressed: chat.loading || profile == null || !chat.hydrated
+                      ? null
+                      : () => _send(),
                   icon: const Icon(Icons.send),
                 ),
               ],
