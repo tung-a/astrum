@@ -96,7 +96,8 @@ $env:FIRESTORE_EMULATOR_PORT=8091; npm test      # PowerShell
 - `docs/architecture/step5-typed-writes.md`: etapa 5, escritas tipadas no perfil e `EquipSlot` no equipar e na compra (concluída na branch; a atomicidade entre `users` e `publicProfiles` continua pendente).
 - `docs/architecture/step6-auth.md`: etapa 6, `AuthRepository`, cadastro com desfazimento, senha fora da navegação e Firebase fora das telas (implementada na branch, sem commit; aguarda revisão do `reviewer-consultor`).
 - `docs/architecture/step7-data-models.md`: etapa 7, separação de `data/` e `models/`, contrato único com `firestore.rules` e teste de divergência (implementada na branch, sem commit; renomes opcionais do passo 8 não feitos).
-- A partir da etapa 8 (feature-first, numeração de `restructuring.md`) está no backlog.
+- `docs/architecture/step9-controllers.md`: etapa 9, controllers (`Notifier`) no lugar da lógica das telas, interface `ProfileRepository` e `ChatRepository` (concluída na branch).
+- A partir da etapa 10 (numeração de `restructuring.md`) está no backlog.
 - `docs/decisions/2026-11-restructuring-decisions.md`: decisões de escopo sobre economia, plataformas, exclusão de conta e chat.
 
 O projeto Flutter e suas plataformas nativas ficam na raiz. Imagens e áudios em `assets/` são recursos compartilhados do aplicativo.

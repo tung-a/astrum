@@ -31,7 +31,14 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - `test/rules_contract_test.dart` lê `firestore.rules` e falha se um valor do contrato divergir das regras (com casos de mutação por constante) ou se um padrão da regra sumir. Não há workflow novo: roda no `flutter test`.
 - Testes de caracterização do seed do catálogo, dos caminhos de avatar, dos defaults de `AppUser`, do payload de `createProfile` e do check-in (`test/characterization_etapa_7_test.dart`), e teste de fronteira de imports de `lib/core` (`test/core_boundaries_test.dart`).
 
+### Corrigido
+
+- Oráculo: `loading` não fica mais preso se a resposta ou a gravação falhar (a conversa recebe "Não foi possível obter a resposta. Tente novamente."); a resposta vai para a conversa que originou o envio, mesmo se o usuário trocar de conversa; enviar antes de o histórico carregar é ignorado (antes gerava `RangeError`).
+
 ### Alterado
+
+- Etapa 9, controllers (refatoração, sem mudança de regra, texto de tela ou dependência): `AstralController`, `RitualsController`, `ShopController`, `CosmosController` (horóscopo, tarô e check-in), `ChatController` e `AccountController` assumem a lógica das telas. `ProfileRepository` virou interface (`FirestoreProfileRepository`), `ChatRepository` foi criado, e `core/clock/` traz `clockProvider` e `dayKey`. `test/core_boundaries_test.dart` passa a tratar `*_controller.dart` como camada de providers (sem `material`/`widgets`/`cupertino`). `ShopController.equip` devolve `bool`. Detalhes em `docs/architecture/step9-controllers.md`.
+- `AccountController.addFriendByEmail` adiciona o amigo mesmo se o usuário sair da tela durante a busca (desvio aceito).
 
 - Etapa 8, estrutura feature-first leve (refatoração pura, sem mudança de comportamento, regra, texto de tela ou dependência): `lib/` passa a ter `app/`, `core/`, `features/<feature>/{domain,data,presentation}/`, `shared/` e `main.dart`. O `app_providers.dart` monolítico foi dividido por feature, os imports de `lib/` usam só `package:astrum/` e 9 testes foram espelhados em `test/features/`. Detalhes e desvios em `docs/architecture/step8-feature-first.md`.
 - `test/core_boundaries_test.dart` verifica as fronteiras: camadas (core < domain < data < providers < shared < telas < app), ausência de ciclos e de import relativo em `lib/`, camada definida para todo arquivo, camadas puras sem Flutter (inclusive transitivamente) e `*_providers.dart` sem `material`/`widgets`.
