@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:astrum/core/astro/tarot.dart';
 import 'package:astrum/features/cosmos/presentation/cosmos_controller.dart';
+import 'package:astrum/features/economy/domain/economy_exceptions.dart';
+import 'package:astrum/features/economy/presentation/economy_providers.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
@@ -24,16 +26,19 @@ AppUser _user({String sign = 'Peixes', Map<String, dynamic>? horoscope}) =>
 void main() {
   late FakeProfileRepository repo;
   late FakeOracleService oracle;
+  late FakeEconomyRepository economy;
 
   setUp(() {
     repo = FakeProfileRepository();
     oracle = FakeOracleService(reply: 'horoscopo gerado');
+    economy = FakeEconomyRepository();
   });
 
   Future<ProviderContainer> setup(AppUser? user) async {
     final c = await makeContainer(user: user, overrides: [
       profileRepositoryProvider.overrideWithValue(repo),
       oracleServiceProvider.overrideWithValue(oracle),
+      economyRepositoryProvider.overrideWithValue(economy),
     ]);
     addTearDown(c.dispose);
     c.listen(cosmosControllerProvider, (_, __) {});
@@ -192,6 +197,61 @@ void main() {
           await c.read(cosmosControllerProvider.notifier).drawTarot(), isNull);
       expect(oracle.calls, isEmpty);
       expect(repo.tarots, isEmpty);
+    });
+  });
+
+  group('checkIn', () {
+    test('chama dailyCheckIn com uid e dayKey do relogio e devolve o ganho',
+        () async {
+      final c = await setup(_user());
+
+      final msg = await c.read(cosmosControllerProvider.notifier).checkIn();
+
+      expect(economy.checkIns, [(uid: 'u1', today: '2026-11-14')]);
+      expect(msg, '+25 Poeira Estelar pelo check-in de hoje');
+      expect(c.read(cosmosControllerProvider).checkingIn, isFalse);
+    });
+
+    test('ja feito: devolve a mensagem da excecao', () async {
+      economy.checkInError = const AlreadyCheckedInException();
+      final c = await setup(_user());
+
+      final msg = await c.read(cosmosControllerProvider.notifier).checkIn();
+
+      expect(msg, const AlreadyCheckedInException().message);
+      expect(c.read(cosmosControllerProvider).checkingIn, isFalse);
+    });
+
+    test('erro generico devolve a mensagem padrao', () async {
+      economy.checkInError = StateError('boom');
+      final c = await setup(_user());
+
+      final msg = await c.read(cosmosControllerProvider.notifier).checkIn();
+
+      expect(msg, 'Não foi possível fazer o check-in. Tente novamente.');
+    });
+
+    test('checkingIn impede duplo toque', () async {
+      final gate = Completer<void>();
+      economy.checkInCompleter = gate;
+      final c = await setup(_user());
+      final ctl = c.read(cosmosControllerProvider.notifier);
+
+      final first = ctl.checkIn();
+      expect(c.read(cosmosControllerProvider).checkingIn, isTrue);
+      expect(await ctl.checkIn(), isNull);
+      gate.complete();
+      await first;
+
+      expect(economy.checkIns, hasLength(1));
+      expect(c.read(cosmosControllerProvider).checkingIn, isFalse);
+    });
+
+    test('sem perfil nao chama a economia', () async {
+      final c = await setup(null);
+
+      expect(await c.read(cosmosControllerProvider.notifier).checkIn(), isNull);
+      expect(economy.checkIns, isEmpty);
     });
   });
 }

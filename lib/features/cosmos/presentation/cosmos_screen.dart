@@ -7,8 +7,6 @@ import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/features/cosmos/domain/daily_content.dart';
 import 'package:astrum/features/cosmos/presentation/cosmos_controller.dart';
 import 'package:astrum/features/cosmos/presentation/meditation_sheet.dart';
-import 'package:astrum/features/economy/domain/economy_exceptions.dart';
-import 'package:astrum/features/economy/presentation/economy_providers.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/rituals/domain/ritual_day.dart';
 import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
@@ -28,8 +26,6 @@ class CosmosScreen extends ConsumerStatefulWidget {
 }
 
 class _CosmosScreenState extends ConsumerState<CosmosScreen> {
-  bool _checkingIn = false;
-
   String get _today => dayKey(ref.read(clockProvider)());
 
   Future<void> _drawTarot() async {
@@ -42,25 +38,11 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
   }
 
   Future<void> _checkIn() async {
-    final profile = ref.read(profileProvider).valueOrNull;
-    if (profile == null || _checkingIn) return;
     final messenger = ScaffoldMessenger.of(context);
-    setState(() => _checkingIn = true);
-    String message;
-    try {
-      // A validacao da data acontece dentro da transacao.
-      await ref
-          .read(economyRepositoryProvider)
-          .dailyCheckIn(uid: profile.uid, today: _today);
-      message = '+$checkInReward Poeira Estelar pelo check-in de hoje';
-    } on EconomyException catch (e) {
-      message = e.message;
-    } catch (_) {
-      message = 'Não foi possível fazer o check-in. Tente novamente.';
-    } finally {
-      if (mounted) setState(() => _checkingIn = false);
+    final message = await ref.read(cosmosControllerProvider.notifier).checkIn();
+    if (message != null) {
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     }
-    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -150,7 +132,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
               ),
               const SizedBox(height: 16),
               FilledButton.tonal(
-                onPressed: checkedIn || _checkingIn ? null : _checkIn,
+                onPressed: checkedIn || cosmos.checkingIn ? null : _checkIn,
                 child: Text(
                   checkedIn
                       ? 'Check-in de hoje já recebido · ${profile.stardust} ✦'

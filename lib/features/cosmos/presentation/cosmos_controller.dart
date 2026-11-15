@@ -1,7 +1,10 @@
 import 'package:astrum/core/astro/tarot.dart';
 import 'package:astrum/core/clock/clock_providers.dart';
 import 'package:astrum/core/clock/day_key.dart';
+import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/features/cosmos/domain/daily_content.dart';
+import 'package:astrum/features/economy/domain/economy_exceptions.dart';
+import 'package:astrum/features/economy/presentation/economy_providers.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -88,5 +91,29 @@ class CosmosController extends AutoDisposeNotifier<CosmosState> {
     } finally {
       if (_alive) state = state.copyWith(drawingTarot: false);
     }
+  }
+
+  /// Check-in diario. Retorna o texto do snackbar (sucesso, mensagem da
+  /// [EconomyException] ou erro generico); null quando nao ha perfil ou ja ha
+  /// um check-in em andamento.
+  Future<String?> checkIn() async {
+    final profile = ref.read(profileProvider).valueOrNull;
+    if (profile == null || state.checkingIn) return null;
+    final economy = ref.read(economyRepositoryProvider);
+    final today = _today;
+    state = state.copyWith(checkingIn: true);
+    String message;
+    try {
+      // A validacao da data acontece dentro da transacao.
+      await economy.dailyCheckIn(uid: profile.uid, today: today);
+      message = '+$checkInReward Poeira Estelar pelo check-in de hoje';
+    } on EconomyException catch (e) {
+      message = e.message;
+    } catch (_) {
+      message = 'Não foi possível fazer o check-in. Tente novamente.';
+    } finally {
+      if (_alive) state = state.copyWith(checkingIn: false);
+    }
+    return message;
   }
 }
