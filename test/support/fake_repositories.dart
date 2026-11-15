@@ -129,6 +129,40 @@ class FakeSocialRepository implements SocialRepository {
   int watchFriendsCalls = 0;
   int watchIntentionCalls = 0;
 
+  /// Busca por e-mail: o mapa responde com o Friend cadastrado (ou nada).
+  final usersByEmail = <String, Friend>{};
+  final searchedEmails = <String>[];
+  final addedFriends = <({String uid, Friend friend})>[];
+  final intentions = <Map<String, String>>[];
+
+  @override
+  Future<Friend?> findUserByEmail(String email) async {
+    searchedEmails.add(email);
+    return usersByEmail[email];
+  }
+
+  @override
+  Future<void> addFriend(String uid, Friend friend) async {
+    addedFriends.add((uid: uid, friend: friend));
+  }
+
+  @override
+  Future<void> sendIntention({
+    required String fromUid,
+    required String fromName,
+    required String toUid,
+    required String intentionId,
+    required String intentionLabel,
+  }) async {
+    intentions.add({
+      'fromUid': fromUid,
+      'fromName': fromName,
+      'toUid': toUid,
+      'intentionId': intentionId,
+      'intentionLabel': intentionLabel,
+    });
+  }
+
   @override
   Stream<List<Friend>> watchFriends(String uid) {
     watchFriendsCalls++;

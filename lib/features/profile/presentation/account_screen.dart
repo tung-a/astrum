@@ -5,6 +5,7 @@ import 'package:astrum/core/theme/astrum_colors.dart';
 import 'package:astrum/features/auth/presentation/auth_providers.dart';
 import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
+import 'package:astrum/features/profile/presentation/account_controller.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/social/domain/friend.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
@@ -49,22 +50,12 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 
   Future<void> _searchFriend() async {
-    final profile = ref.read(profileProvider).valueOrNull;
-    if (profile == null) return;
-    final found =
-        await ref.read(socialRepositoryProvider).findUserByEmail(_search.text);
-    if (!mounted) return;
-    if (found == null || found.id == profile.uid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Nenhuma constelação encontrada com esse email.')),
-      );
-      return;
-    }
-    await ref.read(socialRepositoryProvider).addFriend(profile.uid, found);
-    if (!mounted) return;
+    final message = await ref
+        .read(accountControllerProvider.notifier)
+        .addFriendByEmail(_search.text);
+    if (!mounted || message == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${found.name} entrou na sua constelação.')),
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -208,13 +199,9 @@ class _FriendTile extends ConsumerWidget {
                     avatar: Icon(i.icon, size: 16, color: i.color),
                     label: Text(i.label),
                     onPressed: () async {
-                      await ref.read(socialRepositoryProvider).sendIntention(
-                            fromUid: me.uid,
-                            fromName: me.name,
-                            toUid: friend.id,
-                            intentionId: i.id,
-                            intentionLabel: i.label,
-                          );
+                      await ref
+                          .read(accountControllerProvider.notifier)
+                          .sendIntention(me, friend, i.id, i.label);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
