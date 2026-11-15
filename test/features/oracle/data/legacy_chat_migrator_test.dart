@@ -23,6 +23,8 @@ class _RulesRepo extends FirestoreChatRepository {
   Future<void> _tail = Future.value();
   int accepted = 0;
   int? failOnAccepted; // lanca 'unavailable' ao tentar a escrita de numero N+1
+  bool denyAll = false; // nega tudo (permission-denied)
+  int newCalls = 0; // tentativas com isNew
   bool hang = false; // grava, mas o Future nunca completa (offline)
   int? serverCountOverride; // resposta de fromServer
   Object? syncError;
@@ -39,6 +41,7 @@ class _RulesRepo extends FirestoreChatRepository {
     bool isNew = false,
   }) {
     final done = Completer<void>();
+    if (isNew) newCalls++;
     _tail = _tail.then((_) async {
       try {
         final conv = await db.doc('users/$uid/conversations/$convId').get();
@@ -48,6 +51,7 @@ class _RulesRepo extends FirestoreChatRepository {
         if (failOnAccepted != null && accepted >= failOnAccepted!) {
           throw _err('unavailable');
         }
+        if (denyAll) throw _err('permission-denied');
         if (msg.exists || (isNew && conv.exists)) {
           throw _err('permission-denied');
         }
@@ -121,11 +125,13 @@ void main() {
     LegacyChatStore? s,
     _RulesRepo? r,
     Duration timeout = const Duration(milliseconds: 200),
+    String? Function()? uid,
   }) =>
       LegacyChatMigrator(
           legacy: s ?? store,
           repository: r ?? repo,
           now: () => now,
+          currentUid: uid,
           syncTimeout: timeout);
 
   Future<List<Map<String, dynamic>>> messages(String uid, String conv) async {
@@ -222,7 +228,7 @@ void main() {
             {
               'id': 'a/b',
               'messages': [
-                {'text': 'id invalido vira legacy-3'}
+                {'text': 'id invalido vira legacy-<hash>'}
               ]
             },
             'lixo',
@@ -234,8 +240,14 @@ void main() {
     expect(m.map((x) => x['role']), ['user', 'model']);
     final c = (await db.doc('users/u1/conversations/ok').get()).data()!;
     expect(c['title'], 'Conversa');
-    expect(await count('u1', 'legacy-2'), 1);
-    expect(await count('u1', 'legacy-1'), isNull); // sem mensagens
+    expect(
+        await count(
+            'u1',
+            LegacyChatMigrator.fallbackId(
+                'Conversa', 'id invalido vira legacy-<hash>')),
+        1);
+    expect(await count('u1', LegacyChatMigrator.fallbackId('Conversa', '')),
+        isNull); // sem mensagens
     expect(prefs.getString('astrum.chat.migrated.u1'), 'done');
   });
 
@@ -255,8 +267,8 @@ void main() {
     final c1 = (await db.doc('users/u1/conversations/c1').get()).data()!;
     expect(c0['title'], 'Conversa 1');
     expect(c0['schemaVersion'], 1);
-    expect(
-        (c1['updatedAt'] as Timestamp).toDate().isAtSameMomentAs(now), isTrue);
+    expect((c0['updatedAt'] as Timestamp).toDate().isAtSameMomentAs(now),
+        isTrue);
     expect((c0['updatedAt'] as Timestamp).compareTo(c1['updatedAt']), -1);
 
     expect(prefs.getString('astrum.chat.u1.bak'), raw);
@@ -400,14 +412,130 @@ void main() {
     expect(await later.run('u1'), MigrationResult.migrated);
     final c1 = (await db.doc('users/u1/conversations/c1').get()).data()!;
     expect(
-        (c1['updatedAt'] as Timestamp).toDate().isAtSameMomentAs(now), isTrue);
+        (c1['updatedAt'] as Timestamp)
+            .toDate()
+            .isAtSameMomentAs(now.add(const Duration(seconds: 1))),
+        isTrue);
     final m0 = await messages('u1', 'c0');
     final ts = [for (final m in m0) (m['createdAt'] as Timestamp).toDate()];
     for (var i = 1; i < ts.length; i++) {
       expect(ts[i].isAfter(ts[i - 1]), isTrue);
     }
-    expect(ts.every((t) => t.isBefore(now)), isTrue);
+    expect(ts.every((t) => !t.isBefore(now)), isTrue); // ancorado no inicio
     expect(prefs.getInt('astrum.chat.migbase.u1'), isNull); // limpo ao fim
+  });
+
+  test('legado cresce entre tentativas: datas e ordem estaveis, sem duplicar',
+      () async {
+    await prefs.setString('astrum.chat.u1', _legacy(two));
+    repo.failOnAccepted = 4; // c0 completa (3); c1 so com m0001
+    expect(await migrator().run('u1'), MigrationResult.incomplete);
+    final c0Before = await messages('u1', 'c0');
+    final c1Before = await messages('u1', 'c1');
+    final convBefore = [
+      for (final id in ['c0', 'c1'])
+        (await db.doc('users/u1/conversations/$id').get()).data()!
+    ];
+
+    // O legado cresce ao fim: mais uma mensagem em c1 e uma conversa nova.
+    await prefs.setString(
+        'astrum.chat.u1',
+        _legacy([
+          two[0],
+          [...two[1], ('user', 'terceira')],
+          [('user', 'nova conversa')],
+        ]));
+    repo.failOnAccepted = null;
+    final before = repo.accepted;
+    final later = LegacyChatMigrator(
+        legacy: store,
+        repository: repo,
+        now: () => now.add(const Duration(days: 1)),
+        syncTimeout: const Duration(milliseconds: 200));
+    expect(await later.run('u1'), MigrationResult.migrated);
+    expect(repo.accepted - before, 3); // m0002, m0003 de c1 + c2
+
+    expect(await messages('u1', 'c0'), c0Before);
+    final c1After = await messages('u1', 'c1');
+    expect(c1After.map((m) => m['id']), ['m0001', 'm0002', 'm0003']);
+    expect(c1After.first, c1Before.first);
+    for (var i = 0; i < 2; i++) {
+      final d = (await db.doc('users/u1/conversations/c$i').get()).data()!;
+      expect(d['createdAt'], convBefore[i]['createdAt']);
+      expect(d['updatedAt'], convBefore[i]['updatedAt']);
+    }
+    final u = [
+      for (var i = 0; i < 3; i++)
+        ((await db.doc('users/u1/conversations/c$i').get()).data()!['updatedAt']
+                as Timestamp)
+            .toDate()
+    ];
+    expect(u[0].isBefore(u[1]) && u[1].isBefore(u[2]), isTrue);
+    expect(await count('u1', 'c0'), 3);
+    expect(await count('u1', 'c1'), 3);
+    expect(await count('u1', 'c2'), 1);
+  });
+
+  test('id de fallback derivado do conteudo, nao da posicao na lista',
+      () async {
+    String raw(List<(String, String)> items) => jsonEncode({
+          'conversations': [
+            for (final (title, text) in items)
+              {
+                'title': title,
+                'messages': [
+                  {'role': 'user', 'text': text}
+                ],
+              },
+          ],
+        });
+    await prefs.setString('astrum.chat.u1', raw([('A', 'um'), ('B', 'dois')]));
+    repo.failOnAccepted = 1; // so a 1a conversa chega a nascer
+    expect(await migrator().run('u1'), MigrationResult.incomplete);
+    final idA = LegacyChatMigrator.fallbackId('A', 'um');
+    final idB = LegacyChatMigrator.fallbackId('B', 'dois');
+    expect(idA, isNot(idB));
+    expect(await count('u1', idA), 1);
+    // ordem do legado mudou entre tentativas: A continua sendo A.
+    await prefs.setString('astrum.chat.u1', raw([('B', 'dois'), ('A', 'um')]));
+    repo.failOnAccepted = null;
+    final before = repo.accepted;
+    expect(await migrator().run('u1'), MigrationResult.migrated);
+    expect(repo.accepted - before, 1); // so B; A nao foi reenviada
+    expect(await count('u1', idB), 1);
+  });
+
+  test('uid deixa de ser o usuario atual: aborta sem insistir', () async {
+    final raw = _legacy(two);
+    await prefs.setString('astrum.chat.u1', raw);
+    expect(await migrator(uid: () => 'outro').run('u1'),
+        MigrationResult.incomplete);
+    expect(repo.accepted, 0);
+    expect(prefs.getString('astrum.chat.u1'), raw);
+    expect(prefs.getString('astrum.chat.migrated.u1'), isNull);
+    expect(await migrator(uid: () => null).run('u1'),
+        MigrationResult.incomplete); // deslogado
+    // uid correto: segue normalmente
+    expect(await migrator(uid: () => 'u1').run('u1'), MigrationResult.migrated);
+  });
+
+  test('conversa existente com contador inflado e sem mensagens: incomplete',
+      () async {
+    final raw = _legacy(two);
+    await prefs.setString('astrum.chat.u1', raw);
+    final ts = Timestamp.fromDate(now);
+    await db.doc('users/u1/conversations/c0').set({
+      'title': 'Conversa 1',
+      'createdAt': ts,
+      'updatedAt': ts,
+      'messageCount': 1, // inflado: nenhuma mensagem existe
+      'schemaVersion': 1,
+    });
+    repo.denyAll = true; // o servidor nega tudo
+    expect(await migrator().run('u1'), MigrationResult.incomplete);
+    expect(repo.newCalls, 0); // nao tentou recriar a conversa (set negado)
+    expect(prefs.getString('astrum.chat.u1'), raw);
+    expect(prefs.getString('astrum.chat.migrated.u1'), isNull);
   });
 
   test('texto > 10000 truncado e mensagens vazias descartadas', () async {

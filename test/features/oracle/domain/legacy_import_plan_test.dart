@@ -54,8 +54,8 @@ void main() {
   });
 
   test(
-      'datas: ultima conversa e a mais recente; mensagens estritamente '
-      'crescentes e <= updatedAt', () {
+      'datas ancoradas no inicio: updatedAt = base + i s; mensagem j = '
+      'inicio + j ms (estritamente crescente)', () {
     final plan = planLegacyImport([
       c('a', [t('user', '1'), t('model', '2')]),
       c('b', [t('user', '3'), t('model', '4'), t('user', '5')]),
@@ -63,17 +63,55 @@ void main() {
       c('d', [t('user', '6')]),
     ], now);
     expect(plan.map((p) => p.id), ['a', 'b', 'd']);
-    expect(plan.last.updatedAt, now);
-    expect(plan[1].updatedAt, now.subtract(const Duration(seconds: 1)));
-    expect(plan[0].updatedAt, now.subtract(const Duration(seconds: 2)));
+    // a ultima e a mais recente (maior updatedAt)
+    expect(plan[0].updatedAt, now);
+    expect(plan[1].updatedAt, now.add(const Duration(seconds: 1)));
+    expect(plan[2].updatedAt, now.add(const Duration(seconds: 2)));
     for (final p in plan) {
-      for (var i = 1; i < p.messages.length; i++) {
-        expect(p.messages[i].createdAt.isAfter(p.messages[i - 1].createdAt),
-            isTrue);
+      expect(p.createdAt, p.updatedAt);
+      for (var i = 0; i < p.messages.length; i++) {
+        expect(p.messages[i].createdAt,
+            p.updatedAt.add(Duration(milliseconds: i)));
       }
-      expect(p.messages.last.createdAt.isBefore(p.updatedAt), isTrue);
-      expect(p.createdAt, p.messages.first.createdAt);
     }
+  });
+
+  test('anexar ao fim do legado nao muda as datas do que ja existia', () {
+    final first = planLegacyImport([
+      c('a', [t('user', '1'), t('model', '2')]),
+      c('b', [t('user', '3')]),
+    ], now);
+    final grown = planLegacyImport([
+      c('a', [t('user', '1'), t('model', '2')]),
+      c('b', [t('user', '3'), t('model', '4')]),
+      c('c', [t('user', '5')]),
+    ], now);
+    for (var i = 0; i < first.length; i++) {
+      expect(grown[i].updatedAt, first[i].updatedAt);
+      expect(grown[i].createdAt, first[i].createdAt);
+      for (var j = 0; j < first[i].messages.length; j++) {
+        expect(grown[i].messages[j].createdAt, first[i].messages[j].createdAt);
+      }
+    }
+  });
+
+  test('ids de conversa unicos: repetidos e colisao com -pN ganham sufixo', () {
+    final plan = planLegacyImport([
+      c('a', [for (var i = 0; i < 600; i++) t('user', 'm$i')]), // a, a-p2
+      c('a-p2', [t('user', 'x')]), // colide com a parte gerada
+      c('a', [t('user', 'y')]), // legado repetido
+      c('a', [t('user', 'z')]),
+    ], now);
+    expect(plan.map((p) => p.id),
+        ['a', 'a-p2', 'a-p2-d2', 'a-d2', 'a-d3']);
+    expect(plan.map((p) => p.id).toSet(), hasLength(plan.length));
+    final again = planLegacyImport([
+      c('a', [for (var i = 0; i < 600; i++) t('user', 'm$i')]),
+      c('a-p2', [t('user', 'x')]),
+      c('a', [t('user', 'y')]),
+      c('a', [t('user', 'z')]),
+    ], now);
+    expect(again.map((p) => p.id), plan.map((p) => p.id));
   });
 
   test('exatamente 500 mensagens: uma conversa so', () {
@@ -105,7 +143,7 @@ void main() {
     for (var i = 1; i < plan.length; i++) {
       expect(plan[i].updatedAt.isAfter(plan[i - 1].updatedAt), isTrue);
     }
-    expect(plan.last.updatedAt, now);
+    expect(plan.first.updatedAt, now);
   });
 
   test('titulo da parte respeita 80 unidades UTF-16 (sem partir emoji)', () {
