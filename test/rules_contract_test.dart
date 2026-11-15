@@ -97,6 +97,10 @@ void main() {
       ('publicNameMax', 'd.name.size() <= 100', 'd.name.size() <= 99'),
       ('publicAvatarMax', 'd.avatar.size() <= 100', 'd.avatar.size() <= 101'),
       ('emailHashLength', '{64}', '{63}'),
+      ('chatTitleMax', 'd.title.size() <= 80', 'd.title.size() <= 81'),
+      ('chatMessagesMax', 'd.messageCount <= 500', 'd.messageCount <= 501'),
+      ('chatTextMax', 'data.text.size() <= 10000', 'data.text.size() <= 10001'),
+      ('chatSchemaVersion', 'd.schemaVersion == 1', 'd.schemaVersion == 2'),
     ];
 
     for (final (name, from, to) in mutations) {

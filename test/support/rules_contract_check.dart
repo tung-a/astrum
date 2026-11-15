@@ -125,5 +125,13 @@ List<String> findRulesDivergences(String rules) {
   intRule('analyticsEventNameMax', analyticsEventNameMax,
       RegExp(r'request\.resource\.data\.eventName\.size\(\) <= (\d+)'));
 
+  intRule('chatTitleMax', chatTitleMax, RegExp(r'd\.title\.size\(\) <= (\d+)'));
+  intRule(
+      'chatMessagesMax', chatMessagesMax, RegExp(r'd\.messageCount <= (\d+)'));
+  intRule('chatTextMax', chatTextMax,
+      RegExp(r'request\.resource\.data\.text\.size\(\) <= (\d+)'));
+  intRule('chatSchemaVersion', chatSchemaVersion,
+      RegExp(r'd\.schemaVersion == (\d+)'));
+
   return out;
 }

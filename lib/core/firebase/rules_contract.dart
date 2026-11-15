@@ -68,3 +68,9 @@ const int inventoryMaxItems = 500; // inventory.size() <= 500
 const int publicNameMax = 100; // d.name.size() <= 100
 const int publicAvatarMax = 100; // d.avatar.size() <= 100
 const int emailHashLength = 64; // matches('^[0-9a-f]{64}$')
+
+// --- Conversas do oraculo (users/{uid}/conversations, `validConv` e messages)
+const int chatTitleMax = 80; // d.title.size() <= 80
+const int chatMessagesMax = 500; // d.messageCount <= 500
+const int chatTextMax = 10000; // data.text.size() <= 10000
+const int chatSchemaVersion = 1; // d.schemaVersion == 1
