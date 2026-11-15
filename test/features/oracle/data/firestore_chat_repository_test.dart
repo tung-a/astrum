@@ -1,5 +1,7 @@
 // O fake_cloud_firestore NAO aplica firestore.rules; as regras do chat sao
 // cobertas por test_rules/ (emulador). Aqui so o comportamento do repositorio.
+import 'dart:async';
+
 import 'package:astrum/features/oracle/data/chat_repository.dart';
 import 'package:astrum/features/oracle/data/firestore_chat_repository.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
@@ -34,6 +36,17 @@ class _ServerReadRepo extends FirestoreChatRepository {
     events.add('read:${r.docs.length}');
     return r;
   }
+}
+
+/// Commit de exclusao que nunca completa (offline) e prazo curto.
+class _HangDeleteRepo extends FirestoreChatRepository {
+  _HangDeleteRepo(super.db)
+      : super(deleteCommitTimeout: const Duration(milliseconds: 50));
+  bool hang = true;
+
+  @override
+  Future<void> commitDelete(WriteBatch batch) =>
+      hang ? Completer<void>().future : super.commitDelete(batch);
 }
 
 void main() {
@@ -243,6 +256,22 @@ void main() {
               .docs,
           hasLength(3));
       expect((await db.doc('users/u1/conversations/c1').get()).exists, isTrue);
+    });
+
+    test('commit de exclusao que nao completa: ChatOfflineException e retomavel',
+        () async {
+      await seed('c1', 3);
+      final h = _HangDeleteRepo(db);
+      await expectLater(h.deleteConversation('u1', 'c1'),
+          throwsA(isA<ChatOfflineException>()));
+      expect((await db.doc('users/u1/conversations/c1').get()).exists, isTrue);
+      h.hang = false; // nova tentativa idempotente
+      await h.deleteConversation('u1', 'c1');
+      expect((await db.doc('users/u1/conversations/c1').get()).exists, isFalse);
+      expect(
+          (await db.collection('users/u1/conversations/c1/messages').get())
+              .docs,
+          isEmpty);
     });
 
     test('so apaga a conversa depois de pagina vazia lida do servidor',

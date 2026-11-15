@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/features/oracle/data/chat_repository.dart';
 import 'package:astrum/features/oracle/domain/chat_limits.dart';
@@ -10,7 +12,12 @@ import 'package:uuid/uuid.dart';
 /// mensagem por batch, junto com a escrita da conversa (contador +1).
 /// Nenhum texto de conversa vai a log ou a mensagem de erro.
 class FirestoreChatRepository implements ChatRepository {
-  FirestoreChatRepository(this._db);
+  FirestoreChatRepository(this._db,
+      {this.deleteCommitTimeout = const Duration(seconds: 15)});
+
+  /// Offline o `commit` de exclusao nunca completa: passado este prazo vira
+  /// [ChatOfflineException] (a nova tentativa e idempotente).
+  final Duration deleteCommitTimeout;
 
   final FirebaseFirestore _db;
   static const _uuid = Uuid();
@@ -116,6 +123,10 @@ class FirestoreChatRepository implements ChatRepository {
     }
   }
 
+  /// Commit do lote de exclusao. Sobrescrevivel so em teste.
+  @visibleForTesting
+  Future<void> commitDelete(WriteBatch batch) => batch.commit();
+
   /// Filhos primeiro: pagina as mensagens do servidor ate uma pagina vazia e
   /// so entao apaga a conversa. Offline falha na 1a leitura, antes de apagar
   /// qualquer coisa. Idempotente (conversa ja apagada: 1 leitura vazia).
@@ -129,7 +140,12 @@ class FirestoreChatRepository implements ChatRepository {
       for (final d in page.docs) {
         batch.delete(d.reference);
       }
-      await batch.commit();
+      try {
+        await commitDelete(batch).timeout(deleteCommitTimeout);
+      } on TimeoutException {
+        // Offline o commit nao completa; a nova tentativa e idempotente.
+        throw const ChatOfflineException();
+      }
     }
     await _convs(uid).doc(convId).delete();
   }
