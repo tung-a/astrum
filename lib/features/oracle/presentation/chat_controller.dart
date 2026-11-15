@@ -23,6 +23,8 @@ class ChatState {
     this.selectedId,
     this.loading = false,
     this.hydrated = false,
+    this.error = false,
+    this.limitReached = false,
   });
 
   /// Rascunho (se houver) e depois as conversas da nuvem, da mais recente para
@@ -32,10 +34,13 @@ class ChatState {
   final bool loading;
   final bool hydrated;
 
-  /// A conversa selecionada nao comporta mais mensagens.
-  bool get limitReached =>
-      current.messages.isNotEmpty &&
-      current.messages.last.text == chatLimitText;
+  /// Falha ao carregar o historico (antes da hidratacao); a tela oferece
+  /// "Tentar de novo".
+  final bool error;
+
+  /// A conversa selecionada nao comporta mais mensagens (calculado pelo
+  /// controller, nao pelo texto exibido).
+  final bool limitReached;
 
   int get index {
     final i = conversations.indexWhere((c) => c.id == selectedId);
@@ -52,12 +57,16 @@ class ChatState {
     String? selectedId,
     bool? loading,
     bool? hydrated,
+    bool? error,
+    bool? limitReached,
   }) =>
       ChatState(
         conversations: conversations ?? this.conversations,
         selectedId: selectedId ?? this.selectedId,
         loading: loading ?? this.loading,
         hydrated: hydrated ?? this.hydrated,
+        error: error ?? this.error,
+        limitReached: limitReached ?? this.limitReached,
       );
 }
 
@@ -87,6 +96,7 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
   ChatConversation? _draft;
   String? _selectedId;
   final _everSeen = <String>{};
+  final _created = <String>{};
   final _lastCreated = <String, DateTime>{};
 
   @override
@@ -100,6 +110,7 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
     _draft = null;
     _selectedId = null;
     _everSeen.clear();
+    _created.clear();
     _lastCreated.clear();
     ref.onDispose(() {
       _alive = false;
@@ -107,10 +118,6 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
       _msgSub?.cancel();
       _listSub = _msgSub = null;
     });
-    // Rebuild por troca de uid: cancela os listeners do usuario anterior.
-    _listSub?.cancel();
-    _msgSub?.cancel();
-    _listSub = _msgSub = null;
     return const ChatState();
   }
 
@@ -129,8 +136,22 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
         if (!_alive || gen != _gen) return;
         _onCloud(list);
       },
-      onError: (Object e) => _log('lista', e),
+      onError: (Object e) {
+        _log('lista', e);
+        if (!_alive || gen != _gen) return;
+        if (!state.hydrated) state = state.copyWith(error: true);
+      },
     );
+  }
+
+  /// "Tentar de novo" depois de uma falha ao carregar o historico.
+  Future<void> retry() async {
+    if (state.hydrated) return;
+    unawaited(_listSub?.cancel());
+    _listSub = null;
+    _hydrateStarted = false;
+    state = state.copyWith(error: false);
+    await hydrate();
   }
 
   void _onCloud(List<ChatConversation> list) {
@@ -153,7 +174,7 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
         _select(_draft!.id, emit: false);
       }
     }
-    _emit(hydrated: first ? true : null);
+    _emit(hydrated: first ? true : null, error: false);
   }
 
   void _select(String id, {required bool emit}) {
@@ -184,12 +205,13 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
   /// Cabe a pergunta e a resposta (a regra aceita no maximo 500 mensagens).
   bool get _full => _count > chatMessagesMax - 2;
 
-  void _emit({bool? hydrated}) {
+  void _emit({bool? hydrated, bool? error}) {
     final all = <ChatConversation>[
       if (_draft != null) _draft!,
       ..._cloud,
     ];
     final selected = _selectedId;
+    final full = _full;
     final composed = [
       for (final c in all)
         if (c.id == selected)
@@ -200,7 +222,7 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
             messageCount: c.messageCount,
             messages: [
               ..._messages,
-              if (_full)
+              if (full)
                 const ChatTurnStored(role: 'model', text: chatLimitText),
             ],
           )
@@ -211,6 +233,8 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
       conversations: composed,
       selectedId: selected,
       hydrated: hydrated,
+      error: error,
+      limitReached: full,
     );
   }
 
@@ -250,23 +274,41 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
             updatedAt: message.createdAt!,
             title: title,
             isNew: isNew)
-        .catchError((Object e) => _log('gravacao', e)));
+        .catchError((Object e) {
+      _log('gravacao', e);
+      if (isNew) _created.remove(convId);
+    }));
   }
 
-  Future<void> send(String text) async {
+  /// Devolve true se o envio foi ACEITO (a pergunta vai ser gravada);
+  /// false se foi recusado (vazio, resposta em andamento, nao hidratado,
+  /// sem usuario, conversa cheia) e nada mudou. [onAccepted] roda de forma
+  /// sincrona na aceitacao, antes de aguardar o oraculo (a tela limpa o
+  /// campo ali); [expectedUid] recusa o envio se o usuario mudou desde que a
+  /// tela o leu (ex.: durante o aviso).
+  Future<bool> send(
+    String text, {
+    String? expectedUid,
+    VoidCallback? onAccepted,
+  }) async {
     final trimmed = text.trim();
     final uid = _uid;
-    if (trimmed.isEmpty || state.loading || !state.hydrated || uid == null) {
-      return;
+    if (trimmed.isEmpty ||
+        state.loading ||
+        !state.hydrated ||
+        uid == null ||
+        (expectedUid != null && expectedUid != uid)) {
+      return false;
     }
     final convId = _selectedId;
-    if (convId == null || _full) return;
+    if (convId == null || _full) return false;
+    onAccepted?.call();
     final gen = _gen;
     final profile = ref.read(profileProvider).valueOrNull;
     final repo = ref.read(chatRepositoryProvider);
     final analytics = ref.read(analyticsServiceProvider);
     final oracle = ref.read(oracleServiceProvider);
-    final isNew = _draft?.id == convId;
+    final isNew = _draft?.id == convId && !_created.contains(convId);
     final clamped = clampText(trimmed);
 
     state = state.copyWith(loading: true);
@@ -281,6 +323,9 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
       title: isNew ? titleFrom(trimmed) : null,
       isNew: isNew,
     );
+    // A 2a mensagem nao pode criar a conversa de novo (o rascunho so some
+    // quando a nuvem confirma).
+    if (isNew) _created.add(convId);
     String reply;
     try {
       await analytics.logEvent('send_message_chat');
@@ -289,11 +334,11 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
       reply = _replyError;
     }
     // Usuario trocou/saiu ou a tela foi descartada: nao grava.
-    if (!_alive || gen != _gen) return;
+    if (!_alive || gen != _gen) return true;
     state = state.copyWith(loading: false);
     // Conversa excluida em outro aparelho: descarta a resposta.
     if (_everSeen.contains(convId) && !_cloud.any((c) => c.id == convId)) {
-      return;
+      return true;
     }
     _write(
       uid,
@@ -304,6 +349,7 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
           text: clampText(reply),
           createdAt: _next(convId)),
     );
+    return true;
   }
 
   /// Rascunho em memoria; nao grava. Se ja ha um rascunho vazio, so o seleciona.

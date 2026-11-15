@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:astrum/core/analytics/analytics_providers.dart';
+import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/core/storage/prefs_providers.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
@@ -24,6 +25,16 @@ class _GatedRepo extends InMemoryChatRepository {
     await gate.future;
     yield* super.watchConversations(uid);
   }
+}
+
+/// Lista de conversas falha ate [fail] virar false.
+class _FlakyRepo extends InMemoryChatRepository {
+  bool fail = true;
+
+  @override
+  Stream<List<ChatConversation>> watchConversations(String uid) => fail
+      ? Stream<List<ChatConversation>>.error(StateError('unavailable'))
+      : super.watchConversations(uid);
 }
 
 void main() {
@@ -159,6 +170,90 @@ void main() {
     await tester.scrollUntilVisible(limit, 2000,
         scrollable: find.byType(Scrollable).first);
     expect(limit, findsOneWidget);
+    final send =
+        tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.send));
+    expect(send.onPressed, isNull);
+  });
+
+  testWidgets('chip nao apaga o texto digitado pelo usuario', (tester) async {
+    final oracle = FakeOracleService(reply: 'Resposta');
+    await pumpOracle(tester,
+        chats: InMemoryChatRepository(), sp: await prefs(), oracle: oracle);
+
+    await tester.enterText(find.byType(TextField), 'rascunho meu');
+    await tester.tap(find.text('Previsão para o amor'));
+    await settle(tester);
+
+    expect(oracle.calls.single.prompt, 'Previsão para o amor');
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, 'rascunho meu');
+  });
+
+  testWidgets('envio pelo campo limpa o texto so quando aceito',
+      (tester) async {
+    final oracle = FakeOracleService(reply: 'Resposta');
+    await pumpOracle(tester,
+        chats: InMemoryChatRepository(), sp: await prefs(), oracle: oracle);
+
+    await tester.enterText(find.byType(TextField), 'Minha pergunta');
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.send));
+    await settle(tester);
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, isEmpty);
+    expect(oracle.calls.single.prompt, 'Minha pergunta');
+  });
+
+  testWidgets('troca de uid limpa o rascunho do campo', (tester) async {
+    final uid = StateProvider<String?>((ref) => 'u1');
+    await pumpOracle(tester,
+        chats: InMemoryChatRepository(),
+        sp: await prefs(),
+        extra: [currentUidProvider.overrideWith((ref) => ref.watch(uid))]);
+    await tester.enterText(find.byType(TextField), 'segredo de A');
+
+    ProviderScope.containerOf(tester.element(find.byType(TextField)))
+        .read(uid.notifier)
+        .state = 'u2';
+    await tester.pump();
+    await tester.pump();
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, isEmpty);
+  });
+
+  testWidgets('prompt pendente com o chat ja hidratado tambem e consumido',
+      (tester) async {
+    await pumpOracle(tester,
+        chats: InMemoryChatRepository(), sp: await prefs());
+    final container =
+        ProviderScope.containerOf(tester.element(find.byType(TextField)));
+
+    container.read(pendingOraclePromptProvider.notifier).state =
+        'vinda de fora';
+    await tester.pump();
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, 'vinda de fora');
+    expect(container.read(pendingOraclePromptProvider), isNull);
+  });
+
+  testWidgets('falha ao carregar mostra mensagem e "Tentar de novo"',
+      (tester) async {
+    final chats = _FlakyRepo();
+    await pumpOracle(tester, chats: chats, sp: await prefs());
+    await tester.pump();
+
+    expect(find.text('Não foi possível carregar o histórico.'), findsOneWidget);
+
+    chats.fail = false;
+    await tester.tap(find.text('Tentar de novo'));
+    await settle(tester);
+
+    expect(find.text('Não foi possível carregar o histórico.'), findsNothing);
+    final send =
+        tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.send));
+    expect(send.onPressed, isNotNull);
   });
 
   testWidgets('abrir o oraculo apaga so as chaves antigas astrum.chat.<uid>',

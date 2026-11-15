@@ -91,11 +91,8 @@ class FirestoreChatRepository implements ChatRepository {
   }
 
   @override
-  Future<int?> remoteMessageCount(String uid, String convId,
-      {bool fromServer = false}) async {
-    final snap = await _convs(uid)
-        .doc(convId)
-        .get(fromServer ? const GetOptions(source: Source.server) : null);
+  Future<int?> remoteMessageCount(String uid, String convId) async {
+    final snap = await _convs(uid).doc(convId).get();
     if (!snap.exists) return null;
     return (snap.data()?['messageCount'] as num?)?.toInt() ?? 0;
   }
@@ -153,9 +150,6 @@ class FirestoreChatRepository implements ChatRepository {
       }
     }
   }
-
-  @override
-  Future<void> waitForSync() => _db.waitForPendingWrites();
 
   @override
   String newId() => _uuid.v4();

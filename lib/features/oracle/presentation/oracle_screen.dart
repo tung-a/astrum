@@ -83,18 +83,30 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
     return mounted;
   }
 
-  /// Envia [preset] (chip) ou o texto do campo; limpa o campo so quando o
-  /// envio e aceito (hidratado, nao vazio e sem resposta em andamento), para
-  /// nao perder o texto digitado antes de o historico carregar.
+  /// Envia [preset] (chip) ou o texto do campo. O controller decide se aceita
+  /// (hidratado, nao vazio, sem resposta em andamento, conversa nao cheia, mesmo
+  /// usuario de antes do aviso); o campo so e limpo quando aceita, e nunca por
+  /// envio de chip (o texto digitado e preservado).
   Future<void> _send({String? preset}) async {
     final text = (preset ?? _input.text).trim();
     final chat = ref.read(chatControllerProvider);
     if (text.isEmpty || chat.loading || !chat.hydrated || chat.limitReached) {
       return;
     }
+    final uid = ref.read(currentUidProvider);
     if (!await _ensureNotice()) return;
-    _input.clear();
-    await ref.read(chatControllerProvider.notifier).send(text);
+    await ref.read(chatControllerProvider.notifier).send(
+          text,
+          expectedUid: uid,
+          onAccepted: preset == null ? _input.clear : null,
+        );
+  }
+
+  void _consumePending() {
+    if (!ref.read(chatControllerProvider).hydrated) return;
+    final pending =
+        ref.read(chatControllerProvider.notifier).takePendingPrompt();
+    if (pending != null) _input.text = pending;
   }
 
   @override
@@ -102,11 +114,16 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
     final profile = ref.watch(profileProvider).valueOrNull;
     final chat = ref.watch(chatControllerProvider);
     final controller = ref.read(chatControllerProvider.notifier);
+    // Prompt deixado por outra tela: consome ao hidratar e tambem quando chega
+    // com o chat ja hidratado.
     ref.listen(chatControllerProvider.select((s) => s.hydrated), (_, hydrated) {
-      if (!hydrated) return;
-      final pending = controller.takePendingPrompt();
-      if (pending != null) _input.text = pending;
+      if (hydrated) _consumePending();
     });
+    ref.listen(pendingOraclePromptProvider, (_, pending) {
+      if (pending != null) _consumePending();
+    });
+    // Rascunho de um usuario nao pode aparecer para o proximo.
+    ref.listen(currentUidProvider, (_, __) => _input.clear());
     if (profile != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) controller.hydrate();
@@ -133,6 +150,22 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
       ],
       body: Column(
         children: [
+          if (chat.error && !chat.hydrated)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text('Não foi possível carregar o histórico.',
+                        style: TextStyle(color: AstrumColors.muted)),
+                  ),
+                  TextButton(
+                    onPressed: controller.retry,
+                    child: const Text('Tentar de novo'),
+                  ),
+                ],
+              ),
+            ),
           if (chat.current.messages.isEmpty)
             Padding(
               padding: const EdgeInsets.all(12),
@@ -143,7 +176,9 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
                     .map(
                       (q) => ActionChip(
                         label: Text(q),
-                        onPressed: profile == null || !chat.hydrated
+                        onPressed: profile == null ||
+                                !chat.hydrated ||
+                                chat.limitReached
                             ? null
                             : () => _send(preset: q),
                       ),
@@ -218,7 +253,10 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
                 ),
                 const SizedBox(width: 8),
                 IconButton.filled(
-                  onPressed: chat.loading || profile == null || !chat.hydrated
+                  onPressed: chat.loading ||
+                          profile == null ||
+                          !chat.hydrated ||
+                          chat.limitReached
                       ? null
                       : () => _send(),
                   icon: const Icon(Icons.send),

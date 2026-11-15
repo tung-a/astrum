@@ -10,7 +10,6 @@ class InMemoryChatRepository implements ChatRepository {
   final _convs = <String, Map<String, _Conv>>{};
   final _changes = StreamController<void>.broadcast(sync: true);
   int _ids = 0;
-  int syncCalls = 0;
 
   Map<String, _Conv> _of(String uid) => _convs.putIfAbsent(uid, () => {});
 
@@ -71,8 +70,7 @@ class InMemoryChatRepository implements ChatRepository {
   }
 
   @override
-  Future<int?> remoteMessageCount(String uid, String convId,
-          {bool fromServer = false}) async =>
+  Future<int?> remoteMessageCount(String uid, String convId) async =>
       _of(uid)[convId]?.messages.length;
 
   @override
@@ -86,9 +84,6 @@ class InMemoryChatRepository implements ChatRepository {
     _of(uid).clear();
     _changes.add(null);
   }
-
-  @override
-  Future<void> waitForSync() async => syncCalls++;
 
   @override
   String newId() => 'id${_ids++}';

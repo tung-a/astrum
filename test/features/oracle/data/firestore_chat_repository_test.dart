@@ -11,14 +11,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/in_memory_chat_repository.dart';
 
-/// O fake nao implementa waitForPendingWrites; registra a chamada.
-class _SyncFake extends FakeFirebaseFirestore {
-  int syncs = 0;
-
-  @override
-  Future<void> waitForPendingWrites() async => syncs++;
-}
-
 /// Repositorio que registra as leituras "do servidor" e simula offline.
 class _ServerReadRepo extends FirestoreChatRepository {
   _ServerReadRepo(this.db) : super(db);
@@ -50,7 +42,7 @@ class _HangDeleteRepo extends FirestoreChatRepository {
 }
 
 void main() {
-  late _SyncFake db;
+  late FakeFirebaseFirestore db;
   late FirestoreChatRepository repo;
   final t0 = DateTime.utc(2026, 11, 14, 12);
 
@@ -74,7 +66,7 @@ void main() {
   }
 
   setUp(() {
-    db = _SyncFake();
+    db = FakeFirebaseFirestore();
     repo = FirestoreChatRepository(db);
   });
 
@@ -112,7 +104,6 @@ void main() {
     expect(c['messageCount'], 3);
     expect(c['title'], 'primeira');
     expect(await repo.remoteMessageCount('u1', 'c1'), 3);
-    expect(await repo.remoteMessageCount('u1', 'c1', fromServer: true), 3);
   });
 
   test('remoteMessageCount: conversa inexistente = null', () async {
@@ -306,11 +297,6 @@ void main() {
     });
   });
 
-  test('waitForSync aguarda as escritas pendentes do Firestore', () async {
-    await repo.waitForSync();
-    expect(db.syncs, 1);
-  });
-
   group('InMemoryChatRepository (fake de teste)', () {
     test('mesmo contrato basico: cria, incrementa, ordena e apaga', () async {
       final mem = InMemoryChatRepository();
@@ -332,8 +318,6 @@ void main() {
           ['um', 'dois']);
       await mem.deleteConversation('u', 'a');
       expect(await mem.remoteMessageCount('u', 'a'), isNull);
-      await mem.waitForSync();
-      expect(mem.syncCalls, 1);
     });
   });
 }

@@ -39,6 +39,23 @@ class _SpyRepo extends InMemoryChatRepository {
   }
 }
 
+/// Falha a lista de conversas enquanto [failList] for true.
+class _FlakyListRepo extends _SpyRepo {
+  bool failList = true;
+
+  @override
+  Stream<List<ChatConversation>> watchConversations(String uid) => failList
+      ? Stream<List<ChatConversation>>.error(StateError('unavailable'))
+      : super.watchConversations(uid);
+}
+
+/// So emite o 1o snapshot da lista: o rascunho nunca e confirmado pela nuvem.
+class _StaleListRepo extends _SpyRepo {
+  @override
+  Stream<List<ChatConversation>> watchConversations(String uid) =>
+      super.watchConversations(uid).take(1);
+}
+
 void main() {
   late _SpyRepo repo;
   late FakeOracleService oracle;
@@ -152,7 +169,77 @@ void main() {
     expect(ctl(c).takePendingPrompt(), isNull);
   });
 
+  group('falha ao carregar o historico', () {
+    test('error ate tentar de novo; retry hidrata e limpa o erro', () async {
+      final flaky = _FlakyListRepo();
+      repo = flaky;
+      final c = await setup();
+
+      expect(st(c).error, isTrue);
+      expect(st(c).hydrated, isFalse);
+
+      flaky.failList = false;
+      await ctl(c).retry();
+      await pumpEventQueue();
+
+      expect(st(c).error, isFalse);
+      expect(st(c).hydrated, isTrue);
+      expect(st(c).conversations, hasLength(1));
+    });
+  });
+
   group('send', () {
+    test('devolve se o envio foi aceito e so chama onAccepted ao aceitar',
+        () async {
+      final c = await setup();
+      var accepted = 0;
+
+      expect(await ctl(c).send('  ', onAccepted: () => accepted++), isFalse);
+      expect(
+          await ctl(c)
+              .send('Oi', expectedUid: 'outro', onAccepted: () => accepted++),
+          isFalse);
+      expect(accepted, 0);
+      expect(oracle.calls, isEmpty);
+
+      expect(
+          await ctl(c)
+              .send('Oi', expectedUid: 'u1', onAccepted: () => accepted++),
+          isTrue);
+      expect(accepted, 1);
+    });
+
+    test('recusado antes da hidratacao e com resposta em andamento', () async {
+      final cold = await setup(hydrate: false);
+      var accepted = 0;
+      expect(await ctl(cold).send('Oi', onAccepted: () => accepted++), isFalse);
+      expect(accepted, 0);
+
+      final gate = Completer<String>();
+      oracle.completer = gate;
+      final c = await setup();
+      final first = ctl(c).send('Primeira');
+      await Future<void>.delayed(Duration.zero);
+      expect(
+          await ctl(c).send('Segunda', onAccepted: () => accepted++), isFalse);
+      expect(accepted, 0);
+      gate.complete('ok');
+      expect(await first, isTrue);
+    });
+
+    test('duas mensagens rapidas: so a 1a cria a conversa (isNew)', () async {
+      repo = _StaleListRepo();
+      final c = await setup();
+
+      await ctl(c).send('Primeira');
+      await ctl(c).send('Segunda');
+      await pumpEventQueue();
+
+      expect(repo.appends.where((a) => a.isNew), hasLength(1));
+      expect(repo.appends, hasLength(4));
+      expect(await repo.remoteMessageCount('u1', st(c).current.id), 4);
+    });
+
     test('texto vazio ou so espacos e ignorado', () async {
       final c = await setup();
 
@@ -437,7 +524,7 @@ void main() {
           'Esta conversa atingiu o limite. Inicie uma nova conversa.');
       expect(st(c).limitReached, isTrue);
 
-      await ctl(c).send('Mais uma');
+      expect(await ctl(c).send('Mais uma'), isFalse);
 
       expect(oracle.calls, isEmpty);
       expect(repo.appends, hasLength(500)); // so as do seed

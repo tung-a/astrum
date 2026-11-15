@@ -31,11 +31,9 @@ abstract interface class ChatRepository {
     bool isNew = false,
   });
 
-  /// `messageCount` da conversa; null = nao existe. Por padrao enxerga as
-  /// escritas locais pendentes; [fromServer] exige o servidor (verificacao
-  /// final) e falha offline.
-  Future<int?> remoteMessageCount(String uid, String convId,
-      {bool fromServer = false});
+  /// `messageCount` da conversa; null = nao existe. Enxerga as escritas
+  /// locais pendentes.
+  Future<int?> remoteMessageCount(String uid, String convId);
 
   /// Apaga as mensagens (em lotes, lendo do servidor) e depois a conversa.
   /// Offline lanca [ChatOfflineException] sem apagar nada. Idempotente.
@@ -43,9 +41,6 @@ abstract interface class ChatRepository {
 
   /// Apaga todas as conversas do [uid], paginando ate esvaziar (nao so 50).
   Future<void> deleteAllConversations(String uid);
-
-  /// Aguarda as escritas pendentes chegarem ao servidor.
-  Future<void> waitForSync();
 
   String newId();
 }
