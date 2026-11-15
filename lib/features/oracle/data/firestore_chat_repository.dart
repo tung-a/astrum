@@ -3,6 +3,7 @@ import 'package:astrum/features/oracle/data/chat_repository.dart';
 import 'package:astrum/features/oracle/domain/chat_limits.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 /// [ChatRepository] sobre o Firestore. Respeita as regras: no maximo uma
@@ -92,11 +93,30 @@ class FirestoreChatRepository implements ChatRepository {
     return (snap.data()?['messageCount'] as num?)?.toInt() ?? 0;
   }
 
+  /// Leitura de pagina SEMPRE do servidor (exclusao nao pode se basear em
+  /// cache parcial). Offline falha com [ChatOfflineException]. Sobrescrevivel
+  /// so em teste.
+  @visibleForTesting
+  Future<QuerySnapshot<Map<String, dynamic>>> getServerPage(
+      Query<Map<String, dynamic>> query) async {
+    try {
+      return await query.get(const GetOptions(source: Source.server));
+    } on FirebaseException catch (e) {
+      if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        throw const ChatOfflineException();
+      }
+      rethrow;
+    }
+  }
+
+  /// Filhos primeiro: pagina as mensagens do servidor ate uma pagina vazia e
+  /// so entao apaga a conversa. Offline falha na 1a leitura, antes de apagar
+  /// qualquer coisa. Idempotente (conversa ja apagada: 1 leitura vazia).
   @override
   Future<void> deleteConversation(String uid, String convId) async {
     final msgs = _msgs(uid, convId);
     while (true) {
-      final page = await msgs.limit(_deleteBatch).get();
+      final page = await getServerPage(msgs.limit(_deleteBatch));
       if (page.docs.isEmpty) break;
       final batch = _db.batch();
       for (final d in page.docs) {
@@ -110,7 +130,7 @@ class FirestoreChatRepository implements ChatRepository {
   @override
   Future<void> deleteAllConversations(String uid) async {
     while (true) {
-      final page = await _convs(uid).limit(_listLimit).get();
+      final page = await getServerPage(_convs(uid).limit(_listLimit));
       if (page.docs.isEmpty) break;
       for (final d in page.docs) {
         await deleteConversation(uid, d.id);

@@ -1,5 +1,13 @@
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 
+/// Operacao que exige o servidor (ex.: exclusao) tentada sem conexao.
+class ChatOfflineException implements Exception {
+  const ChatOfflineException();
+  @override
+  String toString() =>
+      'ChatOfflineException: sem conexao com o servidor; nada foi apagado.';
+}
+
 /// Historico do oraculo na nuvem (users/{uid}/conversations), incremental e
 /// por streams (docs/architecture/step10-chat-sync.md, secao 4.2). Ainda nao
 /// esta ligado ao controller: o chat segue no armazenamento local legado.
@@ -30,7 +38,8 @@ abstract interface class ChatRepository {
   Future<int?> remoteMessageCount(String uid, String convId,
       {bool fromServer = false});
 
-  /// Apaga as mensagens (em lotes) e depois a conversa.
+  /// Apaga as mensagens (em lotes, lendo do servidor) e depois a conversa.
+  /// Offline lanca [ChatOfflineException] sem apagar nada. Idempotente.
   Future<void> deleteConversation(String uid, String convId);
 
   /// Apaga todas as conversas do [uid], paginando ate esvaziar (nao so 50).

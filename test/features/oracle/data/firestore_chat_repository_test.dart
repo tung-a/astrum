@@ -17,6 +17,25 @@ class _SyncFake extends FakeFirebaseFirestore {
   Future<void> waitForPendingWrites() async => syncs++;
 }
 
+/// Repositorio que registra as leituras "do servidor" e simula offline.
+class _ServerReadRepo extends FirestoreChatRepository {
+  _ServerReadRepo(this.db) : super(db);
+  final FakeFirebaseFirestore db;
+  bool offline = false;
+  int serverReads = 0;
+  final events = <String>[];
+
+  @override
+  Future<QuerySnapshot<Map<String, dynamic>>> getServerPage(
+      Query<Map<String, dynamic>> query) async {
+    if (offline) throw const ChatOfflineException();
+    serverReads++;
+    final r = await query.get();
+    events.add('read:${r.docs.length}');
+    return r;
+  }
+}
+
 void main() {
   late _SyncFake db;
   late FirestoreChatRepository repo;
@@ -190,6 +209,71 @@ void main() {
     await repo.deleteAllConversations('u1');
     expect((await db.collection('users/u1/conversations').get()).docs, isEmpty);
     expect(await repo.remoteMessageCount('u2', 'o'), 1);
+  });
+
+  group('exclusao le do servidor', () {
+    late _ServerReadRepo srv;
+    setUp(() => srv = _ServerReadRepo(db));
+
+    Future<void> seed(String conv, int n) async {
+      final batch = db.batch();
+      batch.set(db.doc('users/u1/conversations/$conv'), {
+        'title': 't',
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+        'messageCount': n,
+        'schemaVersion': 1,
+      });
+      for (var i = 1; i <= n; i++) {
+        batch.set(db.doc('users/u1/conversations/$conv/messages/m$i'),
+            {'role': 'user', 'text': 'x', 'createdAt': Timestamp.now()});
+      }
+      await batch.commit();
+    }
+
+    test('offline: falha com erro claro e nao apaga nada', () async {
+      await seed('c1', 3);
+      srv.offline = true;
+      await expectLater(srv.deleteConversation('u1', 'c1'),
+          throwsA(isA<ChatOfflineException>()));
+      await expectLater(srv.deleteAllConversations('u1'),
+          throwsA(isA<ChatOfflineException>()));
+      expect(
+          (await db.collection('users/u1/conversations/c1/messages').get())
+              .docs,
+          hasLength(3));
+      expect((await db.doc('users/u1/conversations/c1').get()).exists, isTrue);
+    });
+
+    test('so apaga a conversa depois de pagina vazia lida do servidor',
+        () async {
+      await seed('c1', 450);
+      await srv.deleteConversation('u1', 'c1');
+      // 450 mensagens: paginas de 400, 50 e uma vazia (confirmacao).
+      expect(srv.events, ['read:400', 'read:50', 'read:0']);
+      expect((await db.doc('users/u1/conversations/c1').get()).exists, isFalse);
+      expect(
+          (await db.collection('users/u1/conversations/c1/messages').get())
+              .docs,
+          isEmpty);
+    });
+
+    test('idempotente: conversa inexistente nao falha', () async {
+      await srv.deleteConversation('u1', 'nada');
+      await srv.deleteConversation('u1', 'nada');
+      expect(srv.events, ['read:0', 'read:0']);
+    });
+
+    test('deleteAll le todas as paginas do servidor e termina vazio', () async {
+      for (var i = 0; i < 55; i++) {
+        await seed('c$i', 1);
+      }
+      await srv.deleteAllConversations('u1');
+      expect(
+          (await db.collection('users/u1/conversations').get()).docs, isEmpty);
+      expect(srv.events.last, 'read:0');
+      expect(srv.serverReads, greaterThan(55));
+    });
   });
 
   test('waitForSync aguarda as escritas pendentes do Firestore', () async {
