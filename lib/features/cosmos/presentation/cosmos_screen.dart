@@ -1,13 +1,18 @@
 import 'package:astrum/core/astro/moon.dart';
 import 'package:astrum/core/astro/tarot.dart';
 import 'package:astrum/core/astro/zodiac.dart';
+import 'package:astrum/core/clock/clock_providers.dart';
+import 'package:astrum/core/clock/day_key.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
+import 'package:astrum/features/cosmos/domain/daily_content.dart';
+import 'package:astrum/features/cosmos/presentation/cosmos_controller.dart';
 import 'package:astrum/features/cosmos/presentation/meditation_sheet.dart';
 import 'package:astrum/features/economy/domain/economy_exceptions.dart';
 import 'package:astrum/features/economy/presentation/economy_providers.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:astrum/features/rituals/domain/ritual_day.dart';
 import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/shared/cosmetics_style.dart';
 import 'package:astrum/shared/cosmic_scaffold.dart';
@@ -16,7 +21,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 
 class CosmosScreen extends ConsumerStatefulWidget {
   const CosmosScreen({super.key});
@@ -28,24 +32,8 @@ class CosmosScreen extends ConsumerStatefulWidget {
 class _CosmosScreenState extends ConsumerState<CosmosScreen> {
   bool _drawing = false;
   bool _checkingIn = false;
-  bool _horoscopeRequested = false;
 
-  String get _today => DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-  Future<void> _ensureHoroscope() async {
-    final profile = ref.read(profileProvider).valueOrNull;
-    if (profile == null || profile.zodiacSign.isEmpty) return;
-    final cached = profile.dailyHoroscope;
-    if (cached != null && cached['date'] == _today) return;
-    final text = await ref.read(oracleServiceProvider).complete(
-          prompt:
-              'Gere um horóscopo do dia curto e inspirador para o signo de ${profile.zodiacSign}. Foco: autoconhecimento. Máximo de 3 frases.',
-          sign: profile.zodiacSign,
-        );
-    await ref
-        .read(profileRepositoryProvider)
-        .saveDailyHoroscope(profile.uid, date: _today, content: text);
-  }
+  String get _today => dayKey(ref.read(clockProvider)());
 
   Future<void> _drawTarot() async {
     final profile = ref.read(profileProvider).valueOrNull;
@@ -103,6 +91,8 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
   @override
   Widget build(BuildContext context) {
     final asyncProfile = ref.watch(profileProvider);
+    // Mantem o controller (autoDispose) vivo enquanto a tela existe.
+    ref.watch(cosmosControllerProvider);
     final events = ref.watch(eventsProvider).valueOrNull ?? [];
     final skin = ref.watch(equippedSkinProvider);
     final moon = moonFor(DateTime.now());
@@ -113,23 +103,16 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
         error: (e, _) => Center(child: Text('$e')),
         data: (profile) {
           if (profile == null) return const SizedBox.shrink();
-          if (!_horoscopeRequested && profile.zodiacSign.isNotEmpty) {
-            _horoscopeRequested = true;
-            WidgetsBinding.instance
-                .addPostFrameCallback((_) => _ensureHoroscope());
+          if (profile.zodiacSign.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) =>
+                ref.read(cosmosControllerProvider.notifier).ensureHoroscope());
           }
+          final today = _today;
           final firstName = profile.name.split(' ').first;
-          final todayEvents = events.where((e) => e.date == _today).toList()
-            ..sort((a, b) => a.time.compareTo(b.time));
-          final horoscope = profile.dailyHoroscope != null &&
-                  profile.dailyHoroscope!['date'] == _today
-              ? profile.dailyHoroscope!['content'] as String?
-              : null;
-          final tarot = profile.dailyTarot != null &&
-                  profile.dailyTarot!['date'] == _today
-              ? profile.dailyTarot
-              : null;
-          final checkedIn = profile.dailyCheckIn == _today;
+          final todayEvents = eventsOfDay(events, today);
+          final horoscope = horoscopeOf(profile, today);
+          final tarot = tarotOf(profile, today);
+          final checkedIn = checkedInToday(profile, today);
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
