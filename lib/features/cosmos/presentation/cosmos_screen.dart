@@ -1,5 +1,4 @@
 import 'package:astrum/core/astro/moon.dart';
-import 'package:astrum/core/astro/tarot.dart';
 import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/core/clock/clock_providers.dart';
 import 'package:astrum/core/clock/day_key.dart';
@@ -10,7 +9,6 @@ import 'package:astrum/features/cosmos/presentation/cosmos_controller.dart';
 import 'package:astrum/features/cosmos/presentation/meditation_sheet.dart';
 import 'package:astrum/features/economy/domain/economy_exceptions.dart';
 import 'package:astrum/features/economy/presentation/economy_providers.dart';
-import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/rituals/domain/ritual_day.dart';
 import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
@@ -30,39 +28,16 @@ class CosmosScreen extends ConsumerStatefulWidget {
 }
 
 class _CosmosScreenState extends ConsumerState<CosmosScreen> {
-  bool _drawing = false;
   bool _checkingIn = false;
 
   String get _today => dayKey(ref.read(clockProvider)());
 
   Future<void> _drawTarot() async {
-    final profile = ref.read(profileProvider).valueOrNull;
-    if (profile == null || _drawing) return;
     final messenger = ScaffoldMessenger.of(context);
-    setState(() => _drawing = true);
-    try {
-      final card = pickDailyCard(DateTime.now(), profile.uid);
-      var meaning = card.meaning;
-      try {
-        meaning = await ref.read(oracleServiceProvider).complete(
-              prompt:
-                  'O usuário tirou a carta de Tarot "${card.name}" para o dia de hoje. Interpretação mística, direta, 2 a 3 frases.',
-              sign: profile.zodiacSign,
-            );
-      } catch (_) {}
-      if (!mounted) return;
-      await ref.read(profileRepositoryProvider).saveDailyTarot(
-            profile.uid,
-            date: _today,
-            card: card.name,
-            meaning: meaning,
-          );
-    } catch (_) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Não foi possível salvar a carta. Tente novamente.'),
-      ));
-    } finally {
-      if (mounted) setState(() => _drawing = false);
+    final message =
+        await ref.read(cosmosControllerProvider.notifier).drawTarot();
+    if (message != null) {
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -92,7 +67,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
   Widget build(BuildContext context) {
     final asyncProfile = ref.watch(profileProvider);
     // Mantem o controller (autoDispose) vivo enquanto a tela existe.
-    ref.watch(cosmosControllerProvider);
+    final cosmos = ref.watch(cosmosControllerProvider);
     final events = ref.watch(eventsProvider).valueOrNull ?? [];
     final skin = ref.watch(equippedSkinProvider);
     final moon = moonFor(DateTime.now());
@@ -167,7 +142,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
                         skin: skin,
                         cardName: tarot?['card'] as String?,
                         meaning: tarot?['meaning'] as String?,
-                        loading: _drawing,
+                        loading: cosmos.drawingTarot,
                       ),
                     ),
                   ),
