@@ -1,7 +1,5 @@
-import 'package:astrum/core/analytics/analytics_providers.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/features/oracle/domain/chat_models.dart';
-import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
+import 'package:astrum/features/oracle/presentation/chat_controller.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
@@ -26,14 +24,6 @@ class OracleScreen extends ConsumerStatefulWidget {
 class _OracleScreenState extends ConsumerState<OracleScreen> {
   final _input = TextEditingController();
   final _tts = FlutterTts();
-  List<ChatConversation> _conversations = [];
-  int _index = 0;
-  bool _loading = false;
-  bool _hydrated = false;
-
-  ChatConversation get _current => _conversations.isEmpty
-      ? const ChatConversation(id: 'x', title: 'Conversa', messages: [])
-      : _conversations[_index];
 
   @override
   void dispose() {
@@ -42,67 +32,31 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
     super.dispose();
   }
 
-  void _hydrate(String uid) {
-    if (_hydrated) return;
-    _hydrated = true;
-    final loaded = ref.read(chatStoreProvider).load(uid);
-    setState(() {
-      _conversations = loaded;
-      _index = 0;
-    });
-    final pending = ref.read(pendingOraclePromptProvider);
-    if (pending != null) {
-      _input.text = pending;
-      ref.read(pendingOraclePromptProvider.notifier).state = null;
-    }
-  }
-
-  Future<void> _persist(String uid) {
-    return ref.read(chatStoreProvider).save(uid, _conversations);
-  }
-
-  Future<void> _send(String uid, String? sign, {String? preset}) async {
+  /// Envia [preset] (chip) ou o texto do campo; limpa o campo so quando o
+  /// envio e aceito (nao vazio e sem resposta em andamento).
+  Future<void> _send({String? preset}) {
     final text = (preset ?? _input.text).trim();
-    if (text.isEmpty || _loading) return;
-    setState(() {
-      _loading = true;
-      _input.clear();
-      final msgs = [
-        ..._current.messages,
-        ChatTurnStored(role: 'user', text: text)
-      ];
-      _conversations = [..._conversations]..[_index] = ChatConversation(
-          id: _current.id,
-          title: _current.messages.isEmpty ? text : _current.title,
-          messages: msgs,
-        );
-    });
-    await _persist(uid);
-    await ref.read(analyticsServiceProvider).logEvent('send_message_chat');
-    final reply = await ref.read(oracleServiceProvider).complete(
-          prompt: text,
-          sign: sign,
-        );
-    setState(() {
-      _conversations = [..._conversations]..[_index] = ChatConversation(
-          id: _current.id,
-          title: _current.title,
-          messages: [
-            ..._current.messages,
-            ChatTurnStored(role: 'model', text: reply)
-          ],
-        );
-      _loading = false;
-    });
-    await _persist(uid);
+    if (text.isEmpty || ref.read(chatControllerProvider).loading) {
+      return Future.value();
+    }
+    _input.clear();
+    return ref.read(chatControllerProvider.notifier).send(text);
   }
 
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider).valueOrNull;
+    final chat = ref.watch(chatControllerProvider);
+    final controller = ref.read(chatControllerProvider.notifier);
+    ref.listen(chatControllerProvider.select((s) => s.hydrated), (_, hydrated) {
+      if (!hydrated) return;
+      final pending = controller.takePendingPrompt();
+      if (pending != null) _input.text = pending;
+    });
     if (profile != null) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _hydrate(profile.uid));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) controller.hydrate();
+      });
     }
 
     return CosmicScaffold(
@@ -110,32 +64,22 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
       actions: [
         IconButton(
           tooltip: 'Nova conversa',
-          onPressed: profile == null
-              ? null
-              : () async {
-                  final next = ref
-                      .read(chatStoreProvider)
-                      .create(_conversations.length + 1);
-                  setState(() {
-                    _conversations = [..._conversations, next];
-                    _index = _conversations.length - 1;
-                  });
-                  await _persist(profile.uid);
-                },
+          onPressed: profile == null ? null : controller.newConversation,
           icon: const Icon(Icons.add_comment_outlined),
         ),
-        if (_conversations.length > 1)
+        if (chat.conversations.length > 1)
           PopupMenuButton<int>(
-            onSelected: (i) => setState(() => _index = i),
+            onSelected: controller.select,
             itemBuilder: (context) => [
-              for (var i = 0; i < _conversations.length; i++)
-                PopupMenuItem(value: i, child: Text(_conversations[i].title)),
+              for (var i = 0; i < chat.conversations.length; i++)
+                PopupMenuItem(
+                    value: i, child: Text(chat.conversations[i].title)),
             ],
           ),
       ],
       body: Column(
         children: [
-          if (_current.messages.isEmpty)
+          if (chat.current.messages.isEmpty)
             Padding(
               padding: const EdgeInsets.all(12),
               child: Wrap(
@@ -145,10 +89,8 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
                     .map(
                       (q) => ActionChip(
                         label: Text(q),
-                        onPressed: profile == null
-                            ? null
-                            : () => _send(profile.uid, profile.zodiacSign,
-                                preset: q),
+                        onPressed:
+                            profile == null ? null : () => _send(preset: q),
                       ),
                     )
                     .toList(),
@@ -157,16 +99,16 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: _current.messages.length + (_loading ? 1 : 0),
+              itemCount: chat.current.messages.length + (chat.loading ? 1 : 0),
               itemBuilder: (context, i) {
-                if (i >= _current.messages.length) {
+                if (i >= chat.current.messages.length) {
                   return const Padding(
                     padding: EdgeInsets.all(12),
                     child: Text('O oráculo consulta as esferas…',
                         style: TextStyle(color: AstrumColors.muted)),
                   );
                 }
-                final msg = _current.messages[i];
+                final msg = chat.current.messages[i];
                 final mine = msg.role == 'user';
                 return Align(
                   alignment:
@@ -215,17 +157,14 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
                     decoration:
                         const InputDecoration(hintText: 'Pergunte ao oráculo…'),
                     onSubmitted: (_) {
-                      if (profile != null) {
-                        _send(profile.uid, profile.zodiacSign);
-                      }
+                      if (profile != null) _send();
                     },
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton.filled(
-                  onPressed: _loading || profile == null
-                      ? null
-                      : () => _send(profile.uid, profile.zodiacSign),
+                  onPressed:
+                      chat.loading || profile == null ? null : () => _send(),
                   icon: const Icon(Icons.send),
                 ),
               ],

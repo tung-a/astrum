@@ -1,10 +1,11 @@
 import 'dart:convert';
 
+import 'package:astrum/features/oracle/data/chat_repository.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-class ChatStore {
+class ChatStore implements ChatRepository {
   ChatStore(this._prefs);
 
   final SharedPreferences _prefs;
@@ -12,7 +13,8 @@ class ChatStore {
 
   String _key(String uid) => 'astrum.chat.$uid';
 
-  List<ChatConversation> load(String uid) {
+  @override
+  Future<List<ChatConversation>> load(String uid) async {
     final raw = _prefs.getString(_key(uid));
     if (raw == null) return [_empty(1)];
     try {
@@ -35,6 +37,7 @@ class ChatStore {
     }
   }
 
+  @override
   Future<void> save(String uid, List<ChatConversation> conversations) async {
     await _prefs.setString(
       _key(uid),
@@ -52,6 +55,7 @@ class ChatStore {
     );
   }
 
+  @override
   ChatConversation create(int index) => ChatConversation(
         id: _uuid.v4(),
         title: 'Conversa $index',

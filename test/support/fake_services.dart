@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:astrum/core/analytics/analytics_service.dart';
 import 'package:astrum/features/economy/data/economy_repository.dart';
 import 'package:astrum/features/economy/domain/equip_slot.dart';
+import 'package:astrum/features/oracle/data/chat_repository.dart';
+import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:astrum/features/oracle/domain/oracle_service.dart';
 
 /// Fake de [OracleService]: resposta fixa, falha sob comando e [Completer]
@@ -65,4 +67,30 @@ class FakeAnalytics implements AnalyticsService {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
+}
+
+/// Fake de [ChatRepository] em memoria: cada `save` guarda uma copia da lista
+/// (para conferir numero e conteudo das gravacoes).
+class FakeChatRepository implements ChatRepository {
+  final stored = <String, List<ChatConversation>>{};
+  final loads = <String>[];
+  final saves = <({String uid, List<ChatConversation> all})>[];
+  Object? saveError;
+
+  @override
+  Future<List<ChatConversation>> load(String uid) async {
+    loads.add(uid);
+    return stored[uid] ?? [create(1)];
+  }
+
+  @override
+  Future<void> save(String uid, List<ChatConversation> all) async {
+    saves.add((uid: uid, all: List.of(all)));
+    if (saveError != null) throw saveError!;
+    stored[uid] = List.of(all);
+  }
+
+  @override
+  ChatConversation create(int index) => ChatConversation(
+      id: 'conv-$index', title: 'Conversa $index', messages: const []);
 }
