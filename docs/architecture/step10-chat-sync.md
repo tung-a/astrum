@@ -1,6 +1,6 @@
 # Etapa 10: histórico do oráculo no Firestore (D9)
 
-Status: proposto, aguardando respostas da seção 11. Marcado para `reviewer-consultor` (dado pessoal, ver seção 10). Este documento **substitui** as seções 1, 2, 4 e 6 de `chat-sync.md` (que parte de regras e interface antigas) e herda dele as seções 3 (princípios das regras) e 5 (LGPD) com os ajustes abaixo. `firestore.rules` **não muda** nesta etapa (seção 3).
+Status: **escopo simplificado** pelas decisões de 2026-11-14 (`docs/decisions/2026-11-chat-sync-decisions.md`): sem usuários ativos, **a migração do legado (seção 5 e passo 4) foi cortada** e removida do código; consentimento = aviso informativo único; retenção até o usuário apagar; região `southamerica-east1`; abre na conversa mais recente; texto de limite aos 500; sem botão de apagar por ora. A seção 5 fica só como registro histórico (o código está no histórico git). Marcado para `reviewer-consultor` (dado pessoal, ver seção 10). Este documento **substitui** as seções 1, 2, 4 e 6 de `chat-sync.md` (que parte de regras e interface antigas) e herda dele as seções 3 (princípios das regras) e 5 (LGPD) com os ajustes abaixo. `firestore.rules` **não muda** nesta etapa (seção 3).
 
 Base: `chat-sync.md`, `step9-controllers.md` (3.2 e 9), decisões de 2026-11 (sem web, Spark, sem Functions, exclusão de conta na etapa 11), `firestore.rules` (linhas 272 a 315) e `test_rules/firestore.rules.test.mjs`.
 
@@ -104,7 +104,9 @@ O que sai: `load/save/create` por snapshot. O antigo `ChatStore` perde `implemen
 
 `oracle_screen.dart` não muda (precisa só de ajuste de teste se usar o fake antigo).
 
-## 5. Migração do legado (`LegacyChatMigrator`, `data/`)
+## 5. Migração do legado (CORTADA, registro histórico)
+
+> Cortada em 2026-11-14: não há usuários ativos (só contas de teste do dono), então não há histórico local a preservar. Migrador, plano de importação e `LegacyChatStore` foram removidos. O texto abaixo documenta o desenho que existiu.
 
 Desenho guiado pelas regras: não há batch com várias mensagens da mesma conversa e `set` sobre mensagem existente é negado. Logo a migração é **retomável pela contagem** em vez de por sobrescrita.
 
@@ -177,7 +179,7 @@ Pré-condição: árvore limpa, 289 testes verdes. Em todos: `git diff -- firest
 | 1 | `test(rules): cobre increment e limites do chat` | Só `test_rules/`: casos da seção 3. Sem mudar `firestore.rules`. (R-consultor) | `FIRESTORE_EMULATOR_PORT=<porta livre> node run-tests.mjs`; falha de regra pára a etapa. |
 | 2 | `refactor(oracle): ChatRepository antigo vira legado` | Renomear interface snapshot para `LegacyChatRepository` (ou remover `implements`), `ChatStore` mantido como `LegacyChatStore`; controller continua igual. Mecânico. | Testes de caracterização do passo 6 da etapa 9 intactos. |
 | 3 | `feat(oracle): FirestoreChatRepository` | Nova interface `ChatRepository`, `FirestoreChatRepository`, `InMemoryChatRepository` (test/support), `deleteConversation`/`deleteAllConversations`. **Não ligado** ao controller (provider novo `firestoreChatRepositoryProvider`). (R-consultor) | `fake_cloud_firestore`: stream da lista ordenada e limitada, stream de mensagens em ordem, 1ª mensagem cria conversa com contador 1, `increment`, título só na criação, exclusão em cascata em lotes (> 400), `deleteAll` pagina 60 conversas, `remoteMessageCount`. |
-| 4 | `feat(oracle): migrador do legado` | `LegacyChatMigrator` + flags/`.bak`; ainda não ligado. (R-consultor) | Casos: ausente, vazio, corrompido (`.bak`, flag `corrupt`), feliz, reexecução (não duplica), queda no meio (retoma pela contagem), concorrência (segundo migrador não duplica), texto >10000, mensagens vazias, mais de 50, dois uids, falha de `waitForSync` (nada apagado). |
+| 4 | ~~`feat(oracle): migrador do legado`~~ (CORTADO) | `LegacyChatMigrator` + flags/`.bak`; ainda não ligado. (R-consultor) | Casos: ausente, vazio, corrompido (`.bak`, flag `corrupt`), feliz, reexecução (não duplica), queda no meio (retoma pela contagem), concorrência (segundo migrador não duplica), texto >10000, mensagens vazias, mais de 50, dois uids, falha de `waitForSync` (nada apagado). |
 | 5 | `refactor(oracle): ChatController sobre o Firestore` | `build` depende de `currentUidProvider` (E9-B4), contador de geração, `selectedId`, subscriptions, rascunho, `send/newConversation/select` incrementais, `hydrate` chama o migrador, `chatRepositoryProvider` troca para Firestore. Tela sem mudança. (R-consultor) | Reescrever `chat_controller_test` com `InMemoryChatRepository`: hidrata; envio grava 2 mensagens sem aguardar; resposta vai à conversa de origem mesmo trocando de conversa; conversa excluída por outro aparelho descarta a resposta; **troca de uid reinicia estado e ignora resposta pendente do uid antigo**; logout limpa; rascunho não grava; abre na conversa mais recente; `loading` liberado em erro; 500 mensagens. `oracle_screen_test` adaptado. |
 | 6 | `feat(oracle): aviso de privacidade do histórico` | Depende de Q1 (se (a): texto único no primeiro uso, flag local; se (b): consentimento com recusa e `InMemoryChatRepository` como modo sem sincronização). Texto da política. | Teste de widget do aviso; sem Firestore antes do aceite se (b). |
 | 7 | `docs: etapa 10` | `overview.md` (coleções do chat deixam de ser "propostas"), `chat-sync.md` marcado como superado, plano e `CHANGELOG` (writer), `docs/qa/etapa-10.md` (qa). | Links válidos. |
