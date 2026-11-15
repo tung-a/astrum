@@ -36,6 +36,33 @@ void main() {
     expect(chats.saves, hasLength(2));
   });
 
+  testWidgets('falha do oraculo mostra o erro na conversa e libera o envio',
+      (tester) async {
+    final oracle = FakeOracleService()..failWith = StateError('oraculo fora');
+    await pumpScreen(
+      tester,
+      const OracleScreen(),
+      user: testUser(),
+      overrides: [
+        chatRepositoryProvider.overrideWithValue(FakeChatRepository()),
+        oracleServiceProvider.overrideWithValue(oracle),
+        analyticsServiceProvider.overrideWithValue(FakeAnalytics()),
+      ],
+    );
+    await tester.pump(); // post-frame: hidrata
+
+    await tester.tap(find.text('Qual cristal usar?'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Não foi possível obter a resposta. Tente novamente.'),
+        findsOneWidget);
+    expect(find.text('O oráculo consulta as esferas…'), findsNothing);
+    final send =
+        tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.send));
+    expect(send.onPressed, isNotNull);
+  });
+
   testWidgets('prompt pendente vai para o campo de texto e e consumido',
       (tester) async {
     await pumpScreen(

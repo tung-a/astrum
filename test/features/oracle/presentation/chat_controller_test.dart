@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:astrum/core/analytics/analytics_providers.dart';
 import 'package:astrum/core/storage/prefs_providers.dart';
+import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:astrum/features/oracle/presentation/chat_controller.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -291,6 +292,20 @@ void main() {
       expect(st(c).loading, isFalse);
     });
 
+    test(
+        '(1) se a 2a gravacao (da resposta) falha, a resposta fica na tela e '
+        'loading e liberado', () async {
+      chats = _FailSecondSave();
+      final c = await setup();
+
+      await ctl(c).send('Oi');
+
+      expect(st(c).loading, isFalse);
+      expect(st(c).current.messages.map((m) => (m.role, m.text)),
+          [('user', 'Oi'), ('model', 'resposta do oraculo')]);
+      expect(chats.saves, hasLength(2));
+    });
+
     test('(3) enviar antes da hidratacao e ignorado (sem RangeError)',
         () async {
       final c = await setup(hydrate: false);
@@ -302,4 +317,17 @@ void main() {
       expect(st(c).loading, isFalse);
     });
   });
+}
+
+/// Repositorio que aceita a 1a gravacao (mensagem do usuario) e falha a 2a
+/// (resposta do oraculo).
+class _FailSecondSave extends FakeChatRepository {
+  @override
+  Future<void> save(String uid, List<ChatConversation> all) async {
+    if (saves.isNotEmpty) {
+      saves.add((uid: uid, all: List.of(all)));
+      throw StateError('prefs fora na 2a gravacao');
+    }
+    return super.save(uid, all);
+  }
 }

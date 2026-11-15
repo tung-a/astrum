@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:astrum/core/clock/clock_providers.dart';
 import 'package:astrum/features/cosmos/presentation/cosmos_screen.dart';
 import 'package:astrum/features/economy/presentation/economy_providers.dart';
@@ -49,6 +51,27 @@ void main() {
     await tester.pump();
 
     expect(economy.checkIns, [(uid: 'u1', today: '2026-11-14')]);
+    expect(
+        find.text('+25 Poeira Estelar pelo check-in de hoje'), findsOneWidget);
+  });
+
+  testWidgets(
+      'dois toques no check-in enquanto grava chamam a economia uma vez',
+      (tester) async {
+    economy.checkInCompleter = Completer<void>();
+    await pump(tester);
+
+    final button = find.text('Check-in diário · +25 Poeira Estelar');
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pump();
+    await tester.tap(button); // botao desabilitado enquanto checkingIn
+    await tester.pump();
+    economy.checkInCompleter!.complete();
+    await tester.pump();
+    await tester.pump();
+
+    expect(economy.checkIns, hasLength(1));
     expect(
         find.text('+25 Poeira Estelar pelo check-in de hoje'), findsOneWidget);
   });
