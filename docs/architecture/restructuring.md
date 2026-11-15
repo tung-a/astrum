@@ -48,7 +48,7 @@ Sintomas concretos:
 ### 2.3 Lógica de negócio em telas
 
 - `cosmos_screen.dart`: gera horóscopo diário (`_ensureHoroscope`), sorteia/interpreta tarot (`_drawTarot`), faz check-in e controla "já fez hoje" via `DateFormat('yyyy-MM-dd')` local. É conteúdo + persistência + decisão de data na UI.
-- `oracle_screen.dart` (237 linhas): guarda `_conversations` em estado local, hidrata uma vez do `ChatStore` e regrava a lista inteira a cada mensagem (`_persist`, linha 60). Perde o que for escrito por outro dispositivo e não escala.
+- (Situação na época da auditoria; superado pela etapa 10, o chat agora vive no Firestore.) `oracle_screen.dart` (237 linhas): guarda `_conversations` em estado local, hidrata uma vez do `ChatStore` e regrava a lista inteira a cada mensagem (`_persist`, linha 60). Perde o que for escrito por outro dispositivo e não escala.
 - `shop_screen.dart`: decide o campo `equipped.*` a partir do tipo (linha ~110) e a ordem "equipar vs comprar".
 - `account_screen.dart`: a lista de intenções (luz, coragem, cura, clareza) mora na tela e é duplicada literalmente em `firestore.rules` (`labelOk`).
 
@@ -74,7 +74,7 @@ Sintomas concretos:
 ### 2.6.1 Testes e testabilidade
 
 - Testes Dart cobrem só lógica pura (economy, astrology, oracle local, public_profile, meditation_sounds). Não há teste de repositório, de provider ou de tela (`widget_test.dart` tem 12 linhas).
-- Não há interfaces; `UserRepository` aceita `FirebaseFirestore`/`FirebaseAuth` no construtor (bom), mas os providers constroem a classe concreta e as telas a usam concreta. `ChatStore` aceita `SharedPreferences` por construtor (bom).
+- Não há interfaces; `UserRepository` aceita `FirebaseFirestore`/`FirebaseAuth` no construtor (bom), mas os providers constroem a classe concreta e as telas a usam concreta. (Na época, `ChatStore` aceitava `SharedPreferences` por construtor; removido na etapa 10.)
 - Os 37 testes de regras (`test_rules/firestore.rules.test.mjs`) são o ativo mais valioso do projeto, mas rodam só manualmente (`npm test` com emulador); não há CI (`.github` não existe).
 - O esquema do documento `users/{uid}` é parseado à mão em três lugares (`AppUser.fromFirebase`, `purchaseItem` com casts de `Map`, `dailyCheckIn`, `syncPublicProfile`, `rebuildPublicProfiles`).
 

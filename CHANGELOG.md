@@ -12,6 +12,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 
 ### Corrigido
 
+- Oráculo (revisão da etapa 10): aviso de privacidade sem prometer exclusão inexistente ("até serem apagadas", "em breve você poderá apagá-las no app"); `android:allowBackup="false"` (cache e prefs fora do backup do Google Drive); chaves antigas `astrum.chat.<uid>` apagadas do aparelho ao abrir o oráculo; falha ao carregar o histórico mostra "Não foi possível carregar o histórico." com "Tentar de novo"; o campo só é limpo quando o envio é aceito (chips não apagam o texto digitado; troca de usuário limpa o rascunho); prompt pendente também é consumido com o chat já carregado; `limitReached` calculado no controller e envio desabilitado na conversa cheia; a 2ª mensagem rápida não recria a conversa; removidos `waitForSync` e `remoteMessageCount(fromServer)`, sem uso.
+- Release: exclusão de conversa/histórico e de conta passa a ser item bloqueante do `docs/release-checklist.md` (LGPD art. 18, VI).
 - Oráculo: texto digitado antes de o histórico carregar não é mais apagado sem ser enviado; trocar de usuário reinicia o chat e ignora resposta pendente do usuário anterior.
 
 ### Adicionado

@@ -1,5 +1,7 @@
 # Sincronização do histórico do oráculo com o Firestore (D9)
 
+> **Superado pela etapa 10** (`step10-chat-sync.md`): o estado descrito em "Contexto" (`astrum.chat.<uid>`, `ChatStore`) já não existe; mantido só como histórico.
+
 Status: **superado** por `step10-chat-sync.md` (e `docs/decisions/2026-11-chat-sync-decisions.md`). Marcado para revisão do `reviewer-consultor` (dado pessoal sensível, regras do Firestore, exclusão de conta).
 
 ## Contexto
