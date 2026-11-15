@@ -224,7 +224,16 @@ Depois da etapa (versão futura): remover `LegacyChatStore` e os `.bak` (etapa 1
 - Passos 5 e 6 entraram juntos com a remoção do legado num único commit (a remoção não compila sem o controller novo).
 - `ChatState` guarda `selectedId` (o `index` é derivado) e `limitReached`. O aviso de limite é uma mensagem do oráculo anexada só na exibição (não persistida).
 - **Limite efetivo:** a conversa é considerada cheia com mais de 498 mensagens (e não só aos 500), para caber sempre pergunta e resposta; uma pergunta aos 499 teria a resposta recusada pela regra (501 mensagens).
-- Aviso de privacidade (passo 6): diálogo com botão "Entendi" ao tentar enviar pela primeira vez; flag `astrum.chat.notice.<uid>` em shared_preferences (`ChatNoticeStore`). Texto: "As conversas com o oráculo são armazenadas na nuvem (Firebase, região de São Paulo, southamerica-east1) para sincronizar entre os seus aparelhos. Elas ficam guardadas até você apagá-las, sem prazo de expiração, e poderão ser apagadas junto com a sua conta." Sem recusa.
+- Aviso de privacidade (passo 6): diálogo com botão "Entendi" ao tentar enviar pela primeira vez; flag `astrum.chat.notice.<uid>` em shared_preferences (`ChatNoticeStore`). Texto: "As conversas com o oráculo são armazenadas na nuvem (Firebase, região de São Paulo, southamerica-east1) para sincronizar entre os seus aparelhos. Elas ficam guardadas até serem apagadas, sem prazo de expiração. Em breve você poderá apagá-las no app, e elas poderão ser apagadas junto com a sua conta." Sem recusa (redação ajustada após a revisão do consultor: não promete exclusão inexistente).
 - Tela: botão de enviar e chips ficam desabilitados até a hidratação e o campo só é limpo quando o envio é aceito (BUG-E9-1).
 - Helpers de teste `makeContainer` e `pumpScreen` passaram a sobrescrever `currentUidProvider` com o uid do usuário de teste; `FakeChatRepository` removido.
 - Fica no backlog (plano): 11 exclusão de conta (inclui `deleteAllConversations`, limpeza do cache e a corrida de LGPD registrada na seção 5), 12 aceite de amizade, 13 higiene de custo e abuso, 14 upgrade de dependências.
+
+## 14. Dívida da etapa 11 (registrada após a revisão)
+
+Não implementado na etapa 10; a exclusão de conta e a UI de apagar são **bloqueantes de release** (`docs/release-checklist.md`, seção 6b).
+
+- Logout e exclusão de conta: `FirebaseFirestore.terminate()` seguido de `clearPersistence()` para limpar o cache local (conteúdo de conversas no aparelho).
+- Exclusão recursiva no servidor (Admin SDK, `firebase-tools firestore:delete --recursive` ou extensão Delete User Data), que também varre mensagens órfãs (corrida de LGPD da seção 5).
+- iOS: excluir o cache/prefs do backup e definir a proteção de dados (o Android já usa `allowBackup="false"`).
+- Escritas offline pendentes do uid anterior se perdem após a troca de usuário (a fila é do cliente; aceitar, ou drenar com `waitForPendingWrites` antes de trocar).

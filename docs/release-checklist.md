@@ -33,6 +33,10 @@ Avisos:
 - [ ] Busca de amigo.
 - [ ] Meditacao (audio toca e para corretamente).
 
+## 6b. Privacidade e LGPD (BLOQUEANTE)
+- [ ] **BLOQUEANTE:** UI de exclusao de conversa/historico do oraculo e exclusao de conta funcionando, incluindo os dados em `users/{uid}/conversations` (LGPD art. 18, VI). Sem isso, nao publicar.
+- [ ] Quando a exclusao existir, revisar o texto do aviso de privacidade do oraculo (`chatNoticeBody` em `lib/features/oracle/presentation/oracle_screen.dart`): remover o "em breve" e descrever o que de fato acontece.
+
 ## 7. Seguranca do repositorio
 - [ ] `.env` nao esta no git: `git ls-files .env` deve retornar vazio e `.env` deve estar no `.gitignore`.
 - [ ] Nenhuma chave ou credencial (service account) no diff da release.

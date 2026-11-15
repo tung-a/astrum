@@ -161,12 +161,30 @@ void main() {
     expect(limit, findsOneWidget);
   });
 
+  testWidgets('abrir o oraculo apaga so as chaves antigas astrum.chat.<uid>',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'astrum.chat.u1': '[{"title":"velho"}]',
+      'astrum.chat.u2': 'x',
+      'astrum.chat.notice.u1': true,
+      'astrum.outra': 'fica',
+      'astrum.chatty': 'fica',
+    });
+    final sp = await SharedPreferences.getInstance();
+    await pumpOracle(tester, chats: InMemoryChatRepository(), sp: sp);
+    await tester.pump();
+
+    expect(sp.getKeys(),
+        {'astrum.chat.notice.u1', 'astrum.outra', 'astrum.chatty'});
+  });
+
   group('aviso de privacidade do historico', () {
     const body =
         'As conversas com o oráculo são armazenadas na nuvem (Firebase, região de '
         'São Paulo, southamerica-east1) para sincronizar entre os seus aparelhos. '
-        'Elas ficam guardadas até você apagá-las, sem prazo de expiração, e '
-        'poderão ser apagadas junto com a sua conta.';
+        'Elas ficam guardadas até serem apagadas, sem prazo de expiração. Em '
+        'breve você poderá apagá-las no app, e elas poderão ser apagadas junto '
+        'com a sua conta.';
 
     testWidgets('aparece antes do 1o envio, uma unica vez por uid',
         (tester) async {

@@ -9,7 +9,7 @@ O histórico do oráculo sai do aparelho (shared_preferences) e passa a viver em
 ## Decisões
 
 1. **Consentimento (Q1, opção a).** Aviso informativo único no primeiro uso do oráculo, sem recusa. O "visto" é guardado por uid em shared_preferences (flag de UI, não dado pessoal).
-2. **Retenção (Q2).** As conversas ficam guardadas até o usuário apagar; sem expiração automática. O aviso diz isso.
+2. **Retenção (Q2).** As conversas ficam guardadas até serem apagadas; sem expiração automática. O aviso diz isso, mas **não promete funcionalidade inexistente**: enquanto não houver UI de exclusão (etapa 11), o texto diz "até serem apagadas", "em breve você poderá apagá-las no app" e "poderão ser apagadas junto com a sua conta" (revisão do consultor, 2026-11-14: a redação anterior, "até você apagá-las", prometia algo que o app não oferece). Texto vigente: "As conversas com o oráculo são armazenadas na nuvem (Firebase, região de São Paulo, southamerica-east1) para sincronizar entre os seus aparelhos. Elas ficam guardadas até serem apagadas, sem prazo de expiração. Em breve você poderá apagá-las no app, e elas poderão ser apagadas junto com a sua conta." O aviso deve ser revisado quando a exclusão existir.
 3. **Região (Q3).** Firestore em `southamerica-east1` (São Paulo). O aviso cita a região.
 4. **Sem usuários ativos (Q7 e migração).** Mudanças drásticas são permitidas e ninguém é afetado. **Não há migração do histórico local**: migrador, plano de importação e `LegacyChatStore` foram removidos (o histórico git preserva o trabalho). A discussão sobre cota na migração em massa e sobre a regra `+N` deixa de valer.
 5. **Ordem e abertura (Q5).** Conversas da mais recente para a mais antiga; o oráculo abre na mais recente.
@@ -20,5 +20,7 @@ O histórico do oráculo sai do aparelho (shared_preferences) e passa a viver em
 
 - Escopo menor: os passos 4 (migrador) do desenho original foram cortados; os passos 5 a 7 seguem.
 - Rascunho vazio de "Nova conversa" não sobrevive a fechar o app (aceito).
-- Quando existir exclusão de conta (etapa 11), as conversas poderão ser apagadas junto; até lá o aviso não promete isso.
+- Quando existir exclusão de conta (etapa 11), as conversas poderão ser apagadas junto; até lá o aviso só diz que isso virá.
+- **Bloqueante de release:** UI de exclusão de conversa/histórico e exclusão de conta (LGPD art. 18, VI); ver `docs/release-checklist.md`.
+- O histórico local antigo (`astrum.chat.<uid>`) é apagado do shared_preferences na abertura do oráculo; `android:allowBackup="false"` evita que cache do Firestore e prefs vão ao backup do Google Drive (o app não depende de backup: dados vivem no Firebase).
 - `firestore.rules` e `firestore.indexes.json` sem mudança.

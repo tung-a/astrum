@@ -20,8 +20,9 @@ const chatNoticeTitle = 'Seu histórico fica na nuvem';
 const chatNoticeBody =
     'As conversas com o oráculo são armazenadas na nuvem (Firebase, região de '
     'São Paulo, southamerica-east1) para sincronizar entre os seus aparelhos. '
-    'Elas ficam guardadas até você apagá-las, sem prazo de expiração, e '
-    'poderão ser apagadas junto com a sua conta.';
+    'Elas ficam guardadas até serem apagadas, sem prazo de expiração. Em '
+    'breve você poderá apagá-las no app, e elas poderão ser apagadas junto '
+    'com a sua conta.';
 
 class OracleScreen extends ConsumerStatefulWidget {
   const OracleScreen({super.key});
@@ -33,6 +34,17 @@ class OracleScreen extends ConsumerStatefulWidget {
 class _OracleScreenState extends ConsumerState<OracleScreen> {
   final _input = TextEditingController();
   final _tts = FlutterTts();
+
+  @override
+  void initState() {
+    super.initState();
+    // Historico local antigo (pre-etapa 10) nao deve ficar no aparelho.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await ref.read(chatNoticeStoreProvider).purgeLegacyChats();
+      } catch (_) {}
+    });
+  }
 
   @override
   void dispose() {
