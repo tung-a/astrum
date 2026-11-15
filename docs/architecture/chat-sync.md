@@ -1,6 +1,6 @@
 # Sincronização do histórico do oráculo com o Firestore (D9)
 
-Status: proposto. Marcado para revisão do `reviewer-consultor` (dado pessoal sensível, regras do Firestore, exclusão de conta).
+Status: **superado** por `step10-chat-sync.md` (e `docs/decisions/2026-11-chat-sync-decisions.md`). Marcado para revisão do `reviewer-consultor` (dado pessoal sensível, regras do Firestore, exclusão de conta).
 
 ## Contexto
 

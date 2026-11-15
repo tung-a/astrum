@@ -12,12 +12,12 @@ Repositórios (etapa 4, hoje em `features/<feature>/data/`; por agregado; `UserR
 - Economia: `EconomyRepository` é uma interface, com implementação `FirestoreEconomyRepository` (compra e check-in em transação). Todo crédito e débito de saldo passa por ela.
 - Perfil público: `PublicProfileSync` grava `publicProfiles/{uid}` e é usado por `ProfileRepository` e pela economia. O sync é decidido por tipo de escrita: só `equip(EquipSlot.profilePicture)` e a compra com `equipSlot: profilePicture` sincronizam (grava `users`, depois `publicProfiles`; não atômico, ver opção B em `docs/plans/reestruturacao-etapas-1-a-3.md`).
 - Slots de cosmético: `EquipSlot` em `lib/features/economy/domain/equip_slot.dart`; o caminho do Firestore fica em `lib/features/economy/domain/equip_slot_field.dart`; `ItemType.slot` (em `lib/features/economy/domain/shop_item.dart`) liga a UI ao slot.
-- Integrações e lógica pura: `economy.dart` (só funções; `CatalogEntry` em `economy/domain/catalog_entry.dart` e as exceções em `economy_exceptions.dart`), `oracle_service.dart`, `chat_store.dart`, `analytics_service.dart`, `public_profile.dart`, `meditation_sounds.dart`.
+- Integrações e lógica pura: `economy.dart` (só funções; `CatalogEntry` em `economy/domain/catalog_entry.dart` e as exceções em `economy_exceptions.dart`), `oracle_service.dart`, `analytics_service.dart`, `public_profile.dart`, `meditation_sounds.dart`.
 
 ## Firestore (coleções em uso)
 
 - `users/{uid}` com subcoleções `events`, `friends`, `notifications`.
-- `users/{uid}/conversations/{id}/messages/{id}`: histórico do oráculo (proposto em D9).
+- `users/{uid}/conversations/{id}/messages/{id}`: histórico do oráculo (implementado na etapa 10; Firestore em `southamerica-east1`; sem expiração, só o usuário apaga).
 
 - Demais coleções: `shop_items` (catálogo e preço, escrita só do admin), `publicProfiles/{uid}` (nome, avatar, hash do e-mail, para busca de amigo), `analytics_events`, `cristais_propriedades`. A economia (check-in e compra) é validada só pelas regras (`firestore.rules`), com testes em `test_rules/`.
 
@@ -28,6 +28,8 @@ Repositórios (etapa 4, hoje em `features/<feature>/data/`; por agregado; `UserR
 - [step4-repositories.md](step4-repositories.md): etapa 4, quebra de `UserRepository` em repositórios por agregado (Events, Social, Catalog, Economy atrás de interface, Profile, Admin) e `PublicProfileSync`; concluída, ordem de commits e fakes de teste.
 - [step6-auth.md](step6-auth.md): etapa 6, `AuthRepository`, cadastro com rollback, senha fora do `state.extra` e Firebase fora das telas (admin, login, conta); passos 1 a 8 implementados, sem commit; aguarda `reviewer-consultor` e o relatório de QA.
 - [step7-data-models.md](step7-data-models.md): etapa 7, separação de `data/` e `models/`, contrato único com `firestore.rules` (`rules_contract.dart`) e teste de divergência; passos 1 a 7 e 9 implementados, sem commit; passo 8 (renomes `fromFirebase` e `watchShopCatalog`) não feito.
-- [chat-sync.md](chat-sync.md): sincronização do histórico do oráculo com o Firestore (proposto, aguardando revisão e decisões do usuário).
+- [chat-sync.md](chat-sync.md): sincronização do histórico do oráculo com o Firestore (superado por [step10-chat-sync.md](step10-chat-sync.md); decisões em `docs/decisions/2026-11-chat-sync-decisions.md`).
 
-Etapa 9 (controllers): a lógica das telas de astral, rituais, loja/inventário, cosmos, oráculo e conta mora em `*_controller.dart` (`Notifier`, camada 3, junto dos providers; não importam `material`/`widgets`, regra verificada em `test/core_boundaries_test.dart`). `ProfileRepository` é uma `abstract interface class` (implementação `FirestoreProfileRepository`); `ChatRepository` é a interface do histórico do oráculo (`ChatStore` a implementa, mesma chave `astrum.chat.<uid>` e mesmo JSON). `core/clock/` traz `clockProvider` (relógio injetável) e `dayKey`. Detalhes e desvios em `docs/architecture/step9-controllers.md`.
+Etapa 9 (controllers): a lógica das telas de astral, rituais, loja/inventário, cosmos, oráculo e conta mora em `*_controller.dart` (`Notifier`, camada 3, junto dos providers; não importam `material`/`widgets`, regra verificada em `test/core_boundaries_test.dart`). `ProfileRepository` é uma `abstract interface class` (implementação `FirestoreProfileRepository`); `ChatRepository` é a interface do histórico do oráculo. `core/clock/` traz `clockProvider` (relógio injetável) e `dayKey`. Detalhes e desvios em `docs/architecture/step9-controllers.md`.
+
+Etapa 10 (histórico do oráculo no Firestore): `ChatRepository` passou a ser incremental, por streams, com implementação `FirestoreChatRepository`; o `ChatController` assina a lista de conversas e a conversa aberta, depende de `currentUidProvider` (contador de geração) e mantém "Nova conversa" como rascunho em memória. O histórico local em shared_preferences e a migração foram removidos (sem usuários ativos). Shared_preferences guarda só a flag do aviso de privacidade (`astrum.chat.notice.<uid>`). Detalhes e desvios em `docs/architecture/step10-chat-sync.md`.

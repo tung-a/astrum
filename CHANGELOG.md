@@ -6,8 +6,17 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 
 ## [Não lançado]
 
+### Removido
+
+- Histórico local do oráculo em shared_preferences (`LegacyChatStore`) e o migrador: não há usuários ativos, então não há migração.
+
+### Corrigido
+
+- Oráculo: texto digitado antes de o histórico carregar não é mais apagado sem ser enviado; trocar de usuário reinicia o chat e ignora resposta pendente do usuário anterior.
+
 ### Adicionado
 
+- Histórico do oráculo no Firestore (`users/{uid}/conversations`), sincronizado entre aparelhos, em `southamerica-east1`: conversas da mais recente para a mais antiga, abre na mais recente, limite de 500 mensagens por conversa ("Esta conversa atingiu o limite. Inicie uma nova conversa."), guardado até o usuário apagar. Aviso informativo único no primeiro uso do oráculo.
 - CI no GitHub Actions (`.github/workflows/ci.yml`), em push e PR para `main` e `feature/flutter-migration`: `flutter analyze` e `flutter test` no Ubuntu, e os testes das regras do Firestore no emulador.
 - Workflow manual de build (`.github/workflows/build.yml`): APK debug para Android e build iOS sem assinatura. O build de iOS também roda semanalmente. Não usa segredos.
 - Providers de infraestrutura `firebaseAuthProvider` e `firestoreProvider` (`lib/core/firebase/`), que permitem trocar as instâncias do Firebase em testes.

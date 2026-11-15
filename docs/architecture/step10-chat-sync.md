@@ -1,6 +1,6 @@
 # Etapa 10: histórico do oráculo no Firestore (D9)
 
-Status: **escopo simplificado** pelas decisões de 2026-11-14 (`docs/decisions/2026-11-chat-sync-decisions.md`): sem usuários ativos, **a migração do legado (seção 5 e passo 4) foi cortada** e removida do código; consentimento = aviso informativo único; retenção até o usuário apagar; região `southamerica-east1`; abre na conversa mais recente; texto de limite aos 500; sem botão de apagar por ora. A seção 5 fica só como registro histórico (o código está no histórico git). Marcado para `reviewer-consultor` (dado pessoal, ver seção 10). Este documento **substitui** as seções 1, 2, 4 e 6 de `chat-sync.md` (que parte de regras e interface antigas) e herda dele as seções 3 (princípios das regras) e 5 (LGPD) com os ajustes abaixo. `firestore.rules` **não muda** nesta etapa (seção 3).
+Status: **concluído, com escopo simplificado** (desvios no fim do documento) pelas decisões de 2026-11-14 (`docs/decisions/2026-11-chat-sync-decisions.md`): sem usuários ativos, **a migração do legado (seção 5 e passo 4) foi cortada** e removida do código; consentimento = aviso informativo único; retenção até o usuário apagar; região `southamerica-east1`; abre na conversa mais recente; texto de limite aos 500; sem botão de apagar por ora. A seção 5 fica só como registro histórico (o código está no histórico git). Marcado para `reviewer-consultor` (dado pessoal, ver seção 10). Este documento **substitui** as seções 1, 2, 4 e 6 de `chat-sync.md` (que parte de regras e interface antigas) e herda dele as seções 3 (princípios das regras) e 5 (LGPD) com os ajustes abaixo. `firestore.rules` **não muda** nesta etapa (seção 3).
 
 Base: `chat-sync.md`, `step9-controllers.md` (3.2 e 9), decisões de 2026-11 (sem web, Spark, sem Functions, exclusão de conta na etapa 11), `firestore.rules` (linhas 272 a 315) e `test_rules/firestore.rules.test.mjs`.
 
@@ -217,3 +217,14 @@ Depois da etapa (versão futura): remover `LegacyChatStore` e os `.bak` (etapa 1
 - **Q5 (ordem das conversas).** O menu passa a listar da mais recente para a mais antiga e o app abre na mais recente (hoje abre na mais antiga). **Recomendo aceitar.**
 - **Q6 (conversa longa).** Sem paginação, conversas de até 500 mensagens carregam inteiras (custo proporcional). Aos 500, mostrar texto novo "Esta conversa atingiu o limite. Inicie uma nova conversa." (não persistido). **Recomendo aceitar este texto** e deixar "carregar anteriores" para depois.
 - **Q7 (escala).** Quantos usuários ativos por dia e quantos com histórico local relevante você espera no lançamento? Se passar de ~100 usuários migrando no mesmo dia, **recomendo aprovar a mudança de regra `+N`** (passo à parte, com `reviewer-consultor`); abaixo disso, não mexer nas regras.
+
+## 13. Desvios na implementação (concluída em 2026-11-14)
+
+- Migração do legado (seção 5, passo 4) cortada: não há usuários ativos. Removidos `LegacyChatMigrator`, `legacy_import_plan`, `LegacyChatStore`/`LegacyChatRepository`, `titleWithSuffix` e `remoteMessageIds` (só serviam à migração), com os testes.
+- Passos 5 e 6 entraram juntos com a remoção do legado num único commit (a remoção não compila sem o controller novo).
+- `ChatState` guarda `selectedId` (o `index` é derivado) e `limitReached`. O aviso de limite é uma mensagem do oráculo anexada só na exibição (não persistida).
+- **Limite efetivo:** a conversa é considerada cheia com mais de 498 mensagens (e não só aos 500), para caber sempre pergunta e resposta; uma pergunta aos 499 teria a resposta recusada pela regra (501 mensagens).
+- Aviso de privacidade (passo 6): diálogo com botão "Entendi" ao tentar enviar pela primeira vez; flag `astrum.chat.notice.<uid>` em shared_preferences (`ChatNoticeStore`). Texto: "As conversas com o oráculo são armazenadas na nuvem (Firebase, região de São Paulo, southamerica-east1) para sincronizar entre os seus aparelhos. Elas ficam guardadas até você apagá-las, sem prazo de expiração, e poderão ser apagadas junto com a sua conta." Sem recusa.
+- Tela: botão de enviar e chips ficam desabilitados até a hidratação e o campo só é limpo quando o envio é aceito (BUG-E9-1).
+- Helpers de teste `makeContainer` e `pumpScreen` passaram a sobrescrever `currentUidProvider` com o uid do usuário de teste; `FakeChatRepository` removido.
+- Fica no backlog (plano): 11 exclusão de conta (inclui `deleteAllConversations`, limpeza do cache e a corrida de LGPD registrada na seção 5), 12 aceite de amizade, 13 higiene de custo e abuso, 14 upgrade de dependências.

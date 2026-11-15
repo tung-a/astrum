@@ -157,3 +157,12 @@ Corrigidos nos commits da branch: exclusão lê do servidor e falha offline; pla
 
 
 **Migração do legado cortada (2026-11-14).** Não há usuários ativos (só contas de teste do dono): migrador, plano de importação e `LegacyChatStore` foram removidos e os itens acima sobre migração (divisão em partes, datas sintéticas, `.bak`, cota na migração) deixam de valer. Ver `docs/decisions/2026-11-chat-sync-decisions.md`.
+
+## Etapa 10 concluída (2026-11-14)
+
+Chat do oráculo no Firestore entregue com escopo simplificado (ver `docs/architecture/step10-chat-sync.md`, seção 13, e `docs/decisions/2026-11-chat-sync-decisions.md`). E9-B4 e BUG-E9-1 resolvidos. Backlog restante:
+
+- **11** Exclusão de conta, incluindo `deleteAllConversations`, limpeza do cache (`clearPersistence`) e a corrida de LGPD registrada (mensagem órfã se outro aparelho grava durante a exclusão; sugerida exclusão recursiva no servidor).
+- **12** Aceite de amizade.
+- **13** Higiene de custo e abuso (inclui `fieldOverrides` de `messages.text` em `firestore.indexes.json`, botão de apagar conversa e visibilidade das conversas além das 50).
+- **14** Upgrade de dependências.

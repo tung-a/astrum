@@ -97,7 +97,8 @@ $env:FIRESTORE_EMULATOR_PORT=8091; npm test      # PowerShell
 - `docs/architecture/step6-auth.md`: etapa 6, `AuthRepository`, cadastro com desfazimento, senha fora da navegação e Firebase fora das telas (implementada na branch, sem commit; aguarda revisão do `reviewer-consultor`).
 - `docs/architecture/step7-data-models.md`: etapa 7, separação de `data/` e `models/`, contrato único com `firestore.rules` e teste de divergência (implementada na branch, sem commit; renomes opcionais do passo 8 não feitos).
 - `docs/architecture/step9-controllers.md`: etapa 9, controllers (`Notifier`) no lugar da lógica das telas, interface `ProfileRepository` e `ChatRepository` (concluída na branch).
-- A partir da etapa 10 (numeração de `restructuring.md`) está no backlog.
+- `docs/architecture/step10-chat-sync.md`: etapa 10, histórico do oráculo no Firestore (concluída na branch; escopo simplificado, ver `docs/decisions/2026-11-chat-sync-decisions.md`).
+- Etapa 10 (chat do oráculo no Firestore) concluída; no backlog: 11 exclusão de conta, 12 aceite de amizade, 13 higiene de custo e abuso, 14 upgrade de dependências.
 - `docs/decisions/2026-11-restructuring-decisions.md`: decisões de escopo sobre economia, plataformas, exclusão de conta e chat.
 
 O projeto Flutter e suas plataformas nativas ficam na raiz. Imagens e áudios em `assets/` são recursos compartilhados do aplicativo.
