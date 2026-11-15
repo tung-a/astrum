@@ -330,6 +330,69 @@ test('conversas: outro uid nao le, cria, atualiza, apaga nem envia mensagem', as
   await assertSucceeds(getDoc(doc(as('alice'), 'users/alice/conversations/c1')));
 });
 
+// ---- conversas: exclusao, createdAt, colisao de isNew, alheio, caracterizacao (correcoes da revisao, etapa 10)
+test('conversas: dono apaga mensagem e depois a conversa (cascata do cliente)', async () => {
+  const db = as('alice');
+  await seedConv('c1', 1);
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'users/alice/conversations/c1/messages/m0001'), msg()));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice/conversations/c1/messages/m0001')));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice/conversations/c1')));
+  const snap = await getDoc(doc(db, 'users/alice/conversations/c1'));
+  if (snap.exists()) throw new Error('conversa nao foi apagada');
+});
+
+test('conversas: update que altera createdAt negado (imutavel)', async () => {
+  const db = as('alice');
+  await seedConv('c1', 0);
+  await assertFails(updateDoc(doc(db, 'users/alice/conversations/c1'), {
+    createdAt: Timestamp.fromMillis(1000), updatedAt: Timestamp.now(),
+  }));
+  // mesmo junto de um incremento valido
+  await assertFails(updateDoc(doc(db, 'users/alice/conversations/c1'), {
+    createdAt: Timestamp.fromMillis(1000), messageCount: increment(1), updatedAt: Timestamp.now(),
+  }));
+});
+
+test('conversas: set sobre conversa existente (colisao de isNew) negado, com ou sem mensagem', async () => {
+  const db = as('alice');
+  await seedConv('c1', 3); // ja existe, createdAt dela
+  // set vira update: createdAt novo (!= existente) e contador 1 (diminui) violam a regra
+  await assertFails(setDoc(doc(db, 'users/alice/conversations/c1'), conv(1)));
+  const b = writeBatch(db);
+  b.set(doc(db, 'users/alice/conversations/c1'), conv(1));
+  b.set(doc(db, 'users/alice/conversations/c1/messages/m0001'), msg());
+  await assertFails(b.commit());
+  // conversa preservada
+  const snap = await getDoc(doc(db, 'users/alice/conversations/c1'));
+  if (snap.data().messageCount !== 3) throw new Error('conversa foi alterada');
+});
+
+test('conversas: update de conversa alheia com increment negado', async () => {
+  await seedConv('c1', 0);
+  await assertFails(updateDoc(doc(as('bob'), 'users/alice/conversations/c1'), {
+    messageCount: increment(1), updatedAt: Timestamp.now(),
+  }));
+  const snap = await getDoc(doc(as('alice'), 'users/alice/conversations/c1'));
+  if (snap.data().messageCount !== 0) throw new Error('contador alheio foi alterado');
+});
+
+// CARACTERIZACAO (nao e um requisito): a regra da conversa aceita um update do
+// dono com messageCount +1 SEM mensagem no batch (a regra da mensagem exige o
+// contador, mas a da conversa nao exige a mensagem). E autoprejuizo: so o dono
+// infla o proprio contador (ate 500, ficando sem espaco para mensagens reais)
+// e a migracao detecta a divergencia (confere por ids). Registrado como risco
+// aceito no step10-chat-sync.md; se a regra mudar, este teste deve ser revisto.
+test('caracterizacao: update do dono com +1 sem mensagem e aceito (autoprejuizo)', async () => {
+  const db = as('alice');
+  await seedConv('c1', 0);
+  await assertSucceeds(updateDoc(doc(db, 'users/alice/conversations/c1'), {
+    messageCount: increment(1), updatedAt: Timestamp.now(),
+  }));
+  const snap = await getDoc(doc(db, 'users/alice/conversations/c1'));
+  if (snap.data().messageCount !== 1) throw new Error('contador nao subiu');
+});
+
 // ---- catalogo da loja (shop_items)
 test('compra: saldo debitado igual ao preco do catalogo ok; diferente negado', async () => {
   const ref = doc(as('alice'), 'users/alice');
