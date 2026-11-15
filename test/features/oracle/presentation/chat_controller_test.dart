@@ -235,35 +235,41 @@ void main() {
     expect(chats.saves, hasLength(1));
   });
 
-  // Fixa o COMPORTAMENTO ATUAL (defeitos latentes registrados no step 9,
-  // secao 3.2). Quando forem corrigidos, estes testes mudam junto, em commit
-  // separado e com aval do planner.
-  group('comportamento atual (defeitos latentes preservados)', () {
-    test('(1) se o oraculo lanca, loading fica true para sempre', () async {
+  group('comportamento corrigido (defeitos do chat)', () {
+    const erro = 'Não foi possível obter a resposta. Tente novamente.';
+
+    test('(1) se o oraculo lanca, loading e liberado e ha resposta de erro',
+        () async {
       oracle.failWith = StateError('oraculo fora');
       final c = await setup();
 
-      await expectLater(ctl(c).send('Oi'), throwsStateError);
+      await ctl(c).send('Oi');
 
-      expect(st(c).loading, isTrue);
-      // Novo envio e ignorado enquanto loading estiver preso.
+      expect(st(c).loading, isFalse);
+      expect(st(c).current.messages.map((m) => (m.role, m.text)),
+          [('user', 'Oi'), ('model', erro)]);
+      // Novo envio volta a funcionar.
+      oracle.failWith = null;
       await ctl(c).send('Outra');
-      expect(oracle.calls, hasLength(1));
+      expect(oracle.calls, hasLength(2));
+      expect(st(c).current.messages.last.text, 'resposta do oraculo');
     });
 
-    test('(1) se o save lanca, loading fica true para sempre', () async {
+    test('(1) se o save lanca, loading e liberado e ha resposta de erro',
+        () async {
       chats.saveError = StateError('prefs fora');
       final c = await setup();
 
-      await expectLater(ctl(c).send('Oi'), throwsStateError);
+      await ctl(c).send('Oi');
 
-      expect(st(c).loading, isTrue);
+      expect(st(c).loading, isFalse);
+      expect(st(c).current.messages.last.text, erro);
       expect(oracle.calls, isEmpty);
     });
 
     test(
         '(2) trocar de conversa durante a resposta grava a resposta na '
-        'conversa errada', () async {
+        'conversa que originou o envio', () async {
       final gate = Completer<String>();
       oracle.completer = gate;
       final c = await setup();
@@ -278,9 +284,22 @@ void main() {
 
       final conv1 = st(c).conversations[0];
       final conv2 = st(c).conversations[1];
-      expect(conv1.messages.map((m) => m.role), ['user']);
-      expect(conv2.messages.map((m) => (m.role, m.text)),
-          [('model', 'resposta')]); // resposta na conversa errada
+      expect(conv1.messages.map((m) => (m.role, m.text)),
+          [('user', 'Pergunta na conversa 1'), ('model', 'resposta')]);
+      expect(conv2.messages, isEmpty);
+      expect(st(c).index, 1); // conversa ativa continua a escolhida
+      expect(st(c).loading, isFalse);
+    });
+
+    test('(3) enviar antes da hidratacao e ignorado (sem RangeError)',
+        () async {
+      final c = await setup(hydrate: false);
+
+      await ctl(c).send('Oi');
+
+      expect(oracle.calls, isEmpty);
+      expect(chats.saves, isEmpty);
+      expect(st(c).loading, isFalse);
     });
   });
 }

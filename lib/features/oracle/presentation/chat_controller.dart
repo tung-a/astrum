@@ -41,12 +41,10 @@ final chatControllerProvider =
 
 /// Estado e regras do chat do oraculo; a tela so renderiza e fala (TTS).
 ///
-/// Defeitos latentes PRESERVADOS desta refatoracao (a correcao vem depois,
-/// em commit separado; ver test/features/oracle/presentation/
-/// chat_controller_test.dart, grupo "comportamento atual"):
-///  1. se `complete` ou `save` lancar, `loading` fica true para sempre;
-///  2. a resposta vai para `conversations[index]` do momento da resposta, nao
-///     da conversa que originou o envio.
+/// Defeitos da refatoracao original corrigidos: `loading` e liberado mesmo se
+/// `complete`/`save` lancar (a conversa recebe uma resposta de erro); a
+/// resposta vai para a conversa que originou o envio, mesmo se o usuario
+/// trocar de conversa; envio antes da hidratacao e ignorado.
 class ChatController extends AutoDisposeNotifier<ChatState> {
   // Riverpod 2.6 nao tem ref.mounted: o flag evita escrever state depois do
   // dispose, como o State.mounted da tela fazia.
@@ -85,7 +83,7 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
 
   Future<void> send(String text) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty || state.loading) return;
+    if (trimmed.isEmpty || state.loading || !state.hydrated) return;
     final profile = ref.read(profileProvider).valueOrNull;
     if (profile == null) return;
     final uid = profile.uid;
@@ -95,6 +93,7 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
     final oracle = ref.read(oracleServiceProvider);
 
     final current = state.current;
+    final convId = current.id; // a resposta volta para esta conversa
     state = state.copyWith(
       loading: true,
       conversations: [...state.conversations]..[state.index] = ChatConversation(
@@ -106,24 +105,37 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
           ],
         ),
     );
-    await repo.save(uid, state.conversations);
-    await analytics.logEvent('send_message_chat');
-    final reply = await oracle.complete(prompt: trimmed, sign: sign);
+    String reply;
+    try {
+      await repo.save(uid, state.conversations);
+      await analytics.logEvent('send_message_chat');
+      reply = await oracle.complete(prompt: trimmed, sign: sign);
+    } catch (_) {
+      reply = 'Não foi possível obter a resposta. Tente novamente.';
+    }
     if (!_alive) return;
-    // Defeito 2 (preservado): usa o indice e a conversa de AGORA.
-    final now = state.current;
+    final idx = state.conversations.indexWhere((c) => c.id == convId);
+    if (idx < 0) {
+      state = state.copyWith(loading: false);
+      return;
+    }
+    final target = state.conversations[idx];
     state = state.copyWith(
       loading: false,
-      conversations: [...state.conversations]..[state.index] = ChatConversation(
-          id: now.id,
-          title: now.title,
+      conversations: [...state.conversations]..[idx] = ChatConversation(
+          id: target.id,
+          title: target.title,
           messages: [
-            ...now.messages,
+            ...target.messages,
             ChatTurnStored(role: 'model', text: reply)
           ],
         ),
     );
-    await repo.save(uid, state.conversations);
+    try {
+      await repo.save(uid, state.conversations);
+    } catch (_) {
+      // Resposta ja esta na tela; a proxima gravacao leva o historico inteiro.
+    }
   }
 
   Future<void> newConversation() async {
