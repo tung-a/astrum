@@ -93,6 +93,13 @@ class FirestoreChatRepository implements ChatRepository {
     return (snap.data()?['messageCount'] as num?)?.toInt() ?? 0;
   }
 
+  @override
+  Future<Set<String>> remoteMessageIds(String uid, String convId) async {
+    final page =
+        await getServerPage(_msgs(uid, convId).limit(chatMessagesMax + 1));
+    return {for (final d in page.docs) d.id};
+  }
+
   /// Leitura de pagina SEMPRE do servidor (exclusao nao pode se basear em
   /// cache parcial). Offline falha com [ChatOfflineException]. Sobrescrevivel
   /// so em teste.

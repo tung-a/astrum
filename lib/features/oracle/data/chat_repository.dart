@@ -38,6 +38,10 @@ abstract interface class ChatRepository {
   Future<int?> remoteMessageCount(String uid, String convId,
       {bool fromServer = false});
 
+  /// Ids das mensagens existentes no SERVIDOR (ate o teto de 500 da regra);
+  /// falha offline. Usado so pelo migrador para preencher lacunas.
+  Future<Set<String>> remoteMessageIds(String uid, String convId);
+
   /// Apaga as mensagens (em lotes, lendo do servidor) e depois a conversa.
   /// Offline lanca [ChatOfflineException] sem apagar nada. Idempotente.
   Future<void> deleteConversation(String uid, String convId);

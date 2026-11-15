@@ -276,6 +276,16 @@ void main() {
     });
   });
 
+  test('remoteMessageIds lista os ids existentes (e falha offline)', () async {
+    await send('c1', 1, 'a', isNew: true);
+    await send('c1', 3, 'c');
+    expect(await repo.remoteMessageIds('u1', 'c1'), {'m0001', 'm0003'});
+    expect(await repo.remoteMessageIds('u1', 'nada'), isEmpty);
+    final srv = _ServerReadRepo(db)..offline = true;
+    await expectLater(
+        srv.remoteMessageIds('u1', 'c1'), throwsA(isA<ChatOfflineException>()));
+  });
+
   test('waitForSync aguarda as escritas pendentes do Firestore', () async {
     await repo.waitForSync();
     expect(db.syncs, 1);

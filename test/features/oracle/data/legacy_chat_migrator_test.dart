@@ -27,6 +27,7 @@ class _RulesRepo extends FirestoreChatRepository {
   int? serverCountOverride; // resposta de fromServer
   Object? syncError;
   bool syncHangs = false;
+  Future<void> Function()? onSync; // gancho (ex.: o legado muda no meio)
 
   @override
   Future<void> appendMessage(
@@ -75,9 +76,24 @@ class _RulesRepo extends FirestoreChatRepository {
 
   @override
   Future<void> waitForSync() async {
+    await onSync?.call();
     if (syncError != null) throw syncError!;
     if (syncHangs) return Completer<void>().future;
   }
+}
+
+/// Store cujo shared_preferences "nao confirma" a escrita do .bak.
+class _NoBackupStore extends LegacyChatStore {
+  _NoBackupStore(super.prefs);
+  @override
+  Future<bool> backup(String uid, String raw) async => false;
+}
+
+/// Store cuja marca de migracao falha (setString devolve false).
+class _NoBaseStore extends LegacyChatStore {
+  _NoBaseStore(super.prefs);
+  @override
+  Future<bool> setMigrationBase(String uid, int millis) async => false;
 }
 
 String _legacy(List<List<(String, String)>> convs, {List<String>? ids}) =>
@@ -174,15 +190,53 @@ void main() {
     expect(await migrator().run('u1'), MigrationResult.alreadyDone);
   });
 
-  test('formato inesperado (id nulo, mensagem nao-mapa) tambem e corrompido',
+  test('estrutura irrecuperavel (raiz nao-mapa, conversations nao-lista)',
       () async {
-    const bad1 = '{"conversations":[{"id":null,"messages":[]}]}';
+    const bad1 = '[1,2,3]';
     await prefs.setString('astrum.chat.u1', bad1);
     expect(await migrator().run('u1'), MigrationResult.corrupt);
-    const bad2 = '{"conversations":[{"id":"a","messages":[42]}]}';
+    const bad2 = '{"conversations":"texto"}';
     await prefs.setString('astrum.chat.u2', bad2);
     expect(await migrator().run('u2'), MigrationResult.corrupt);
     expect(prefs.getString('astrum.chat.u2'), bad2);
+    expect(prefs.getString('astrum.chat.u2.bak'), bad2);
+  });
+
+  test('parse tolerante: role/text atipicos e itens estranhos nao corrompem',
+      () async {
+    await prefs.setString(
+        'astrum.chat.u1',
+        jsonEncode({
+          'conversations': [
+            {
+              'id': 'ok',
+              'title': 5,
+              'messages': [
+                {'role': 7, 'text': 'tipo errado de role'},
+                {'role': 'model', 'text': 99},
+                42,
+                {'role': 'model', 'text': 'resposta'},
+              ],
+            },
+            {'id': null, 'messages': 'nao-lista'},
+            {
+              'id': 'a/b',
+              'messages': [
+                {'text': 'id invalido vira legacy-3'}
+              ]
+            },
+            'lixo',
+          ],
+        }));
+    expect(await migrator().run('u1'), MigrationResult.migrated);
+    final m = await messages('u1', 'ok');
+    expect(m.map((x) => x['text']), ['tipo errado de role', 'resposta']);
+    expect(m.map((x) => x['role']), ['user', 'model']);
+    final c = (await db.doc('users/u1/conversations/ok').get()).data()!;
+    expect(c['title'], 'Conversa');
+    expect(await count('u1', 'legacy-2'), 1);
+    expect(await count('u1', 'legacy-1'), isNull); // sem mensagens
+    expect(prefs.getString('astrum.chat.migrated.u1'), 'done');
   });
 
   test('caminho feliz: envia tudo, confere, grava .bak, apaga o original',
@@ -254,19 +308,106 @@ void main() {
     expect(prefs.getString('astrum.chat.u1'), isNull);
   });
 
-  test('dois aparelhos migrando o mesmo legado: sem duplicar', () async {
+  test('execucoes concorrentes do mesmo uid compartilham uma so execucao',
+      () async {
+    await prefs.setString('astrum.chat.u1', _legacy(two));
+    final results =
+        await Future.wait([migrator().run('u1'), migrator().run('u1')]);
+    expect(results, [MigrationResult.migrated, MigrationResult.migrated]);
+    expect(repo.accepted, 5);
+    expect(await count('u1', 'c0'), 3);
+    expect(prefs.getString('astrum.chat.migrated.u1'), 'done');
+    // terminada a execucao, uma nova chamada volta a rodar normalmente
+    expect(await migrator().run('u1'), MigrationResult.alreadyDone);
+  });
+
+  test('lacuna permanente: lista ids do servidor e envia so os que faltam',
+      () async {
+    await prefs.setString('astrum.chat.u1', _legacy(two));
+    // Outro aparelho deixou m0001 e m0003 (contador 2): enviar m0003 sempre
+    // falha (existe), o contador nunca avanca pela contagem.
+    final ts = Timestamp.fromDate(now);
+    await db.doc('users/u1/conversations/c0').set({
+      'title': 'Conversa 1',
+      'createdAt': ts,
+      'updatedAt': ts,
+      'messageCount': 2,
+      'schemaVersion': 1,
+    });
+    for (final id in ['m0001', 'm0003']) {
+      await db
+          .doc('users/u1/conversations/c0/messages/$id')
+          .set({'role': 'user', 'text': 'x', 'createdAt': ts});
+    }
+    expect(await migrator().run('u1'), MigrationResult.migrated);
+    expect((await messages('u1', 'c0')).map((m) => m['id']).toSet(),
+        {'m0001', 'm0002', 'm0003'});
+    expect(await count('u1', 'c0'), 3);
+    expect(repo.accepted, 3); // so m0002 de c0 + 2 de c1
+  });
+
+  test('legado muda durante a migracao: nada apagado, sem .bak', () async {
     final raw = _legacy(two);
     await prefs.setString('astrum.chat.u1', raw);
-    final a = migrator();
-    final b = migrator();
-    final results = await Future.wait([a.run('u1'), b.run('u1')]);
-    expect(results, everyElement(isNot(MigrationResult.incomplete)));
-    expect(repo.accepted, 5); // cada mensagem aceita uma unica vez
-    expect(await count('u1', 'c0'), 3);
-    expect(await count('u1', 'c1'), 2);
-    expect((await messages('u1', 'c0')), hasLength(3));
-    expect((await messages('u1', 'c1')), hasLength(2));
-    expect(prefs.getString('astrum.chat.migrated.u1'), 'done');
+    repo.onSync = () async {
+      await prefs.setString(
+          'astrum.chat.u1',
+          _legacy([
+            [('user', 'nova mensagem local')]
+          ]));
+    };
+    expect(await migrator().run('u1'), MigrationResult.incomplete);
+    expect(prefs.getString('astrum.chat.u1'), isNot(raw));
+    expect(prefs.getString('astrum.chat.u1.bak'), isNull);
+    expect(prefs.getString('astrum.chat.migrated.u1'), isNull);
+  });
+
+  test('.bak nao confirmado: original nunca e removido (migracao e corrupto)',
+      () async {
+    final raw = _legacy(two);
+    await prefs.setString('astrum.chat.u1', raw);
+    final s = _NoBackupStore(prefs);
+    expect(await migrator(s: s).run('u1'), MigrationResult.incomplete);
+    expect(prefs.getString('astrum.chat.u1'), raw);
+    expect(prefs.getString('astrum.chat.migrated.u1'), isNull);
+
+    await prefs.setString('astrum.chat.u2', '{"conversations": 5}');
+    expect(await migrator(s: s).run('u2'), MigrationResult.incomplete);
+    expect(prefs.getString('astrum.chat.u2'), isNotNull);
+    expect(prefs.getString('astrum.chat.migrated.u2'), isNull);
+  });
+
+  test('base de datas nao gravada: aborta sem enviar', () async {
+    await prefs.setString('astrum.chat.u1', _legacy(two));
+    expect(await migrator(s: _NoBaseStore(prefs)).run('u1'),
+        MigrationResult.incomplete);
+    expect(repo.accepted, 0);
+  });
+
+  test('datas sinteticas: base gravada na 1a tentativa e reutilizada',
+      () async {
+    await prefs.setString('astrum.chat.u1', _legacy(two));
+    repo.failOnAccepted = 1; // 1a tentativa falha no meio
+    expect(await migrator().run('u1'), MigrationResult.incomplete);
+    expect(prefs.getInt('astrum.chat.migbase.u1'), now.millisecondsSinceEpoch);
+
+    repo.failOnAccepted = null;
+    final later = LegacyChatMigrator(
+        legacy: store,
+        repository: repo,
+        now: () => now.add(const Duration(days: 3)), // relogio avancou
+        syncTimeout: const Duration(milliseconds: 200));
+    expect(await later.run('u1'), MigrationResult.migrated);
+    final c1 = (await db.doc('users/u1/conversations/c1').get()).data()!;
+    expect(
+        (c1['updatedAt'] as Timestamp).toDate().isAtSameMomentAs(now), isTrue);
+    final m0 = await messages('u1', 'c0');
+    final ts = [for (final m in m0) (m['createdAt'] as Timestamp).toDate()];
+    for (var i = 1; i < ts.length; i++) {
+      expect(ts[i].isAfter(ts[i - 1]), isTrue);
+    }
+    expect(ts.every((t) => t.isBefore(now)), isTrue);
+    expect(prefs.getInt('astrum.chat.migbase.u1'), isNull); // limpo ao fim
   });
 
   test('texto > 10000 truncado e mensagens vazias descartadas', () async {

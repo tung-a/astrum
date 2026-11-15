@@ -21,15 +21,32 @@ class LegacyChatStore implements LegacyChatRepository {
   /// Marca de migracao ('done', 'empty' ou 'corrupt'); null = nao migrado.
   String? migratedFlag(String uid) => _prefs.getString(_flagKey(uid));
 
-  Future<void> markMigrated(String uid, String flag) =>
+  /// Grava a marca; false se o shared_preferences nao confirmou a escrita.
+  Future<bool> markMigrated(String uid, String flag) =>
       _prefs.setString(_flagKey(uid), flag);
 
-  /// Copia o JSON cru para `<chave>.bak` (nunca apaga o original).
-  Future<void> backup(String uid, String raw) =>
+  /// Copia o JSON cru para `<chave>.bak` (nunca apaga o original). false se
+  /// a escrita nao foi confirmada: nesse caso o original NAO pode ser removido.
+  Future<bool> backup(String uid, String raw) =>
       _prefs.setString(_bakKey(uid), raw);
 
-  /// Remove o original; so depois de [backup] e da conferencia no servidor.
-  Future<void> removeOriginal(String uid) => _prefs.remove(_key(uid));
+  /// Conteudo do `.bak` (null = ausente).
+  String? backupJson(String uid) => _prefs.getString(_bakKey(uid));
+
+  /// Remove o original; so depois de [backup] confirmado e da conferencia no
+  /// servidor.
+  Future<bool> removeOriginal(String uid) => _prefs.remove(_key(uid));
+
+  String _baseKey(String uid) => 'astrum.chat.migbase.$uid';
+
+  /// Base `now` (ms desde epoch, UTC) das datas sinteticas da migracao,
+  /// gravada na 1a tentativa para as retomadas manterem a ordem estavel.
+  int? migrationBase(String uid) => _prefs.getInt(_baseKey(uid));
+
+  Future<bool> setMigrationBase(String uid, int millis) =>
+      _prefs.setInt(_baseKey(uid), millis);
+
+  Future<bool> clearMigrationBase(String uid) => _prefs.remove(_baseKey(uid));
 
   @override
   Future<List<ChatConversation>> load(String uid) async {

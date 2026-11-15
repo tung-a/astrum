@@ -72,4 +72,16 @@ void main() {
     ]);
     expect((await store.load('u2')).single.id, isNot('a'));
   });
+
+  test('backup, markMigrated e base de migracao devolvem o bool do prefs',
+      () async {
+    expect(await store.backup('u1', '{"a":1}'), isTrue);
+    expect(store.backupJson('u1'), '{"a":1}');
+    expect(await store.markMigrated('u1', 'done'), isTrue);
+    expect(store.migratedFlag('u1'), 'done');
+    expect(await store.setMigrationBase('u1', 123), isTrue);
+    expect(store.migrationBase('u1'), 123);
+    expect(await store.clearMigrationBase('u1'), isTrue);
+    expect(store.migrationBase('u1'), isNull);
+  });
 }

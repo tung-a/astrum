@@ -49,7 +49,20 @@ class LegacyChatMigrator {
   /// Tentativas por conversa quando outro aparelho avanca em paralelo.
   final int maxRounds;
 
-  Future<MigrationResult> run(String uid) async {
+  /// Execucao unica por uid no processo: chamadas concorrentes (ex.: duas
+  /// aberturas do oraculo) compartilham a mesma execucao e o mesmo resultado.
+  static final _inFlight = <String, Future<MigrationResult>>{};
+
+  Future<MigrationResult> run(String uid) {
+    final running = _inFlight[uid];
+    if (running != null) return running;
+    final f = _run(uid).whenComplete(() {
+      _inFlight.remove(uid);
+    });
+    return _inFlight[uid] = f;
+  }
+
+  Future<MigrationResult> _run(String uid) async {
     if (_legacy.migratedFlag(uid) != null) return MigrationResult.alreadyDone;
 
     final raw = _legacy.rawJson(uid);
@@ -60,17 +73,29 @@ class LegacyChatMigrator {
 
     final parsed = _parse(raw);
     if (parsed == null) {
-      await _legacy.backup(uid, raw);
+      // So marca `corrupt` com o .bak confirmado (original segue intacto).
+      if (!await _legacy.backup(uid, raw)) return MigrationResult.incomplete;
       await _legacy.markMigrated(uid, 'corrupt');
       return MigrationResult.corrupt;
     }
 
-    final plan = planLegacyImport(parsed, _now());
-    if (plan.isEmpty) {
+    if (planLegacyImport(parsed, _now()).isEmpty) {
       // Lista vazia ou so rascunhos: nada a enviar.
       await _legacy.markMigrated(uid, 'empty');
       return MigrationResult.nothingToMigrate;
     }
+
+    // Base das datas sinteticas: gravada na 1a tentativa e reutilizada nas
+    // retomadas (ordem estavel entre tentativas).
+    var baseMs = _legacy.migrationBase(uid);
+    if (baseMs == null) {
+      baseMs = _now().toUtc().millisecondsSinceEpoch;
+      if (!await _legacy.setMigrationBase(uid, baseMs)) {
+        return MigrationResult.incomplete;
+      }
+    }
+    final plan = planLegacyImport(
+        parsed, DateTime.fromMillisecondsSinceEpoch(baseMs, isUtc: true));
 
     try {
       for (final conv in plan) {
@@ -90,13 +115,22 @@ class LegacyChatMigrator {
       return MigrationResult.incomplete;
     }
 
-    await _legacy.backup(uid, raw);
+    // O legado mudou durante a migracao (ex.: uso do chat): nada e apagado; a
+    // proxima abertura migra o que faltar.
+    if (_legacy.rawJson(uid) != raw) return MigrationResult.incomplete;
+    // Nunca remove o original sem o .bak confirmado.
+    if (!await _legacy.backup(uid, raw)) return MigrationResult.incomplete;
+    if (_legacy.backupJson(uid) != raw) return MigrationResult.incomplete;
     await _legacy.removeOriginal(uid);
     await _legacy.markMigrated(uid, 'done');
+    await _legacy.clearMigrationBase(uid);
     return MigrationResult.migrated;
   }
 
-  /// Leitura estrita: qualquer formato inesperado devolve null (corrompido).
+  /// Leitura tolerante (como `ChatTurnStored.fromJson`): role/text atipicos,
+  /// mensagens que nao sao mapa e ids invalidos nao corrompem o historico.
+  /// So estrutura irrecuperavel (raiz nao e mapa, `conversations` nao e lista)
+  /// devolve null.
   List<ChatConversation>? _parse(String raw) {
     try {
       final decoded = jsonDecode(raw);
@@ -104,29 +138,49 @@ class LegacyChatMigrator {
       final list = decoded['conversations'];
       if (list == null) return const [];
       if (list is! List) return null;
-      return [
-        for (final c in list)
-          ChatConversation(
-            id: (c as Map)['id'] as String,
-            title: c['title'] as String? ?? 'Conversa',
-            messages: [
-              for (final m in (c['messages'] as List? ?? const []))
-                ChatTurnStored(
-                  role: (m as Map)['role'] as String? ?? 'user',
-                  text: m['text'] as String? ?? '',
-                ),
-            ],
-          ),
-      ];
+      final out = <ChatConversation>[];
+      for (var i = 0; i < list.length; i++) {
+        final c = list[i];
+        final map = c is Map ? c : const <Object?, Object?>{};
+        final rawId = map['id'];
+        final id = rawId is String && _validId(rawId) ? rawId : 'legacy-$i';
+        final msgs = map['messages'];
+        out.add(ChatConversation(
+          id: id,
+          title: map['title'] is String ? map['title'] as String : 'Conversa',
+          messages: [
+            if (msgs is List)
+              for (final m in msgs)
+                if (m is Map)
+                  ChatTurnStored(
+                    role: m['role'] is String ? m['role'] as String : 'user',
+                    text: m['text'] is String ? m['text'] as String : '',
+                  ),
+          ],
+        ));
+      }
+      return out;
     } catch (_) {
       return null;
     }
   }
 
+  /// Id valido de documento do Firestore (sem '/', nao vazio, nao '.'/'..').
+  bool _validId(String id) =>
+      id.isNotEmpty &&
+      id.length <= 1500 &&
+      !id.contains('/') &&
+      id != '.' &&
+      id != '..';
+
+  ChatTurnStored _stored(ImportMessage m) => ChatTurnStored(
+      id: m.id, role: m.role, text: m.text, createdAt: m.createdAt);
+
   /// Envia o que falta de [conv], uma mensagem por batch e sem aguardar cada
   /// commit (a fila do Firestore preserva a ordem). Se outro aparelho avancar
-  /// (`permission-denied`), relê a contagem e continua. Devolve false quando
-  /// nao deu para concluir agora (timeout ou erro que nao e concorrencia).
+  /// (`permission-denied`), relê a contagem e continua. Esgotadas as rodadas,
+  /// lista os ids existentes no servidor e envia so os que faltam. Devolve
+  /// false quando nao deu para concluir agora.
   Future<bool> _sendConversation(String uid, ImportConversation conv) async {
     final n = conv.messages.length;
     for (var round = 0; round < maxRounds; round++) {
@@ -136,18 +190,14 @@ class LegacyChatMigrator {
       final settled = <Future<String?>>[];
       for (var j = k ?? 0; j < n; j++) {
         final m = conv.messages[j];
-        final f = _repo.appendMessage(
+        settled.add(_settle(_repo.appendMessage(
           uid,
           convId: conv.id,
-          message: ChatTurnStored(
-              id: m.id, role: m.role, text: m.text, createdAt: m.createdAt),
+          message: _stored(m),
           updatedAt: j == n - 1 ? conv.updatedAt : m.createdAt,
           title: conv.title,
           isNew: k == null && j == 0,
-        );
-        // Resultado do commit sem propagar texto: so o codigo do erro.
-        settled.add(f.then<String?>((_) => null,
-            onError: (Object e) => e is FirebaseException ? e.code : 'error'));
+        )));
       }
       final codes = await Future.wait(settled).timeout(syncTimeout);
       final failed = codes.whereType<String>().toList();
@@ -155,6 +205,34 @@ class LegacyChatMigrator {
       if (failed.any((c) => c != 'permission-denied')) return false;
       // permission-denied: outro aparelho avancou; relê a contagem.
     }
-    return false;
+    return _fillGaps(uid, conv);
   }
+
+  /// Lacuna permanente: le do servidor os ids existentes e envia so os que
+  /// faltam (um por batch; a conversa ja existe se ha ids no servidor).
+  Future<bool> _fillGaps(String uid, ImportConversation conv) async {
+    final existing = await _repo.remoteMessageIds(uid, conv.id);
+    final missing = [
+      for (final m in conv.messages)
+        if (!existing.contains(m.id)) m,
+    ];
+    if (missing.isEmpty) return true;
+    final settled = <Future<String?>>[];
+    for (var i = 0; i < missing.length; i++) {
+      settled.add(_settle(_repo.appendMessage(
+        uid,
+        convId: conv.id,
+        message: _stored(missing[i]),
+        updatedAt: conv.updatedAt,
+        title: conv.title,
+        isNew: existing.isEmpty && i == 0,
+      )));
+    }
+    final codes = await Future.wait(settled).timeout(syncTimeout);
+    return codes.whereType<String>().isEmpty;
+  }
+
+  /// Resultado do commit sem propagar texto: so o codigo do erro.
+  Future<String?> _settle(Future<void> f) => f.then<String?>((_) => null,
+      onError: (Object e) => e is FirebaseException ? e.code : 'error');
 }
