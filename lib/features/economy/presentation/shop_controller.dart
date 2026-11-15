@@ -56,12 +56,14 @@ class ShopController extends AutoDisposeNotifier<ShopState> {
     }
   }
 
-  /// Usado pelo inventario: nao engole erros (como era na tela).
-  Future<void> equip(ShopItem item) {
+  /// Usado pelo inventario: nao engole erros (como era na tela). Retorna
+  /// false quando nao gravou (sem perfil).
+  Future<bool> equip(ShopItem item) async {
     final profile = ref.read(profileProvider).valueOrNull;
-    if (profile == null) return Future.value();
-    return ref
+    if (profile == null) return false;
+    await ref
         .read(profileRepositoryProvider)
         .equip(profile.uid, item.type.slot, item.id);
+    return true;
   }
 }

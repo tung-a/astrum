@@ -52,7 +52,7 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
     final cosmos = ref.watch(cosmosControllerProvider);
     final events = ref.watch(eventsProvider).valueOrNull ?? [];
     final skin = ref.watch(equippedSkinProvider);
-    final moon = moonFor(DateTime.now());
+    final moon = moonFor(ref.read(clockProvider)());
 
     return CosmicScaffold(
       body: asyncProfile.when(
@@ -61,8 +61,11 @@ class _CosmosScreenState extends ConsumerState<CosmosScreen> {
         data: (profile) {
           if (profile == null) return const SizedBox.shrink();
           if (profile.zodiacSign.isNotEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) =>
-                ref.read(cosmosControllerProvider.notifier).ensureHoroscope());
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ref.read(cosmosControllerProvider.notifier).ensureHoroscope();
+              }
+            });
           }
           final today = _today;
           final firstName = profile.name.split(' ').first;

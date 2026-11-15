@@ -14,7 +14,7 @@ final _relative = RegExp(r"""^\s*(?:import|export)\s+['"](?!dart:|package:)""");
 final _flutter =
     RegExp(r"""^\s*(?:import|export)\s+['"](package:flutter/|dart:ui)""");
 final _widgets = RegExp(
-    r"""^\s*(?:import|export)\s+['"]package:flutter/(material|widgets)\.dart""");
+    r"""^\s*(?:import|export)\s+['"]package:flutter/(material|widgets|cupertino)\.dart""");
 
 final _providerFile = RegExp(r'_(providers?|controller)\.dart$');
 
@@ -339,6 +339,13 @@ void main() {
         providerWidgetViolations({
           'features/a/presentation/a_providers.dart': [
             "import 'package:flutter/material.dart';"
+          ],
+        }),
+        isNotEmpty);
+    expect(
+        providerWidgetViolations({
+          'features/a/presentation/a_controller.dart': [
+            "import 'package:flutter/cupertino.dart';"
           ],
         }),
         isNotEmpty);

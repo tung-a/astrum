@@ -71,8 +71,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   Future<void> _equip(ShopItem item) async {
-    await ref.read(shopControllerProvider.notifier).equip(item);
-    if (mounted) {
+    final equipped =
+        await ref.read(shopControllerProvider.notifier).equip(item);
+    if (equipped && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${item.name} equipado.')),
       );

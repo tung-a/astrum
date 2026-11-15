@@ -1,6 +1,7 @@
 import 'package:astrum/core/analytics/analytics_providers.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/oracle/presentation/oracle_screen.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/fake_repositories.dart';
@@ -33,5 +34,25 @@ void main() {
     expect(find.text('Resposta do oraculo'), findsOneWidget);
     expect(oracle.calls.single.prompt, 'Previsão para o amor');
     expect(chats.saves, hasLength(2));
+  });
+
+  testWidgets('prompt pendente vai para o campo de texto e e consumido',
+      (tester) async {
+    await pumpScreen(
+      tester,
+      const OracleScreen(),
+      user: testUser(),
+      overrides: [
+        chatRepositoryProvider.overrideWithValue(FakeChatRepository()),
+        oracleServiceProvider.overrideWithValue(FakeOracleService(reply: 'ok')),
+        analyticsServiceProvider.overrideWithValue(FakeAnalytics()),
+        pendingOraclePromptProvider.overrideWith((ref) => 'pergunta pronta'),
+      ],
+    );
+    await tester.pump(); // post-frame: hidrata
+    await tester.pump();
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, 'pergunta pronta');
   });
 }
