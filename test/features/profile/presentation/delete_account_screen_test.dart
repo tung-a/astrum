@@ -159,9 +159,7 @@ void main() {
     await tester.tap(find.text('Excluir definitivamente'));
     await settle(tester);
 
-    expect(
-        find.text('Sem conexão. Conecte-se e toque em Tentar de novo. '
-            'O que já foi apagado continua apagado.'),
+    expect(find.text('Sem conexão. Conecte-se e toque em Tentar de novo.'),
         findsOneWidget);
     expect(button('Tentar de novo'), findsOneWidget);
   });

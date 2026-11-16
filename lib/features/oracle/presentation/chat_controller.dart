@@ -20,7 +20,7 @@ const chatLimitText =
 const _replyError = 'Não foi possível obter a resposta. Tente novamente.';
 
 /// Resultado da exclusao de uma conversa ou de todo o historico.
-enum ChatDeleteResult { ok, offline, failed }
+enum ChatDeleteResult { ok, offline, failed, busy }
 
 class ChatState {
   const ChatState({
@@ -391,6 +391,8 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
     if (uid == null || convId == null || !state.hydrated || state.deleting) {
       return ChatDeleteResult.failed;
     }
+    // Resposta em andamento: apagar agora deixaria mensagem orfa.
+    if (state.loading) return ChatDeleteResult.busy;
     if (currentIsUnsavedDraft) {
       _draft = null;
       _created.remove(convId);
@@ -428,6 +430,7 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
     if (uid == null || !state.hydrated || state.deleting) {
       return ChatDeleteResult.failed;
     }
+    if (state.loading) return ChatDeleteResult.busy;
     final gen = _gen;
     state = state.copyWith(deleting: true);
     try {

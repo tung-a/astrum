@@ -676,7 +676,7 @@ void main() {
       expect(st(c).deleting, isFalse);
     });
 
-    test('resposta em andamento e descartada se a conversa foi apagada',
+    test('resposta em andamento: apagar e recusado (busy), sem mensagem orfa',
         () async {
       await seed('u1', 'a', 2, title: 'A');
       drepo.appends.clear();
@@ -686,12 +686,16 @@ void main() {
 
       final future = ctl(c).send('Oi');
       await Future<void>.delayed(Duration.zero);
-      await ctl(c).deleteCurrent();
-      await pumpEventQueue();
+      expect(await ctl(c).deleteCurrent(), ChatDeleteResult.busy);
+      expect(await ctl(c).deleteAll(), ChatDeleteResult.busy);
+      expect(drepo.deleted, isEmpty);
       gate.complete('resposta');
       await future;
+      await pumpEventQueue();
 
-      expect(drepo.appends.where((a) => a.role == 'model'), isEmpty);
+      // a resposta foi gravada normalmente; agora a exclusao e aceita
+      expect(drepo.appends.where((a) => a.role == 'model'), hasLength(1));
+      expect(await ctl(c).deleteCurrent(), ChatDeleteResult.ok);
     });
   });
 }

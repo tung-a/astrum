@@ -299,6 +299,21 @@ void main() {
     expect(st().message, 'Senha incorreta. Tente de novo.');
   });
 
+  test('erro antes da cascata (uid nulo): sem "parte dos dados apagada"',
+      () async {
+    c.read(_testUid.notifier).state = null;
+    await ctl().run(_secret);
+    expect(st().phase, DeletePhase.failed);
+    expect(st().message, 'Não foi possível concluir. Tente de novo.');
+    expect(log, isEmpty);
+  });
+
+  test('sem provedor de senha (reauth unknown): mensagem neutra', () async {
+    auth.reauthError = const AuthException(AuthErrorCode.unknown);
+    await ctl().run(_secret);
+    expect(st().message, 'Não foi possível concluir. Tente de novo.');
+  });
+
   group('troca de usuario na mesma sessao', () {
     test('A conclui, B cadastra e exclui: a cascata de B roda', () async {
       await ctl().run(_secret);

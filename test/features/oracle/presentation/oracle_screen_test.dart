@@ -415,7 +415,8 @@ void main() {
       expect(await chats.watchConversations('u1').first, isEmpty);
     });
 
-    testWidgets('offline: mensagem de nada apagado', (tester) async {
+    testWidgets('offline (apagar tudo): mensagem de tentar de novo',
+        (tester) async {
       final chats = _FailDeleteRepo()..error = const ChatOfflineException();
       await pumpOracle(tester, chats: chats, sp: await prefs());
       await chats.appendMessage('u1',
@@ -433,9 +434,7 @@ void main() {
       await tester.tap(find.text('Apagar tudo'));
       await settleUi(tester);
 
-      expect(
-          find.text(
-              'Sem conexão. Nada foi apagado. Tente de novo quando estiver online.'),
+      expect(find.text('Sem conexão. Tente de novo para concluir.'),
           findsOneWidget);
     });
 

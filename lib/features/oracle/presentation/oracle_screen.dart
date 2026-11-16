@@ -118,8 +118,11 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
     if (!mounted) return;
     final text = switch (result) {
       ChatDeleteResult.ok => all ? 'Histórico apagado.' : 'Conversa apagada.',
-      ChatDeleteResult.offline =>
-        'Sem conexão. Nada foi apagado. Tente de novo quando estiver online.',
+      ChatDeleteResult.offline => all
+          ? 'Sem conexão. Tente de novo para concluir.'
+          : 'Sem conexão. Nada foi apagado. Tente de novo quando estiver '
+              'online.',
+      ChatDeleteResult.busy => 'Aguarde a resposta terminar para apagar.',
       ChatDeleteResult.failed =>
         'Não foi possível apagar. Parte pode ter sido apagada; tente novamente.',
     };
@@ -206,12 +209,14 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
             itemBuilder: (context) => [
               PopupMenuItem(
                 value: _OracleMenu.deleteCurrent,
-                enabled: chat.hydrated && !controller.currentIsUnsavedDraft,
+                enabled: chat.hydrated &&
+                    !chat.loading &&
+                    !controller.currentIsUnsavedDraft,
                 child: const Text('Apagar esta conversa'),
               ),
               PopupMenuItem(
                 value: _OracleMenu.deleteAll,
-                enabled: chat.hydrated,
+                enabled: chat.hydrated && !chat.loading,
                 child: const Text('Apagar todo o histórico'),
               ),
             ],

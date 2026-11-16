@@ -76,9 +76,11 @@ String signUpErrorMessage(AuthException e) {
 
 /// Texto de erro da exclusao de conta (senha, rede, janela de reautenticacao).
 /// [afterDataDeleted]: o erro veio depois de os dados terem sido apagados (a
-/// senha e pedida de novo so para `user.delete()`).
+/// senha e pedida de novo so para `user.delete()`). [partial]: a cascata ja
+/// comecou, entao parte dos dados pode ter sido apagada; antes disso (senha,
+/// verificacao, sem provedor) nada foi apagado.
 String deleteAccountErrorMessage(AuthException e,
-    {bool afterDataDeleted = false}) {
+    {bool afterDataDeleted = false, bool partial = true}) {
   switch (e.code) {
     case AuthErrorCode.invalidCredentials:
       return afterDataDeleted
@@ -87,11 +89,14 @@ String deleteAccountErrorMessage(AuthException e,
     case AuthErrorCode.tooManyRequests:
       return 'Muitas tentativas. Aguarde alguns minutos e tente de novo.';
     case AuthErrorCode.network:
-      return 'Sem conexão. Conecte-se e toque em Tentar de novo. '
-          'O que já foi apagado continua apagado.';
+      return partial
+          ? 'Sem conexão. Conecte-se e toque em Tentar de novo. '
+              'O que já foi apagado continua apagado.'
+          : 'Sem conexão. Conecte-se e toque em Tentar de novo.';
     case AuthErrorCode.requiresRecentLogin:
       return 'Por segurança, digite sua senha novamente para concluir.';
     default:
+      if (!partial) return 'Não foi possível concluir. Tente de novo.';
       return 'Não foi possível concluir a exclusão. Parte dos seus dados já '
           'foi apagada. Toque em Tentar de novo.';
   }

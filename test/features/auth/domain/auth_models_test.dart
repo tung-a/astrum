@@ -106,6 +106,14 @@ void main() {
     expect(m(AuthErrorCode.unknown), contains('Toque em Tentar de novo.'));
   });
 
+  test('deleteAccountErrorMessage: antes da cascata nao diz que apagou', () {
+    String m(AuthErrorCode c) =>
+        deleteAccountErrorMessage(AuthException(c), partial: false);
+    expect(
+        m(AuthErrorCode.unknown), 'Não foi possível concluir. Tente de novo.');
+    expect(m(AuthErrorCode.network), isNot(contains('já foi apagado')));
+  });
+
   test('passwordResetErrorMessage: textos do esqueci minha senha', () {
     String m(AuthErrorCode c) => passwordResetErrorMessage(AuthException(c));
     expect(m(AuthErrorCode.invalidEmail), 'E-mail inválido.');

@@ -219,7 +219,9 @@ class DeleteAccountController extends Notifier<DeleteAccountState> {
       phase: DeletePhase.failed,
       failure: kind,
       failedStep: step,
-      message: deleteFailureMessage(kind, dataDeleted: state.dataDeleted),
+      message: deleteFailureMessage(kind,
+          dataDeleted: state.dataDeleted,
+          partial: step != DeleteStep.verifying || state.dataDeleted),
     );
   }
 
@@ -256,7 +258,7 @@ class DeleteAccountController extends Notifier<DeleteAccountState> {
 
 /// Texto de erro da exclusao por tipo de falha.
 String deleteFailureMessage(DeleteFailureKind kind,
-    {bool dataDeleted = false}) {
+    {bool dataDeleted = false, bool partial = true}) {
   AuthException a(AuthErrorCode c) => AuthException(c);
   return switch (kind) {
     DeleteFailureKind.quota => deleteQuotaMessage,
@@ -268,8 +270,8 @@ String deleteFailureMessage(DeleteFailureKind kind,
     DeleteFailureKind.requiresRecentLogin =>
       deleteAccountErrorMessage(a(AuthErrorCode.requiresRecentLogin)),
     DeleteFailureKind.offline =>
-      deleteAccountErrorMessage(a(AuthErrorCode.network)),
+      deleteAccountErrorMessage(a(AuthErrorCode.network), partial: partial),
     DeleteFailureKind.unknown =>
-      deleteAccountErrorMessage(a(AuthErrorCode.unknown)),
+      deleteAccountErrorMessage(a(AuthErrorCode.unknown), partial: partial),
   };
 }

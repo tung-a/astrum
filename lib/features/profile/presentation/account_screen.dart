@@ -42,10 +42,28 @@ class AccountScreen extends ConsumerStatefulWidget {
 class _AccountScreenState extends ConsumerState<AccountScreen> {
   final _search = TextEditingController();
 
+  /// Valor otimista do interruptor de busca enquanto grava; volta ao do perfil
+  /// se a gravacao falhar.
+  bool? _publicPending;
+
   @override
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  Future<void> _setPublicProfile(String uid, bool enabled) async {
+    setState(() => _publicPending = enabled);
+    try {
+      await ref.read(profileRepositoryProvider).setPublicProfile(uid, enabled);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Não foi possível salvar. Tente de novo.')));
+      }
+    } finally {
+      if (mounted) setState(() => _publicPending = null);
+    }
   }
 
   Future<void> _searchFriend() async {
@@ -140,10 +158,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Aparecer na busca de amigos'),
-            value: profile.publicProfile,
-            onChanged: (enabled) => ref
-                .read(profileRepositoryProvider)
-                .setPublicProfile(profile.uid, enabled),
+            value: _publicPending ?? profile.publicProfile,
+            onChanged: (enabled) => _setPublicProfile(profile.uid, enabled),
           ),
           const SizedBox(height: 20),
           const Text('Constelação', style: TextStyle(fontSize: 18)),
