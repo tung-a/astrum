@@ -9,6 +9,15 @@ import 'package:crypto/crypto.dart';
 String hashEmail(String email) =>
     sha256.convert(utf8.encode(email.trim().toLowerCase())).toString();
 
+/// Avatar que vai para `publicProfiles/{uid}`. Com "Exibir meu signo"
+/// desligado, o avatar zodiacal (`pfp_zodiac_<signo>`) revelaria o signo: nada
+/// e publicado (string vazia). Avatares comprados nao revelam o signo.
+String publicAvatarFor(String? avatar, bool showSign) {
+  final a = avatar ?? '';
+  if (!showSign && a.startsWith(zodiacAvatarPrefix)) return '';
+  return a;
+}
+
 /// Documento `publicProfiles/{uid}`: so nome, avatar e hash do e-mail
 /// (as regras do Firestore recusam qualquer outro campo).
 /// Devolve null quando nao ha e-mail ou nome para publicar.

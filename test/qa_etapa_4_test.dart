@@ -124,9 +124,9 @@ void main() {
     });
   });
 
-  group('perfil publico e LGPD (M3, caracterizacao)', () {
+  group('perfil publico e LGPD (M3)', () {
     test(
-        'equip(profilePicture) com preferences.publicProfile=false ignora a preferencia e regrava o publicProfiles',
+        'equip(profilePicture) com preferences.publicProfile=false respeita a preferencia e nao regrava o publicProfiles',
         () async {
       await db.collection('publicProfiles').doc('u1').set({
         'name': 'Luna',
@@ -147,7 +147,7 @@ void main() {
 
       final pub = await db.collection('publicProfiles').doc('u1').get();
       expect(pub.exists, isTrue);
-      expect(pub.data()!['avatar'], 'pfp_y');
+      expect(pub.data()!['avatar'], 'pfp_x'); // inalterado
     });
   });
 

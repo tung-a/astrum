@@ -1,5 +1,6 @@
 import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/features/economy/domain/equip_slot.dart';
+import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:astrum/features/profile/data/profile_repository.dart';
 import 'package:astrum/features/profile/data/public_profile_sync.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
@@ -143,8 +144,7 @@ void main() {
       expect((await pub()).exists, isFalse);
     });
 
-    test(
-        'setNotificationsEnabled e setShowSign gravam so a sua chave, sem sync',
+    test('setNotificationsEnabled e setShowSign gravam so a sua chave',
         () async {
       await repo.setNotificationsEnabled('u', false);
       await repo.setShowSign('u', false);
@@ -153,10 +153,57 @@ void main() {
         'publicProfile': true,
         'showSign': false,
       });
-      expect((await pub()).exists, isFalse);
+      // setShowSign regrava o perfil publico (avatar comprado nao revela signo)
+      expect((await pub()).data()!['avatar'], 'pfp1');
     });
 
-    test('saveAstralMap grava astralMapJson e zodiacSign sem sync', () async {
+    test(
+        'setShowSign(false) esconde o avatar zodiacal no perfil publico; '
+        'true volta a publica-lo (M1)', () async {
+      await db.collection('users').doc('u').update({
+        'equipped.profilePicture': 'pfp_zodiac_aries',
+      });
+      await repo.setShowSign('u', true);
+      expect((await pub()).data()!['avatar'], 'pfp_zodiac_aries');
+
+      await repo.setShowSign('u', false);
+      expect((await pub()).data()!['avatar'], '');
+
+      await repo.setShowSign('u', true);
+      expect((await pub()).data()!['avatar'], 'pfp_zodiac_aries');
+    });
+
+    test('showSign=false tambem vale no equip e no avatar padrao do signo',
+        () async {
+      await db.collection('users').doc('u').update({
+        'preferences.showSign': false,
+        'equipped.profilePicture': null,
+      });
+      await repo.equip('u', EquipSlot.profilePicture, 'pfp_zodiac_leao');
+      expect((await pub()).data()!['avatar'], '');
+      await repo.equip('u', EquipSlot.profilePicture, 'pfp_comprado');
+      expect((await pub()).data()!['avatar'], 'pfp_comprado');
+    });
+
+    test(
+        'setPublicProfile(false) apaga o perfil publico e o sync respeita; '
+        'true publica de novo (M3)', () async {
+      await repo.equip('u', EquipSlot.profilePicture, 'pfp2');
+      expect((await pub()).exists, isTrue);
+
+      await repo.setPublicProfile('u', false);
+      expect((await user())['preferences']['publicProfile'], isFalse);
+      expect((await pub()).exists, isFalse);
+
+      await repo.equip('u', EquipSlot.profilePicture, 'pfp3');
+      await repo.setShowSign('u', true);
+      expect((await pub()).exists, isFalse);
+
+      await repo.setPublicProfile('u', true);
+      expect((await pub()).data()!['avatar'], 'pfp3');
+    });
+
+    test('saveAstralMap grava astralMapJson e zodiacSign', () async {
       const chart = [
         PlanetPosition(
             planet: 'Sol',
@@ -169,7 +216,6 @@ void main() {
       final d = await user();
       expect(d['zodiacSign'], 'Leao');
       expect(d['astralMapJson'], AppUser.encodeAstralMap(chart));
-      expect((await pub()).exists, isFalse);
     });
 
     test('saveAstralMap com lista vazia lanca StateError sem gravar', () async {
@@ -190,11 +236,14 @@ void main() {
     });
 
     test(
-        'M1 (caracterizacao): saveAstralMap troca zodiacSign mas nao regrava '
-        'publicProfiles existente (avatar publico defasado)', () async {
+        'M1: saveAstralMap regrava publicProfiles (avatar publico nao fica '
+        'defasado em relacao ao signo)', () async {
+      await db.collection('users').doc('u').update({
+        'equipped.profilePicture': null,
+      });
       await db.collection('publicProfiles').doc('u').set({
         'name': 'Ana',
-        'avatar': 'pfp1',
+        'avatar': 'pfp_zodiac_aries',
         'emailHash': hashEmail('ana@x.com'),
       });
       await repo.saveAstralMap('u', const [
@@ -206,7 +255,7 @@ void main() {
             summary: 's'),
       ]);
       expect((await user())['zodiacSign'], 'Leao');
-      expect((await pub()).data()!['avatar'], 'pfp1');
+      expect((await pub()).data()!['avatar'], defaultProfilePictureId('Leao'));
     });
 
     test(

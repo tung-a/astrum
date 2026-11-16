@@ -21,4 +21,20 @@ void main() {
     expect(p['avatar'], '');
     expect(buildPublicProfile(name: 'Ana', avatar: '', email: ' '), isNull);
   });
+
+  group('publicAvatarFor (M1)', () {
+    test('signo oculto: avatar zodiacal vira vazio', () {
+      expect(publicAvatarFor('pfp_zodiac_leao', false), '');
+    });
+    test('signo exibido: avatar zodiacal publicado', () {
+      expect(publicAvatarFor('pfp_zodiac_leao', true), 'pfp_zodiac_leao');
+    });
+    test('avatar comprado nao revela o signo: sempre publicado', () {
+      expect(publicAvatarFor('pfp_rare_x', false), 'pfp_rare_x');
+    });
+    test('nulo ou vazio vira vazio', () {
+      expect(publicAvatarFor(null, true), '');
+      expect(publicAvatarFor('', false), '');
+    });
+  });
 }

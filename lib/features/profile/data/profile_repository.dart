@@ -35,7 +35,13 @@ abstract interface class ProfileRepository {
 
   Future<void> setNotificationsEnabled(String uid, bool enabled);
 
+  /// Grava o signo no perfil e regrava o perfil publico (o avatar zodiacal so
+  /// aparece com o signo exibido).
   Future<void> setShowSign(String uid, bool enabled);
+
+  /// "Aparecer na busca de amigos": `true` publica `publicProfiles/{uid}`;
+  /// `false` o apaga (e o sync deixa de grava-lo).
+  Future<void> setPublicProfile(String uid, bool enabled);
 
   /// Equipa [itemId] no [slot]; so o avatar sincroniza publicProfiles.
   Future<void> equip(String uid, EquipSlot slot, String itemId);
@@ -200,8 +206,20 @@ class FirestoreProfileRepository implements ProfileRepository {
       _update(uid, {'preferences.notifications': enabled});
 
   @override
-  Future<void> setShowSign(String uid, bool enabled) =>
-      _update(uid, {'preferences.showSign': enabled});
+  Future<void> setShowSign(String uid, bool enabled) async {
+    await _update(uid, {'preferences.showSign': enabled});
+    await _sync.syncFromUser(uid);
+  }
+
+  @override
+  Future<void> setPublicProfile(String uid, bool enabled) async {
+    await _update(uid, {'preferences.publicProfile': enabled});
+    if (enabled) {
+      await _sync.syncFromUser(uid);
+    } else {
+      await _db.publicDoc(uid).delete();
+    }
+  }
 
   /// Equipa [itemId] no [slot]; so o avatar sincroniza publicProfiles.
   /// Se o sync falhar apos o update, o equipado ja esta gravado em users/{uid}
@@ -219,6 +237,8 @@ class FirestoreProfileRepository implements ProfileRepository {
       'astralMapJson': AppUser.encodeAstralMap(chart),
       'zodiacSign': chart.first.sign,
     });
+    // O avatar padrao deriva do signo (e pode estar defasado no publico).
+    await _sync.syncFromUser(uid);
   }
 
   @override

@@ -137,6 +137,14 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 .read(profileRepositoryProvider)
                 .setShowSign(profile.uid, enabled),
           ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Aparecer na busca de amigos'),
+            value: profile.publicProfile,
+            onChanged: (enabled) => ref
+                .read(profileRepositoryProvider)
+                .setPublicProfile(profile.uid, enabled),
+          ),
           const SizedBox(height: 20),
           const Text('Constelação', style: TextStyle(fontSize: 18)),
           const SizedBox(height: 8),

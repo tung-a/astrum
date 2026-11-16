@@ -25,16 +25,21 @@ class PublicProfileSync {
   }
 
   /// Regrava publicProfiles/{uid} a partir do perfil atual em users/{uid}.
+  /// Respeita as preferencias: `publicProfile == false` nao publica nada e
+  /// `showSign == false` esconde o avatar zodiacal (que revelaria o signo).
   Future<void> syncFromUser(String uid) async {
     final data = (await _db.userDoc(uid).get()).data();
     if (data == null) return;
+    final prefs = data['preferences'] as Map<String, dynamic>?;
+    if (prefs?['publicProfile'] == false) return;
+    final showSign = prefs?['showSign'] as bool? ?? true;
     final equipped = data['equipped'] as Map<String, dynamic>?;
     final pfp = equipped?['profilePicture'] as String? ??
         defaultProfilePictureId(data['zodiacSign'] as String?);
     await write(
       uid,
       name: data['name'] as String? ?? '',
-      avatar: pfp,
+      avatar: publicAvatarFor(pfp, showSign),
       email: data['email'] as String? ?? _auth.currentUser?.email ?? '',
     );
   }
