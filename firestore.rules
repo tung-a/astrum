@@ -53,6 +53,12 @@ service cloud.firestore {
       return string(t.year()) + '-' + pad(t.month()) + '-' + pad(t.day());
     }
 
+    // Id do documento de amizade do par: menor uid + '_' + maior uid
+    // (lexicografico). Mesma funcao em Dart: pairIdOf (friendship.dart).
+    function pairId(a, b) {
+      return a < b ? a + '_' + b : b + '_' + a;
+    }
+
     // ---------------------------------------------------------------- users
     match /users/{uid} {
       function old() { return resource.data; }
@@ -397,6 +403,98 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create, update: if isOwner(uid) && validPublic(request.resource.data);
       allow delete: if isOwner(uid);
+    }
+
+    // ----------------------------------------------------------- friendships
+    // Amizade com aceite (etapa 12, docs/architecture/step12-friend-requests.md).
+    // UM documento por par, id = menorUid_maiorUid; os dois membros leem.
+    //   create  : o remetente grava 'pending' (so para quem existe e aparece na
+    //             busca; id unico por par = sem duplicata e sem pedido cruzado).
+    //   update  : o NAO remetente aceita ou recusa; qualquer membro remove uma
+    //             amizade aceita. 'declined' e lapide: o outro lado nao recria,
+    //             nao altera nem apaga ate quem recusou "desbloquear" (delete).
+    //   delete  : remetente cancela 'pending'; quem recusou apaga a lapide; e,
+    //             sem users/{eu} (exclusao de conta, etapa 11), qualquer relacao.
+    // Limite de pedidos pendentes por usuario NAO e imposto aqui (Spark nao
+    // conta documentos): so no cliente (risco R-S1). Admin nao le relacoes.
+    match /friendships/{pid} {
+      function fOther() {
+        return request.resource.data.uids[0] == request.auth.uid
+          ? request.resource.data.uids[1]
+          : request.resource.data.uids[0];
+      }
+
+      function meDoc() {
+        return /databases/$(database)/documents/users/$(request.auth.uid);
+      }
+
+      // get por id: funciona com documento inexistente (transacao do pedido).
+      allow get: if signedIn() && request.auth.uid in pid.split('_');
+      // list: so documentos de que sou membro (array-contains prova a restricao).
+      allow list: if signedIn() && request.auth.uid in resource.data.uids;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+          ['uids', 'requesterUid', 'requesterName', 'status', 'createdAt'])
+        && request.resource.data.uids is list
+        && request.resource.data.uids.size() == 2
+        && request.resource.data.uids[0] is string
+        && request.resource.data.uids[1] is string
+        && request.resource.data.uids[0] < request.resource.data.uids[1]
+        && pid == request.resource.data.uids[0] + '_' + request.resource.data.uids[1]
+        && pid.split('_').size() == 2
+        && request.auth.uid in request.resource.data.uids
+        && request.resource.data.requesterUid == request.auth.uid
+        && request.resource.data.requesterName is string
+        && request.resource.data.requesterName.size() >= 1
+        && request.resource.data.requesterName.size() <= 100
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && exists(meDoc())
+        && request.resource.data.requesterName == get(meDoc()).data.name
+        // O outro precisa existir E aparecer na busca ("Aparecer na busca de
+        // amigos" desligado = nao recebe pedidos novos).
+        && exists(/databases/$(database)/documents/publicProfiles/$(fOther()))
+        && exists(/databases/$(database)/documents/users/$(fOther()));
+
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.uids
+        && request.resource.data.respondedAt == request.time
+        && exists(meDoc())
+        && (
+          // aceitar: pending -> accepted, por quem NAO pediu, com o remetente
+          // ainda existente
+          (resource.data.status == 'pending'
+            && resource.data.requesterUid != request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'responderName', 'respondedAt'])
+            && request.resource.data.status == 'accepted'
+            && request.resource.data.responderName is string
+            && request.resource.data.responderName.size() >= 1
+            && request.resource.data.responderName.size() <= 100
+            && request.resource.data.responderName == get(meDoc()).data.name
+            && exists(/databases/$(database)/documents/users/$(resource.data.requesterUid)))
+          // recusar (por quem nao pediu) ou remover amizade (qualquer membro)
+          || ((resource.data.status == 'accepted'
+                || (resource.data.status == 'pending'
+                  && resource.data.requesterUid != request.auth.uid))
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status', 'declinedBy', 'respondedAt'])
+              && request.resource.data.status == 'declined'
+              && request.resource.data.declinedBy == request.auth.uid)
+        );
+
+      allow delete: if signedIn()
+        && request.auth.uid in resource.data.uids
+        && (
+          // exclusao de conta: marcador "perfil ausente" da etapa 11
+          !exists(meDoc())
+          // cancelar o proprio pedido ainda pendente
+          || (resource.data.status == 'pending'
+            && resource.data.requesterUid == request.auth.uid)
+          // desbloquear: quem recusou/removeu apaga a lapide
+          || (resource.data.status == 'declined'
+            && resource.data.declinedBy == request.auth.uid));
     }
 
     // Qualquer outro caminho: negado.

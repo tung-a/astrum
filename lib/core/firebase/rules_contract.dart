@@ -74,3 +74,23 @@ const int chatTitleMax = 80; // d.title.size() <= 80
 const int chatMessagesMax = 500; // d.messageCount <= 500
 const int chatTextMax = 10000; // data.text.size() <= 10000
 const int chatSchemaVersion = 1; // d.schemaVersion == 1
+
+// --- Amizades (friendships/{pairId}, etapa 12)
+/// firestore.rules: `status == 'pending'` (create; aceitar/recusar partem dele).
+const String friendshipPending = 'pending';
+
+/// firestore.rules: `status == 'accepted'` (aceite; intencoes exigem este).
+const String friendshipAccepted = 'accepted';
+
+/// firestore.rules: `status == 'declined'` (recusa/remocao = lapide).
+const String friendshipDeclined = 'declined';
+
+/// firestore.rules: `requesterName/responderName.size() <= 100`.
+const int friendshipNameMax = 100;
+
+/// firestore.rules: `pairId(a, b)` e `pid.split('_')` (id = menor_maior).
+const String friendshipIdSeparator = '_';
+
+/// SO DO APP (nao ha regra: o Spark nao conta documentos). Maximo de pedidos
+/// enviados ainda pendentes; higiene de UX, nao barreira de seguranca (R-S1).
+const int maxPendingOutgoingClient = 20;

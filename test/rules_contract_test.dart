@@ -101,6 +101,36 @@ void main() {
       ('chatMessagesMax', 'd.messageCount <= 500', 'd.messageCount <= 501'),
       ('chatTextMax', 'data.text.size() <= 10000', 'data.text.size() <= 10001'),
       ('chatSchemaVersion', 'd.schemaVersion == 1', 'd.schemaVersion == 2'),
+      (
+        'friendshipPending',
+        "request.resource.data.status == 'pending'",
+        "request.resource.data.status == 'pendente'"
+      ),
+      (
+        'friendshipStatus',
+        "request.resource.data.status == 'accepted'",
+        "request.resource.data.status == 'aceita'"
+      ),
+      (
+        'friendshipStatus',
+        "request.resource.data.status == 'declined'",
+        "request.resource.data.status == 'recusada'"
+      ),
+      (
+        'friendshipNameMax',
+        'requesterName.size() <= 100',
+        'requesterName.size() <= 99'
+      ),
+      (
+        'friendshipIdSeparator',
+        "pid.split('_').size() == 2",
+        "pid.split('-').size() == 2"
+      ),
+      (
+        'friendshipIdSeparator (pairId)',
+        "a + '_' + b : b + '_' + a",
+        "a + '-' + b : b + '-' + a"
+      ),
     ];
 
     for (final (name, from, to) in mutations) {

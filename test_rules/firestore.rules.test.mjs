@@ -736,3 +736,289 @@ test('analytics: dono consulta por userId e apaga os seus; sem filtro e userId a
   if (all.size !== 2) throw new Error(`admin esperava 2 eventos restantes, veio ${all.size}`);
   await assertFails(deleteDoc(doc(as('root'), 'analytics_events/b1')));
 });
+
+// ---- etapa 12: friendships (pedido, aceite, recusa, remocao)
+const NAMES = { alice: 'A', bob: 'B', carol: 'C' };
+const pidOf = (a, b) => (a < b ? `${a}_${b}` : `${b}_${a}`);
+const reqDoc = (from, to, over = {}) => ({
+  uids: [from, to].sort(),
+  requesterUid: from,
+  requesterName: NAMES[from] ?? 'X',
+  status: 'pending',
+  createdAt: serverTimestamp(),
+  ...over,
+});
+const fref = (db, a, b) => doc(db, `friendships/${pidOf(a, b)}`);
+const seedFriendUsers = () => env.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.firestore();
+  await setDoc(doc(db, 'users/carol'), baseUser({ name: 'C', email: 'c@x.com' }));
+  for (const u of ['alice', 'bob', 'carol']) {
+    await setDoc(doc(db, `publicProfiles/${u}`), pub({ name: NAMES[u] }));
+  }
+});
+const seedFs = (a, b, over = {}) => env.withSecurityRulesDisabled((ctx) =>
+  setDoc(fref(ctx.firestore(), a, b), {
+    uids: [a, b].sort(), requesterUid: a, requesterName: NAMES[a] ?? 'X',
+    status: 'pending', createdAt: Timestamp.now(), ...over,
+  }));
+const readFs = async (a, b) => {
+  let data = null;
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const s = await getDoc(fref(ctx.firestore(), a, b));
+    data = s.exists() ? s.data() : null;
+  });
+  return data;
+};
+
+test('friendships create: pedido valido de alice para bob ok e fica pending', async () => {
+  await seedFriendUsers();
+  await assertSucceeds(setDoc(fref(as('alice'), 'alice', 'bob'), reqDoc('alice', 'bob')));
+  const d = await readFs('alice', 'bob');
+  if (d.status !== 'pending' || d.requesterUid !== 'alice') throw new Error('pedido gravado errado');
+  // o sentido inverso tambem cria (id e o mesmo, uids ordenados)
+  await assertSucceeds(setDoc(fref(as('bob'), 'bob', 'carol'), reqDoc('bob', 'carol')));
+});
+
+test('friendships create: pedido a si mesmo, uids desordenados, id divergente e requesterUid alheio negados', async () => {
+  await seedFriendUsers();
+  const db = as('alice');
+  await assertFails(setDoc(doc(db, 'friendships/alice_alice'), reqDoc('alice', 'alice')));
+  await assertFails(setDoc(fref(db, 'alice', 'bob'), reqDoc('alice', 'bob', { uids: ['bob', 'alice'] })));
+  await assertFails(setDoc(doc(db, 'friendships/alice_carol'), reqDoc('alice', 'bob')));
+  await assertFails(setDoc(doc(db, 'friendships/bob_alice'), reqDoc('alice', 'bob')));
+  await assertFails(setDoc(fref(db, 'alice', 'bob'), reqDoc('alice', 'bob', { requesterUid: 'bob' })));
+  await assertFails(setDoc(fref(db, 'alice', 'bob'), reqDoc('alice', 'bob', { uids: ['alice', 'bob', 'carol'] })));
+});
+
+test('friendships create: status, nome, campo extra e createdAt invalidos negados', async () => {
+  await seedFriendUsers();
+  const db = as('alice');
+  const ref = fref(db, 'alice', 'bob');
+  await assertFails(setDoc(ref, reqDoc('alice', 'bob', { status: 'accepted' })));
+  await assertFails(setDoc(ref, reqDoc('alice', 'bob', { status: 'declined' })));
+  await assertFails(setDoc(ref, reqDoc('alice', 'bob', { requesterName: 'Outro Nome' })));
+  await assertFails(setDoc(ref, reqDoc('alice', 'bob', { requesterName: '' })));
+  await assertFails(setDoc(ref, reqDoc('alice', 'bob', { extra: 1 })));
+  await assertFails(setDoc(ref, reqDoc('alice', 'bob', { responderName: 'B' })));
+  await assertFails(setDoc(ref, reqDoc('alice', 'bob', { createdAt: Timestamp.fromMillis(1000) })));
+  await assertFails(setDoc(ref, reqDoc('alice', 'bob', { createdAt: Timestamp.now() })));
+  await assertSucceeds(setDoc(ref, reqDoc('alice', 'bob')));
+});
+
+test('friendships create: sem perfil do remetente, destino sem users, destino sem publicProfiles, anonimo e terceiro negados', async () => {
+  await seedFriendUsers();
+  // destino que desligou a busca (sem publicProfiles) nao recebe pedido
+  await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'publicProfiles/bob')));
+  await assertFails(setDoc(fref(as('alice'), 'alice', 'bob'), reqDoc('alice', 'bob')));
+  // destino com publicProfiles mas sem users (conta excluida pela metade)
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'publicProfiles/ghost'), pub({ name: 'G' }));
+  });
+  await assertFails(setDoc(fref(as('alice'), 'alice', 'ghost'), reqDoc('alice', 'ghost')));
+  // destino com users mas publicProfiles ausente: carol sem publicProfiles
+  await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'publicProfiles/carol')));
+  await assertFails(setDoc(fref(as('alice'), 'alice', 'carol'), reqDoc('alice', 'carol')));
+  // anonimo
+  await assertFails(setDoc(fref(env.unauthenticatedContext().firestore(), 'alice', 'bob'), reqDoc('alice', 'bob')));
+  // terceiro (carol nao esta em uids) grava o par alice/bob
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'publicProfiles/carol'), pub({ name: 'C' })));
+  await assertFails(setDoc(fref(as('carol'), 'alice', 'bob'), reqDoc('carol', 'bob', { uids: ['alice', 'bob'] })));
+  await assertFails(setDoc(fref(as('carol'), 'alice', 'bob'), reqDoc('alice', 'bob')));
+  // remetente sem perfil (exclusao em andamento)
+  await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'users/alice')));
+  await assertFails(setDoc(fref(as('alice'), 'alice', 'bob'), reqDoc('alice', 'bob')));
+});
+
+test('friendships duplicata e pedido cruzado: segundo create negado; o outro lado aceita', async () => {
+  await seedFriendUsers();
+  await assertSucceeds(setDoc(fref(as('alice'), 'alice', 'bob'), reqDoc('alice', 'bob')));
+  // mesmo remetente de novo (vira update sem respondedAt): negado
+  await assertFails(setDoc(fref(as('alice'), 'alice', 'bob'), reqDoc('alice', 'bob')));
+  // pedido cruzado: bob tenta criar o par que alice ja criou
+  await assertFails(setDoc(fref(as('bob'), 'alice', 'bob'), reqDoc('bob', 'alice')));
+  const d = await readFs('alice', 'bob');
+  if (d.requesterUid !== 'alice') throw new Error('o pedido original foi sobrescrito');
+  // bob aceita o pedido de alice
+  await assertSucceeds(updateDoc(fref(as('bob'), 'alice', 'bob'), { status: 'accepted', responderName: 'B', respondedAt: serverTimestamp() }));
+});
+
+test('friendships aceite: so o nao remetente; remetente, terceiro e anonimo negados', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  const acc = { status: 'accepted', responderName: 'B', respondedAt: serverTimestamp() };
+  await assertFails(updateDoc(fref(as('alice'), 'alice', 'bob'), { ...acc, responderName: 'A' }));
+  await assertFails(updateDoc(fref(as('alice'), 'alice', 'bob'), acc));
+  await assertFails(updateDoc(fref(as('carol'), 'alice', 'bob'), { ...acc, responderName: 'C' }));
+  await assertFails(updateDoc(fref(env.unauthenticatedContext().firestore(), 'alice', 'bob'), acc));
+  await assertFails(updateDoc(fref(as('root'), 'alice', 'bob'), acc));
+  await assertSucceeds(updateDoc(fref(as('bob'), 'alice', 'bob'), acc));
+  const d = await readFs('alice', 'bob');
+  if (d.status !== 'accepted' || d.responderName !== 'B') throw new Error('aceite nao gravado');
+});
+
+test('friendships aceite: campos que o destinatario nao pode alterar e valores invalidos negados', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  const ref = fref(as('bob'), 'alice', 'bob');
+  const acc = { status: 'accepted', responderName: 'B', respondedAt: serverTimestamp() };
+  await assertFails(updateDoc(ref, { ...acc, uids: ['bob', 'carol'] }));
+  await assertFails(updateDoc(ref, { ...acc, requesterUid: 'bob' }));
+  await assertFails(updateDoc(ref, { ...acc, requesterName: 'Falso' }));
+  await assertFails(updateDoc(ref, { ...acc, createdAt: Timestamp.fromMillis(5) }));
+  await assertFails(updateDoc(ref, { ...acc, declinedBy: 'bob' }));
+  await assertFails(updateDoc(ref, { ...acc, extra: 1 }));
+  await assertFails(updateDoc(ref, { ...acc, responderName: 'Nome Falso' }));
+  await assertFails(updateDoc(ref, { ...acc, respondedAt: Timestamp.fromMillis(5) }));
+  await assertFails(updateDoc(ref, { status: 'accepted', responderName: 'B' })); // sem respondedAt
+  await assertFails(updateDoc(ref, { status: 'pending', respondedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, acc));
+});
+
+test('friendships aceite duplo e transicoes invalidas: accepted->accepted, declined->accepted negados', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  const acc = { status: 'accepted', responderName: 'B', respondedAt: serverTimestamp() };
+  await assertSucceeds(updateDoc(fref(as('bob'), 'alice', 'bob'), acc));
+  await assertFails(updateDoc(fref(as('bob'), 'alice', 'bob'), { ...acc, respondedAt: serverTimestamp() }));
+  // lapide nao volta a aceita
+  await seedFs('alice', 'carol', { status: 'declined', declinedBy: 'carol', respondedAt: Timestamp.now() });
+  await assertFails(updateDoc(fref(as('carol'), 'alice', 'carol'), { ...acc, responderName: 'C' }));
+  await assertFails(updateDoc(fref(as('alice'), 'alice', 'carol'), { status: 'accepted', respondedAt: serverTimestamp() }));
+});
+
+test('friendships aceite: remetente com a conta excluida (sem users) negado', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'users/alice')));
+  await assertFails(updateDoc(fref(as('bob'), 'alice', 'bob'), { status: 'accepted', responderName: 'B', respondedAt: serverTimestamp() }));
+  // recusar continua possivel (nao depende do remetente)
+  await assertSucceeds(updateDoc(fref(as('bob'), 'alice', 'bob'), { status: 'declined', declinedBy: 'bob', respondedAt: serverTimestamp() }));
+});
+
+test('friendships recusa e lapide: recusa so por quem nao pediu; lapide nao e recriada, alterada nem apagada pelo recusado', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  const dec = (by) => ({ status: 'declined', declinedBy: by, respondedAt: serverTimestamp() });
+  // o remetente nao recusa o proprio pedido; terceiro e anonimo negados
+  await assertFails(updateDoc(fref(as('alice'), 'alice', 'bob'), dec('alice')));
+  await assertFails(updateDoc(fref(as('carol'), 'alice', 'bob'), dec('carol')));
+  await assertFails(updateDoc(fref(env.unauthenticatedContext().firestore(), 'alice', 'bob'), dec('bob')));
+  // declinedBy de outro negado
+  await assertFails(updateDoc(fref(as('bob'), 'alice', 'bob'), dec('alice')));
+  // responderName junto da recusa negado
+  await assertFails(updateDoc(fref(as('bob'), 'alice', 'bob'), { ...dec('bob'), responderName: 'B' }));
+  await assertSucceeds(updateDoc(fref(as('bob'), 'alice', 'bob'), dec('bob')));
+  // lapide: alice nao recria, nao altera, nao apaga
+  const a = as('alice');
+  await assertFails(setDoc(fref(a, 'alice', 'bob'), reqDoc('alice', 'bob')));
+  await assertFails(updateDoc(fref(a, 'alice', 'bob'), { status: 'pending', respondedAt: serverTimestamp() }));
+  await assertFails(updateDoc(fref(a, 'alice', 'bob'), { status: 'accepted', responderName: 'A', respondedAt: serverTimestamp() }));
+  await assertFails(updateDoc(fref(a, 'alice', 'bob'), { declinedBy: 'alice', respondedAt: serverTimestamp() }));
+  await assertFails(deleteDoc(fref(a, 'alice', 'bob')));
+  const d = await readFs('alice', 'bob');
+  if (d.status !== 'declined' || d.declinedBy !== 'bob') throw new Error('lapide foi alterada');
+});
+
+test('friendships desbloqueio: quem recusou apaga a lapide e o par pode ser criado de novo', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob', { status: 'declined', declinedBy: 'bob', respondedAt: Timestamp.now() });
+  await assertFails(deleteDoc(fref(as('carol'), 'alice', 'bob')));
+  await assertFails(deleteDoc(fref(as('alice'), 'alice', 'bob')));
+  await assertSucceeds(deleteDoc(fref(as('bob'), 'alice', 'bob')));
+  if ((await readFs('alice', 'bob')) !== null) throw new Error('lapide nao foi apagada');
+  await assertSucceeds(setDoc(fref(as('alice'), 'alice', 'bob'), reqDoc('alice', 'bob')));
+});
+
+test('friendships remocao: qualquer um dos dois remove uma amizade aceita; terceiro negado; remover vira lapide de quem removeu', async () => {
+  await seedFriendUsers();
+  const acc = { status: 'accepted', responderName: 'B', respondedAt: Timestamp.now() };
+  await seedFs('alice', 'bob', acc);
+  const dec = (by) => ({ status: 'declined', declinedBy: by, respondedAt: serverTimestamp() });
+  await assertFails(updateDoc(fref(as('carol'), 'alice', 'bob'), dec('carol')));
+  await assertFails(updateDoc(fref(as('alice'), 'alice', 'bob'), dec('bob')));
+  await assertSucceeds(updateDoc(fref(as('alice'), 'alice', 'bob'), dec('alice')));
+  // bob (recusado) nao recria nem apaga a lapide de alice
+  await assertFails(setDoc(fref(as('bob'), 'alice', 'bob'), reqDoc('bob', 'alice')));
+  await assertFails(deleteDoc(fref(as('bob'), 'alice', 'bob')));
+  // o outro sentido: bob remove
+  await seedFs('alice', 'bob', acc);
+  await assertSucceeds(updateDoc(fref(as('bob'), 'alice', 'bob'), dec('bob')));
+});
+
+test('friendships cancelar: remetente apaga pending; destinatario nao; ninguem apaga accepted com perfil', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  await assertFails(deleteDoc(fref(as('bob'), 'alice', 'bob')));
+  await assertFails(deleteDoc(fref(as('carol'), 'alice', 'bob')));
+  await assertFails(deleteDoc(fref(as('root'), 'alice', 'bob')));
+  await assertFails(deleteDoc(fref(env.unauthenticatedContext().firestore(), 'alice', 'bob')));
+  await assertSucceeds(deleteDoc(fref(as('alice'), 'alice', 'bob')));
+  await seedFs('alice', 'bob', { status: 'accepted', responderName: 'B', respondedAt: Timestamp.now() });
+  await assertFails(deleteDoc(fref(as('alice'), 'alice', 'bob')));
+  await assertFails(deleteDoc(fref(as('bob'), 'alice', 'bob')));
+});
+
+test('friendships exclusao de conta: sem users/{eu} o membro apaga qualquer relacao sua (inclusive lapide em que foi recusado); terceiros nao', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob', { status: 'accepted', responderName: 'B', respondedAt: Timestamp.now() });
+  await seedFs('alice', 'carol', { status: 'declined', declinedBy: 'carol', respondedAt: Timestamp.now() });
+  await seedFs('bob', 'carol');
+  await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'users/alice')));
+  const a = as('alice');
+  await assertSucceeds(deleteDoc(fref(a, 'alice', 'bob')));
+  await assertSucceeds(deleteDoc(fref(a, 'alice', 'carol')));
+  // relacao de que alice nao faz parte: negado mesmo sem perfil
+  await assertFails(deleteDoc(fref(a, 'bob', 'carol')));
+  // a consulta da cascata funciona sem perfil
+  await assertSucceeds(getDocs(query(collection(a, 'friendships'), where('uids', 'array-contains', 'alice'))));
+  // bob (com perfil) nao apaga a relacao accepted de outra forma
+  await seedFs('alice', 'bob', { status: 'accepted', responderName: 'B', respondedAt: Timestamp.now() });
+  await assertFails(deleteDoc(fref(as('bob'), 'alice', 'bob')));
+});
+
+test('friendships leitura: get do par proprio (inclusive inexistente) ok; par alheio, anonimo e admin negados', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  await assertSucceeds(getDoc(fref(as('alice'), 'alice', 'bob')));
+  await assertSucceeds(getDoc(fref(as('bob'), 'alice', 'bob')));
+  await assertSucceeds(getDoc(fref(as('alice'), 'alice', 'carol'))); // inexistente, mas meu par
+  await assertFails(getDoc(fref(as('carol'), 'alice', 'bob')));
+  await assertFails(getDoc(fref(as('bob'), 'alice', 'carol')));
+  await assertFails(getDoc(fref(as('root'), 'alice', 'bob')));
+  await assertFails(getDoc(fref(env.unauthenticatedContext().firestore(), 'alice', 'bob')));
+});
+
+test('friendships leitura: query array-contains com o proprio uid ok; uid alheio, sem filtro, collection group e anonimo negados', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  await seedFs('bob', 'carol');
+  const q = (db, uid) => query(collection(db, 'friendships'), where('uids', 'array-contains', uid));
+  const mine = await assertSucceeds(getDocs(q(as('alice'), 'alice')));
+  if (mine.size !== 1) throw new Error(`esperava 1 relacao, veio ${mine.size}`);
+  const bobs = await assertSucceeds(getDocs(q(as('bob'), 'bob')));
+  if (bobs.size !== 2) throw new Error(`esperava 2 relacoes, veio ${bobs.size}`);
+  await assertFails(getDocs(q(as('alice'), 'bob')));
+  await assertFails(getDocs(collection(as('alice'), 'friendships')));
+  await assertFails(getDocs(query(collectionGroup(as('alice'), 'friendships'), where('uids', 'array-contains', 'alice'))));
+  await assertFails(getDocs(q(env.unauthenticatedContext().firestore(), 'alice')));
+  await assertFails(getDocs(q(as('root'), 'alice')));
+});
+
+test('friendships: uids reais de 28 caracteres funcionam (pedido, aceite, leitura)', async () => {
+  const u1 = 'aB3dE5gH7jK9mN1pQ3sT5vW7yZ01';
+  const u2 = 'zY9xW7vU5tS3rQ1pO9nM7lK5jI3h';
+  if (u1.length !== 28 || u2.length !== 28) throw new Error('uids de teste invalidos');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, `users/${u1}`), baseUser({ name: 'U1' }));
+    await setDoc(doc(db, `users/${u2}`), baseUser({ name: 'U2' }));
+    await setDoc(doc(db, `publicProfiles/${u2}`), pub({ name: 'U2' }));
+  });
+  const [lo, hi] = [u1, u2].sort();
+  const ref = (db) => doc(db, `friendships/${lo}_${hi}`);
+  await assertSucceeds(setDoc(ref(as(u1)), {
+    uids: [lo, hi], requesterUid: u1, requesterName: 'U1', status: 'pending', createdAt: serverTimestamp(),
+  }));
+  await assertSucceeds(getDoc(ref(as(u2))));
+  await assertSucceeds(updateDoc(ref(as(u2)), { status: 'accepted', responderName: 'U2', respondedAt: serverTimestamp() }));
+});

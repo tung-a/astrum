@@ -133,5 +133,66 @@ List<String> findRulesDivergences(String rules) {
   intRule('chatSchemaVersion', chatSchemaVersion,
       RegExp(r'd\.schemaVersion == (\d+)'));
 
+  // Amizades: o bloco `match /friendships/{pid}` usa exatamente os tres status
+  // do contrato, o mesmo separador de id e o limite de nome.
+  final fsBlock = RegExp(r'match /friendships/\{pid\} \{([\s\S]*?)\n    \}\n')
+      .firstMatch(rules);
+  if (fsBlock == null) {
+    missing('friendships');
+  } else {
+    final body = fsBlock.group(1)!;
+    final statuses = {
+      for (final m in RegExp(r"status == '(\w+)'").allMatches(body)) m.group(1)!
+    };
+    final dartStatuses = {
+      friendshipPending,
+      friendshipAccepted,
+      friendshipDeclined
+    };
+    if (statuses.isEmpty) {
+      missing('friendshipStatus');
+    } else if (statuses.difference(dartStatuses).isNotEmpty ||
+        dartStatuses.difference(statuses).isNotEmpty) {
+      out.add('friendshipStatus: Dart=$dartStatuses, regras=$statuses');
+    }
+    final create =
+        RegExp(r"request\.resource\.data\.status == '(\w+)'").firstMatch(body);
+    if (create == null) {
+      missing('friendshipPending');
+    } else if (create.group(1) != friendshipPending) {
+      out.add('friendshipPending: Dart=$friendshipPending, '
+          'regras=${create.group(1)}');
+    }
+    final names = RegExp(r'(?:requesterName|responderName)\.size\(\) <= (\d+)')
+        .allMatches(body)
+        .map((m) => int.parse(m.group(1)!))
+        .toList();
+    if (names.isEmpty) {
+      missing('friendshipNameMax');
+    } else if (names.any((v) => v != friendshipNameMax)) {
+      out.add('friendshipNameMax: Dart=$friendshipNameMax, regras=$names');
+    }
+    final seps = RegExp(r"pid\.split\('([^']*)'\)")
+        .allMatches(body)
+        .map((m) => m.group(1)!)
+        .toList();
+    if (seps.isEmpty) {
+      missing('friendshipIdSeparator');
+    } else if (seps.any((v) => v != friendshipIdSeparator)) {
+      out.add('friendshipIdSeparator: Dart=$friendshipIdSeparator, '
+          'regras=$seps');
+    }
+  }
+  strRule(
+      'friendshipIdSeparator (pairId)',
+      friendshipIdSeparator,
+      RegExp(
+          r"function pairId\(a, b\)\s*\{\s*return a < b \? a \+ '([^']*)' \+ b"));
+  strRule(
+      'friendshipIdSeparator (create)',
+      friendshipIdSeparator,
+      RegExp(r"pid == request\.resource\.data\.uids\[0\] \+ '([^']*)' \+ "
+          r"request\.resource\.data\.uids\[1\]"));
+
   return out;
 }
