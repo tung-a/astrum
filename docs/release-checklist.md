@@ -14,7 +14,7 @@ Marque cada item na ordem. Nao pule etapas.
 ## 3. Deploy do Firestore (ORDEM OBRIGATORIA)
 1. [ ] **Primeiro**, publicar o catalogo: o admin clica em "Publicar catalogo" no painel.
 2. [ ] **Depois**, implantar indices e regras: `firebase deploy --only firestore` (publica `firestore.indexes.json` e `firestore.rules`). O indice de collection group de `notifications.fromUid` (etapa 11) leva um tempo para ser construido: conferir no console que esta **pronto** antes de seguir.
-3. [ ] **Etapa 12 (aceite de amizade), ordem especifica:** (1) regras que adicionam `friendships` (commit `feat(regras): friendships`), (2) cliente novo, (3) regras finais (`notifications` so entre amigos aceitos, remocao de `friends`, `publicProfiles` com `limit(1)`). Como nao ha usuarios ativos e o repositorio tem as tres mudancas na mesma versao de `firestore.rules`, na pratica: implantar as regras e o cliente na mesma janela; um cliente antigo perde as intencoes. Antes: limpar `users/*/friends` de contas de teste (console ou `scripts/audit_users.md`; o caminho passa a ser negado).
+3. [ ] **Etapa 12 (aceite de amizade), ordem especifica:** (1) regras que adicionam `friendships` (commit `feat(regras): friendships`), (2) cliente novo, (3) regras finais (`notifications` so entre amigos aceitos, remocao de `friends`, `publicProfiles` com `limit(1)`). Como nao ha usuarios ativos e o repositorio tem as tres mudancas na mesma versao de `firestore.rules`, na pratica: implantar as regras e o cliente na mesma janela; um cliente antigo perde as intencoes e **tambem trava a exclusao de conta** (o `deleteAllFriends` antigo cai em `permission-denied` depois que o perfil ja foi apagado e a cascata fica no meio). Antes: limpar `users/*/friends` de contas de teste (console ou `scripts/audit_users.md`; o caminho passa a ser negado).
 4. [ ] **So entao** distribuir o cliente (a exclusao de conta usa o indice e as regras novas; sem eles a etapa "intencoes enviadas" falha).
 
 Avisos:
@@ -50,11 +50,13 @@ Removido na etapa 11: o botao "Recriar perfis publicos" (`rebuildPublicProfiles`
 - [ ] Suporte: quem esqueceu a senha usa "Esqueci minha senha" na tela de login; sem a senha nao ha como reautenticar a exclusao.
 
 ## 6c. Amizade com aceite (etapa 12)
-- [ ] Rodar `test_rules` (81 testes) numa porta livre: `FIRESTORE_EMULATOR_PORT=<porta> npm test`; nunca contra emulador em uso.
-- [ ] Em dois aparelhos/contas: pedir por e-mail, ver o selo no Perfil, aceitar, trocar intencao nos dois sentidos; recusar e conferir que o remetente continua vendo "Aguardando resposta" e nao consegue pedir de novo; remover amizade e desbloquear; pedido cruzado (os dois pedem ao mesmo tempo) vira amizade.
+- [ ] **Ordem de implantacao (na mesma janela):** (1) regras do passo 1 (`friendships`), (2) cliente novo, (3) so depois as regras do passo 6 (`notifications` so entre amigos aceitos, remocao de `friends`). Nunca as regras finais antes do cliente novo.
+- [ ] Rodar `test_rules` (87 testes) numa porta livre: `FIRESTORE_EMULATOR_PORT=<porta> npm test`; nunca contra emulador em uso.
+- [ ] Em dois aparelhos/contas: pedir por e-mail, ver o selo no Perfil, aceitar, trocar intencao nos dois sentidos; recusar e conferir que o remetente continua vendo "Aguardando resposta" (com "Cancelar pedido", que so esconde o item) e nao consegue pedir de novo; remover amizade e desbloquear; pedido cruzado (os dois pedem ao mesmo tempo) vira amizade.
 - [ ] Desligar "Aparecer na busca de amigos" na conta B: A recebe a mensagem generica ao pedir; pedidos ja existentes continuam.
 - [ ] Modo aviao: pedir/aceitar mostram "Sem conexao. Tente de novo quando estiver online."
 - [ ] Excluir uma conta com pedidos e amizades: as relacoes somem para a outra pessoa; a outra conta nao ve mais o nome.
+- [ ] Risco aceito R-S8: quem foi recusado pode apagar o proprio perfil, apagar a lapide e refazer a conta (equivale a outra conta); mitigacao real: App Check (etapa 13).
 - [ ] Risco aceito R-S1: sem teto de pedidos no servidor (Spark); mitigacao real so com App Check (etapa 13) ou Functions/Blaze.
 
 ## 7. Seguranca do repositorio

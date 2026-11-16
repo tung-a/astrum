@@ -1,5 +1,7 @@
 # QA da etapa 12: aceite de amizade
 
+> **Nota:** o conteúdo inicial deste documento é um relato do builder (execução e verificação feitas por ele); o `qa` independente complementa com casos e relatório próprios. Após a rodada de revisão: 524 testes Flutter e 87 de regras.
+
 Data: 2026-11-16. Branch: `feature/flutter-migration`. Base: `docs/architecture/step12-friend-requests.md` (seções 7, 9 e 11).
 
 ## 1. Resultado da execução

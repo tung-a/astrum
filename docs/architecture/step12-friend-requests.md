@@ -6,11 +6,11 @@ Nota de numeração: `restructuring-decisions.md` ainda chama de "etapa 12" o up
 
 Premissas do usuário: sem usuários ativos (migração livre, pode-se zerar `friends`), Spark sem Cloud Functions, só iOS e Android, sempre seguir as recomendações.
 
-## 1. Problema (verificado no código)
+## 1. Problema (verificado no código, antes da etapa 12)
 
-- `SocialRepository.addFriend` grava só em `users/{eu}/friends/{outro}` (nome copiado da busca por hash). O outro lado não sabe e não consente.
-- A regra de `notifications` (create) aceita qualquer remetente que tenha o destino na **própria** lista `friends` (`exists(users/{eu}/friends/{uid})`). Logo qualquer logado que ache o e-mail de alguém envia intenções sem aceite: é o vetor de spam.
-- O cliente só escreve no próprio `uid` (e, hoje, em `notifications` alheias com regra estrita). Sem Admin SDK, o "vínculo nos dois lados" não pode ser gravado por uma pessoa só.
+- Antes da etapa 12, `SocialRepository.addFriend` gravava só em `users/{eu}/friends/{outro}` (nome copiado da busca por hash). O outro lado não sabia e não consentia (a subcoleção `friends` foi removida).
+- A regra de `notifications` (create) aceitava qualquer remetente que tivesse o destino na **própria** lista `friends` (`exists(users/{eu}/friends/{uid})`). Logo qualquer logado que achasse o e-mail de alguém enviava intenções sem aceite: era o vetor de spam (hoje exige `friendships/{par}.status == 'accepted'`).
+- O cliente só escreve no próprio `uid` (e em `notifications` alheias com regra estrita). Sem Admin SDK, o "vínculo nos dois lados" não pode ser gravado por uma pessoa só.
 - Resíduo R10 da etapa 11: meu nome fica copiado na lista de quem me adicionou, mesmo após eu excluir a conta.
 
 ## 2. Modelo escolhido: documento de relação único
@@ -19,7 +19,7 @@ Premissas do usuário: sem usuários ativos (migração livre, pode-se zerar `fr
 
 | Alternativa | Como o aceite grava no lado do remetente | Veredito |
 |---|---|---|
-| A. Pedido em `users/{to}/friendRequests/{from}`; aceite cria `users/{to}/friends/{from}` e **espelho** `users/{from}/friends/{to}` por regra que valida o pedido com `get()` | O destinatário escreve na lista alheia (precisa `get` + `exists` e regra de create por terceiro). | Rejeitada: dois documentos para manter coerentes, escrita de terceiro em coleção privada, remoção de um lado deixa o outro vinculado (sem aceite), e o nome continua copiado em lista alheia após exclusão (R10 persiste). |
+| A. (descartada) Pedido em `users/{to}/friendRequests/{from}`; aceite cria `users/{to}/friends/{from}` e **espelho** `users/{from}/friends/{to}` por regra que valida o pedido com `get()` | O destinatário escreve na lista alheia (precisa `get` + `exists` e regra de create por terceiro). | Rejeitada: dois documentos para manter coerentes, escrita de terceiro em coleção privada, remoção de um lado deixa o outro vinculado (sem aceite), e o nome continua copiado em lista alheia após exclusão (R10 persiste). |
 | B. Cada lado "reivindica": destinatário marca o pedido como aceito e o remetente, ao abrir o app, consulta pedidos aceitos e cria o próprio `friends` | Remetente lê o pedido alheio por collection group (`fromUid`) e grava o próprio vínculo. | Rejeitada: o vínculo só existe quando o remetente abre o app (janela assimétrica, intenção de volta recusada), precisa de outro collection group e índice, e a limpeza continua em duas listas. |
 | **C. Um documento de relação por par em `friendships/{pairId}`** | Não há "outro lado": o par tem **um** documento que os dois leem; o remetente cria (`pending`), o destinatário altera só o `status`. | **Escolhida.** Cada escrita é de quem a autoriza, atomicidade natural, duplicidade e pedido cruzado resolvidos pelo próprio id, exclusão de conta apaga o par inteiro (fecha R10), sem collection group nem índice composto. |
 
@@ -159,7 +159,10 @@ Honestidade: **no Spark as regras não contam documentos**, então "no máximo N
 - "Aparecer na busca de amigos" desligado: não é achado e **não recebe pedidos novos** (2.6). Pedidos/amizades já existentes não são afetados. `showSign` não entra no modelo.
 - Mensagens sem vazamento: busca sem resultado, alvo que desligou a busca, alvo que recusou/removeu e conta excluída produzem a **mesma** mensagem ao remetente ("Não foi possível enviar o pedido a esse e-mail."). Só "pedido já enviado" e "vocês já são amigos" são distintos (o remetente já conhece essa relação).
 - **Enumeração em massa (limite do Spark, não resolvido aqui):** `publicProfiles` é legível por qualquer logado e a regra de `read` permite `list`; hoje já dá para varrer a coleção (nome + hash). Esta etapa **não piora** (a relação não expõe mais dados), mas recomendo, como passo opcional 7 e para o `reviewer-consultor`: trocar `allow read` por `allow get` (por uid) mais `allow list: if signedIn() && request.query.limit <= 1` (a busca por hash já usa `limit(1)`), o que encarece, mas **não impede**, a varredura paginada por um cliente forjado; a barreira real é App Check. Hash sem sal continua registrado como limite (etapa 11, seção 10).
-- A lápide é silenciosa: ao remetente cuja solicitação foi recusada, a UI mostra "Pedido enviado" (não revela a recusa; sem botão de cancelar, pois cancelar liberaria novo pedido). Evita constrangimento e retaliação.
+- A lápide é silenciosa **só na interface**: ao remetente cuja solicitação foi recusada, a UI mostra "Aguardando resposta" e o mesmo botão "Cancelar pedido" de qualquer pedido enviado. Cancelar uma lápide (recusada por outro) não toca o servidor (as regras negariam e apagar liberaria novo pedido): o app responde "Pedido cancelado." e esconde o item só naquela sessão. O documento continua legível a um cliente modificado (`get`/`list` do próprio par), que enxerga `status: declined`; isso é aceito, pois o sigilo é de apresentação, não de dados. Evita constrangimento e retaliação.
+- **Bloqueio próprio:** quando o par está em "Recusados e removidos" (eu recusei/removi), a busca avisa "Você recusou ou removeu essa pessoa. Desbloqueie em Pedidos de amizade." (só o próprio usuário vê isso); nos demais casos a mensagem genérica única não revela nada.
+- **Varredura e `limit(1)`:** `limit(1)` em `publicProfiles` não impede varredura (paginação com `startAfter`); a barreira real é o App Check (etapa 13).
+- **Nomes:** `requesterName` e `responderName` vêm de `users.name`, editável pelo dono sem regex; o risco é texto livre de até 100 caracteres exibido ao outro (a UI limita a uma linha com reticências).
 
 ## 7. UX (português)
 
@@ -244,6 +247,7 @@ Ordem de implantação em produção: regras do passo 1 -> cliente -> regras do 
 | R-S5 | Leitura das regras (`get(users/{eu})`) falha se o perfil estiver ausente. | Falha fechada; fluxo legítimo sempre tem perfil. |
 | R-S6 | Contas de teste com `friends` legado. | Inalcançáveis; limpar pelo console/auditoria. |
 | R-S7 | Nome gravado na relação não acompanha futura edição de nome. | Hoje não há edição; se surgir, atualizar a relação junto (backlog). |
+| R-S8 | Contorno da lápide refazendo o perfil: quem foi recusado apaga `users/{eu}`, a regra de exclusão de conta libera apagar a lápide, recria `users/{eu}` e `publicProfiles/{eu}` e pede de novo (caracterizado em `test_rules/`). | **Aceito:** equivale a criar outra conta. Mitigação real: App Check (etapa 13). Alternativa descartada: documento de bloqueio em `users/{B}/blocks`, que custa 1 leitura por pedido e não fecha o caso de outra conta. |
 
 ## 14. Revisão obrigatória (`reviewer-consultor`)
 
@@ -266,7 +270,7 @@ Desvios em relação ao desenho:
 - **Regras de `update` separadas por transição.** Aceitar permite só `status`, `responderName`, `respondedAt`; recusar/remover permite só `status`, `declinedBy`, `respondedAt` (o esboço da seção 2.4 usava um único `hasOnly`, que deixaria quem recusa gravar um `responderName` livre). `responderName` ganhou o limite de 1 a 100 caracteres e o create exige `pid.split('_').size() == 2`.
 - **Nome do destinatário em pedido enviado.** O documento não carrega o nome de quem recebeu o pedido (create só tem `requesterName`), então a lista "Enviados" lê `publicProfiles/{uid}` (`publicNameProvider`, "Viajante" se oculto ou excluído). O passo 7 mantém `get` por uid liberado.
 - **"Pedidos enviados"** ficam só na tela `/account/requests` (a `AccountScreen` mostra o cartão "Pedidos de amizade (n)" que abre a tela), em vez de repetir a seção na conta.
-- **Recusa silenciosa:** o pedido recusado pelo outro lado continua em "Enviados" como "Aguardando resposta" (sem "Cancelar pedido") e um novo pedido ao mesmo e-mail responde "Você já enviou um pedido a essa pessoa."; só a lápide de amizade removida (ou minha) gera a mensagem genérica. Pedidos recusados não contam na cota de 20.
+- **Recusa silenciosa:** o pedido recusado pelo outro lado continua em "Enviados" como "Aguardando resposta" com o mesmo "Cancelar pedido" dos demais (cancelar a lápide só mostra "Pedido cancelado." e esconde o item na sessão, sem escrita; "Enviados (n)" inclui os recusados e por isso difere da cota) e um novo pedido ao mesmo e-mail responde "Você já enviou um pedido a essa pessoa."; só a lápide de amizade removida (ou minha) gera a mensagem genérica. Pedidos recusados não contam na cota de 20.
 - **Pedido cruzado simultâneo:** garantido pela transação do Firestore (reexecução no cliente); `fake_cloud_firestore` não reproduz a contenção, então o teste cobre o caso sequencial e a lógica dos resultados.
 - **Designer:** a tela seguiu o desenho da seção 7 sem documento próprio em `docs/design/`.
 - **Limites das regras verificados no emulador:** um batch de 400 deletes de `friendships` sem perfil (página da cascata, 1 `exists(users/{eu})` por delete) passa, então o limite de chamadas de acesso por requisição não bloqueia a cascata. Teste em `test_rules/`.
