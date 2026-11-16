@@ -1,3 +1,4 @@
+import 'package:astrum/core/firebase/paged_delete.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,4 +25,11 @@ class AnalyticsService {
       debugPrint('Falha ao registrar evento "$eventName": ${error.message}');
     }
   }
+
+  /// Apaga todos os eventos do [uid] (exclusao de conta). So o proprio uid
+  /// (regras: leitura e delete com `userId == auth.uid`). Offline lanca
+  /// [ServerOfflineException]; idempotente.
+  Future<void> deleteOwnEvents(String uid) => deleteQueryPaged(_firestore
+      .collection('analytics_events')
+      .where('userId', isEqualTo: uid));
 }
