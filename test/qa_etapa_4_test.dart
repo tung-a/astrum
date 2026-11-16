@@ -126,24 +126,6 @@ void main() {
 
   group('perfil publico e LGPD (M3, caracterizacao)', () {
     test(
-        'rebuildPublicProfiles grava perfil mesmo com preferences.publicProfile=false',
-        () async {
-      await db.collection('users').doc('m').set({
-        'name': 'Mia',
-        'email': 'mia@x.com',
-        'zodiacSign': 'Aries',
-        'preferences': {'publicProfile': false},
-      });
-
-      final n = await AdminRepository(db).rebuildPublicProfiles();
-
-      // u1 (do setUp) + m: o preference publicProfile=false nao e consultada.
-      expect(n, 2);
-      expect((await db.collection('publicProfiles').doc('m').get()).exists,
-          isTrue);
-    });
-
-    test(
         'equip(profilePicture) com preferences.publicProfile=false ignora a preferencia e regrava o publicProfiles',
         () async {
       await db.collection('publicProfiles').doc('u1').set({
@@ -170,9 +152,8 @@ void main() {
   });
 
   group('desvios documentados da etapa 4', () {
-    test(
-        'desvio 1: syncFromUser usa e-mail do auth quando o perfil nao tem; '
-        'AdminRepository nao usa (pula o usuario)', () async {
+    test('desvio 1: syncFromUser usa e-mail do auth quando o perfil nao tem',
+        () async {
       await db.collection('users').doc('s').set({
         'name': 'Sem Email',
         'zodiacSign': 'Aries',
@@ -185,13 +166,6 @@ void main() {
       await sync.syncFromUser('s');
       final pub = (await db.collection('publicProfiles').doc('s').get()).data();
       expect(pub?['emailHash'], hashEmail('auth@x.com'));
-
-      await db.collection('publicProfiles').doc('s').delete();
-      final n = await AdminRepository(db).rebuildPublicProfiles();
-      // Admin: u1 (tem e-mail) ja e gravado; 's' sem e-mail nao gera perfil.
-      expect(n, 1);
-      expect((await db.collection('publicProfiles').doc('s').get()).exists,
-          isFalse);
     });
   });
 

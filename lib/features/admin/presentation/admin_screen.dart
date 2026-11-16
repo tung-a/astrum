@@ -99,28 +99,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     }
   }
 
-  /// Migracao unica: cria publicProfiles para os usuarios existentes.
-  Future<void> _rebuildPublicProfiles() async {
-    final profile = ref.read(profileProvider).valueOrNull;
-    if (profile == null || !profile.isAdmin) return;
-    try {
-      final n = await ref.read(adminRepositoryProvider).rebuildPublicProfiles();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$n perfis públicos recriados.')),
-        );
-      }
-    } on AdminOperationException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text('Falha ao recriar perfis públicos: ${error.message}')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return CosmicScaffold(
@@ -257,12 +235,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   onPressed: _publishCatalog,
                   icon: const Icon(Icons.storefront_outlined),
                   label: const Text('Publicar catálogo'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _rebuildPublicProfiles,
-                  icon: const Icon(Icons.group_outlined),
-                  label: const Text('Recriar perfis públicos'),
                 ),
                 const SizedBox(height: 20),
                 Text('Usuários', style: Theme.of(context).textTheme.titleLarge),

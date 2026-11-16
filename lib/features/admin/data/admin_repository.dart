@@ -1,10 +1,8 @@
 import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/features/admin/data/crystal_seed.dart';
-import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:astrum/features/economy/domain/shop_item.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
-import 'package:astrum/features/profile/domain/public_profile.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Falha de uma operacao de admin (mensagem original do Firebase).
@@ -81,37 +79,6 @@ class AdminRepository {
   AdminRepository(this._db);
 
   final FirebaseFirestore _db;
-
-  /// Migracao: grava publicProfiles para todos os users (so admin le users).
-  /// Devolve quantos perfis foram gravados.
-  /// Atencao: firestore.rules so deixa o dono escrever publicProfiles/{uid};
-  /// para terceiros a gravacao falha com permission-denied (backlog M1).
-  Future<int> rebuildPublicProfiles() async {
-    try {
-      return await _rebuildPublicProfiles();
-    } on FirebaseException catch (e) {
-      throw AdminOperationException(e.message ?? '');
-    }
-  }
-
-  Future<int> _rebuildPublicProfiles() async {
-    final snap = await _db.usersCol.get();
-    var count = 0;
-    for (final d in snap.docs) {
-      final data = d.data();
-      final equipped = data['equipped'] as Map<String, dynamic>?;
-      final profile = buildPublicProfile(
-        name: data['name'] as String? ?? '',
-        avatar: equipped?['profilePicture'] as String? ??
-            defaultProfilePictureId(data['zodiacSign'] as String?),
-        email: data['email'] as String? ?? '',
-      );
-      if (profile == null) continue;
-      await _db.publicDoc(d.id).set(profile);
-      count++;
-    }
-    return count;
-  }
 
   Future<List<AppUser>> listUsers() async {
     final snap = await _db.usersCol.limit(80).get();

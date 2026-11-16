@@ -1,5 +1,4 @@
 import 'package:astrum/core/astro/natal_chart.dart';
-import 'package:astrum/features/admin/data/admin_repository.dart';
 import 'package:astrum/features/economy/domain/equip_slot.dart';
 import 'package:astrum/features/profile/data/profile_repository.dart';
 import 'package:astrum/features/profile/data/public_profile_sync.dart';
@@ -26,36 +25,6 @@ class _SyncFalhando extends PublicProfileSync {
 
 void main() {
   createProfileTests();
-  group('AdminRepository.rebuildPublicProfiles', () {
-    // Obs.: o fake_cloud_firestore NAO aplica firestore.rules. Nas regras
-    // atuais so o dono escreve publicProfiles/{uid}; um admin gravando o de
-    // terceiros recebe permission-denied em producao (backlog M1).
-    test('conta so os perfis gravados e pula os que nao geram perfil',
-        () async {
-      final db = FakeFirebaseFirestore();
-      await db
-          .collection('users')
-          .doc('a')
-          .set({'name': 'Ana', 'email': 'ana@x.com', 'zodiacSign': 'Aries'});
-      await db
-          .collection('users')
-          .doc('b')
-          .set({'name': 'Bia', 'email': 'bia@x.com'});
-      // sem e-mail: buildPublicProfile devolve null.
-      await db.collection('users').doc('c').set({'name': 'Cris'});
-
-      final n = await AdminRepository(db).rebuildPublicProfiles();
-
-      expect(n, 2);
-      final pub = await db.collection('publicProfiles').get();
-      expect(pub.docs.map((d) => d.id).toSet(), {'a', 'b'});
-      expect(
-          (await db.collection('publicProfiles').doc('a').get())
-              .data()!['emailHash'],
-          hashEmail('ana@x.com'));
-    });
-  });
-
   group('SocialRepository', () {
     test('findUserByEmail usa publicProfiles', () async {
       final db = FakeFirebaseFirestore();
