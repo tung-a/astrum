@@ -4,6 +4,7 @@ import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/social/domain/friend.dart';
 import 'package:astrum/features/social/domain/recipient_unavailable.dart';
+import 'package:astrum/features/social/presentation/friendship_controller.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,22 +17,9 @@ class AccountController extends Notifier<void> {
   @override
   void build() {}
 
-  /// Busca [email] e adiciona o viajante. Retorna o texto do snackbar; null
-  /// sem perfil. A tela confere `mounted` antes de exibir.
-  Future<String?> addFriendByEmail(String email) async {
-    final profile = ref.read(profileProvider).valueOrNull;
-    if (profile == null) return null;
-    final social = ref.read(socialRepositoryProvider);
-    final found = await social.findUserByEmail(email);
-    if (found == null || found.id == profile.uid) {
-      return 'Nenhuma constelação encontrada com esse email.';
-    }
-    await social.addFriend(profile.uid, found);
-    return '${found.name} entrou na sua constelação.';
-  }
-
-  /// Envia a intencao e devolve o texto do snackbar. Se a conta do amigo
-  /// parece excluida, so avisa (nao mexe na lista).
+  /// Envia a intencao e devolve o texto do snackbar. Se a amizade nao existe
+  /// mais (desfeita ou conta excluida), so avisa: a lista e um stream e ja se
+  /// atualiza sozinha.
   Future<String> sendIntention(
       AppUser me, Friend friend, String id, String label) async {
     final social = ref.read(socialRepositoryProvider);
@@ -45,9 +33,7 @@ class AccountController extends Notifier<void> {
       );
       return '$label enviada a ${friend.name}';
     } on RecipientUnavailableException {
-      // Nao remove o amigo: o publicProfile some tambem quando a pessoa
-      // desliga a busca, e a conta pode existir.
-      return 'Esta conta não está mais disponível.';
+      return friendshipGone;
     }
   }
 

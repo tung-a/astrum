@@ -44,7 +44,7 @@ void main() {
     repos.profile.emit(_user());
     await settle();
     expect(repos.events.watchCalls, 1);
-    expect(repos.social.watchFriendsCalls, 1);
+    expect(repos.social.watchFriendshipsCalls, 1);
     expect(repos.social.watchIntentionCalls, 1);
 
     repos.profile.emit(_user(
@@ -54,7 +54,7 @@ void main() {
     await settle();
 
     expect(repos.events.watchCalls, 1);
-    expect(repos.social.watchFriendsCalls, 1);
+    expect(repos.social.watchFriendshipsCalls, 1);
     expect(repos.social.watchIntentionCalls, 1);
   });
 

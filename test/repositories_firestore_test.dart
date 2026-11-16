@@ -8,7 +8,6 @@ import 'package:astrum/features/profile/domain/public_profile.dart';
 import 'package:astrum/features/rituals/data/events_repository.dart';
 import 'package:astrum/features/rituals/domain/ritual_event.dart';
 import 'package:astrum/features/social/data/social_repository.dart';
-import 'package:astrum/features/social/domain/friend.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,15 +36,6 @@ void main() {
       expect(f?.avatar, 'pfp');
       expect(await repo.findUserByEmail('x@x.com'), isNull);
       expect(await repo.findUserByEmail('  '), isNull);
-    });
-
-    test('addFriend e watchFriends', () async {
-      final repo = SocialRepository(FakeFirebaseFirestore());
-      await repo.addFriend(
-          'me', const Friend(id: 'f1', name: 'Fê', email: 'f@x.com'));
-      final list = await repo.watchFriends('me').first;
-      expect(list.single.id, 'f1');
-      expect(list.single.name, 'Fê');
     });
 
     test('sendIntention, watchUnreadIntention e markNotificationRead',

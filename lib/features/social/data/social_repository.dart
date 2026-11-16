@@ -17,21 +17,6 @@ class SocialRepository {
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
       _db.userDoc(uid);
 
-  Stream<List<Friend>> watchFriends(String uid) {
-    return _userDoc(uid).collection('friends').snapshots().map(
-          (snap) => snap.docs
-              .map(
-                (d) => Friend(
-                  id: d.id,
-                  name: d.data()['name'] as String? ?? 'Viajante',
-                  email: d.data()['email'] as String? ?? '',
-                  zodiacSign: d.data()['zodiacSign'] as String? ?? '',
-                ),
-              )
-              .toList(),
-        );
-  }
-
   // ---- amizades com aceite (friendships/{pairId}, etapa 12)
 
   /// Todas as relacoes em que [uid] e membro (amigos, pedidos e lapides).
@@ -208,16 +193,8 @@ class SocialRepository {
     );
   }
 
-  Future<void> addFriend(String uid, Friend friend) {
-    return _userDoc(uid).collection('friends').doc(friend.id).set({
-      'name': friend.name,
-      'email': friend.email,
-      'zodiacSign': friend.zodiacSign,
-    });
-  }
-
-  /// Envia a intencao. Se as regras negarem (`permission-denied`) e o perfil
-  /// publico do destino tambem nao existir, a conta foi excluida: lanca
+  /// Envia a intencao. Se as regras negarem (`permission-denied`) e a amizade
+  /// com o destino nao existir mais (ou nao estiver aceita), lanca
   /// [RecipientUnavailableException]. Outros erros sobem como estao.
   Future<void> sendIntention({
     required String fromUid,
@@ -240,7 +217,9 @@ class SocialRepository {
       if (e.code != 'permission-denied') rethrow;
       var gone = false;
       try {
-        gone = !(await _db.publicDoc(toUid).get()).exists;
+        final snap = await _db.friendshipDoc(pairIdOf(fromUid, toUid)).get();
+        gone = !snap.exists ||
+            snap.data()?['status'] != FriendshipStatus.accepted.wire;
       } catch (_) {
         gone = false;
       }
@@ -259,10 +238,6 @@ class SocialRepository {
   @visibleForTesting
   Future<void> writeNotification(String toUid, Map<String, dynamic> data) =>
       _userDoc(toUid).collection('notifications').add(data);
-
-  /// Remove um amigo da PROPRIA lista (limpeza de conta excluida).
-  Future<void> removeFriend(String uid, String friendId) =>
-      _userDoc(uid).collection('friends').doc(friendId).delete();
 
   // ---- exclusao de conta (cada metodo e idempotente; offline lanca
   // ServerOfflineException)

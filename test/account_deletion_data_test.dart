@@ -112,17 +112,6 @@ void main() {
           isTrue);
     });
 
-    test('removeFriend remove so da propria lista', () async {
-      await seed();
-      await SocialRepository(db).removeFriend('u1', 'f1');
-      expect(await db.doc('users/u1/friends/f1').get().then((d) => d.exists),
-          isFalse);
-      expect(await db.doc('users/u1/friends/f2').get().then((d) => d.exists),
-          isTrue);
-      expect(await db.doc('users/u2/friends/f1').get().then((d) => d.exists),
-          isTrue);
-    });
-
     Future<Object?> send(SocialRepository repo) async {
       try {
         await repo.sendIntention(
@@ -137,15 +126,20 @@ void main() {
       }
     }
 
-    test('permission-denied e destino sem perfil publico: conta excluida',
+    test('permission-denied sem amizade (ou nao aceita): amizade desfeita',
         () async {
+      expect(await send(_Social(db, _denied())),
+          isA<RecipientUnavailableException>());
+      await db.doc('friendships/u1_u2').set({'status': 'pending'});
+      expect(await send(_Social(db, _denied())),
+          isA<RecipientUnavailableException>());
+      await db.doc('friendships/u1_u2').set({'status': 'declined'});
       expect(await send(_Social(db, _denied())),
           isA<RecipientUnavailableException>());
     });
 
-    test('permission-denied com perfil publico existente: erro original',
-        () async {
-      await db.doc('publicProfiles/u2').set({'name': 'B'});
+    test('permission-denied com amizade aceita: erro original', () async {
+      await db.doc('friendships/u1_u2').set({'status': 'accepted'});
       expect(await send(_Social(db, _denied())), isA<FirebaseException>());
     });
 

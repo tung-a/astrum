@@ -175,24 +175,16 @@ class FakeEventsRepository implements EventsRepository {
 
 /// Fake de [SocialRepository]: registra as assinaturas.
 class FakeSocialRepository implements SocialRepository {
-  int watchFriendsCalls = 0;
   int watchIntentionCalls = 0;
 
   /// Busca por e-mail: o mapa responde com o Friend cadastrado (ou nada).
   final usersByEmail = <String, Friend>{};
   final searchedEmails = <String>[];
-  final addedFriends = <({String uid, Friend friend})>[];
   final intentions = <Map<String, String>>[];
-  final removedFriends = <({String uid, String friendId})>[];
   final deletedAllFriends = <String>[];
   final deletedReceived = <String>[];
   final deletedSent = <String>[];
   Object? sendError;
-
-  @override
-  Future<void> removeFriend(String uid, String friendId) async {
-    removedFriends.add((uid: uid, friendId: friendId));
-  }
 
   List<String>? log;
   Object? deleteSentError;
@@ -223,11 +215,6 @@ class FakeSocialRepository implements SocialRepository {
   }
 
   @override
-  Future<void> addFriend(String uid, Friend friend) async {
-    addedFriends.add((uid: uid, friend: friend));
-  }
-
-  @override
   Future<void> sendIntention({
     required String fromUid,
     required String fromName,
@@ -243,12 +230,6 @@ class FakeSocialRepository implements SocialRepository {
       'intentionId': intentionId,
       'intentionLabel': intentionLabel,
     });
-  }
-
-  @override
-  Stream<List<Friend>> watchFriends(String uid) {
-    watchFriendsCalls++;
-    return const Stream.empty();
   }
 
   // ---- amizades com aceite (etapa 12)

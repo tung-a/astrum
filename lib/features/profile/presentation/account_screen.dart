@@ -7,6 +7,7 @@ import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/account_controller.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/social/domain/friend.dart';
+import 'package:astrum/features/social/presentation/friendship_controller.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:astrum/shared/cosmic_scaffold.dart';
 import 'package:flutter/material.dart';
@@ -67,10 +68,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 
   Future<void> _searchFriend() async {
-    final message = await ref
-        .read(accountControllerProvider.notifier)
-        .addFriendByEmail(_search.text);
-    if (!mounted || message == null) return;
+    final ctl = ref.read(friendshipControllerProvider.notifier);
+    final lookup = await ctl.lookup(_search.text);
+    if (!mounted) return;
+    final found = lookup.friend;
+    final message =
+        found == null ? lookup.message! : await ctl.sendRequest(found);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );

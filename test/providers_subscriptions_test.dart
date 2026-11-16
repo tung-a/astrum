@@ -40,7 +40,7 @@ void main() {
     repos.profile.emit(testUser());
     await settle();
     expect(repos.events.watchCalls, 1);
-    expect(repos.social.watchFriendsCalls, 1);
+    expect(repos.social.watchFriendshipsCalls, 1);
     expect(repos.social.watchIntentionCalls, 1);
 
     repos.profile.emit(testUser(stardust: 475));
@@ -49,7 +49,7 @@ void main() {
     await settle();
 
     expect(repos.events.watchCalls, 1);
-    expect(repos.social.watchFriendsCalls, 1);
+    expect(repos.social.watchFriendshipsCalls, 1);
     expect(repos.social.watchIntentionCalls, 1);
   });
 
@@ -67,7 +67,7 @@ void main() {
     await settle();
     expect(repos.social.watchIntentionCalls, 2);
     expect(repos.events.watchCalls, 1);
-    expect(repos.social.watchFriendsCalls, 1);
+    expect(repos.social.watchFriendshipsCalls, 1);
   });
 
   test('troca de uid recria os streams para o novo usuario', () async {
@@ -81,11 +81,12 @@ void main() {
     await settle();
 
     expect(repos.events.uids, ['a', 'b']);
-    expect(repos.social.watchFriendsCalls, 2);
+    expect(repos.social.watchFriendshipsCalls, 2);
     expect(repos.social.watchIntentionCalls, 2);
   });
 
-  test('login A, logout, login B: perfil e uid passam a ser de B e A e cancelado',
+  test(
+      'login A, logout, login B: perfil e uid passam a ser de B e A e cancelado',
       () async {
     auth.setUser(FakeUser('a'));
     await settle();
