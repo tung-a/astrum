@@ -112,8 +112,8 @@ void main() {
   });
 
   testWidgets(
-      'enviado: aguardando com cancelar; recusado em silencio sem '
-      'cancelar', (tester) async {
+      'enviado: todos iguais (aguardando + cancelar); cancelar o recusado '
+      'em silencio so esconde, sem tocar o servidor', (tester) async {
     social.publicNames['u3'] = 'Cris';
     await open(
         tester,
@@ -124,7 +124,16 @@ void main() {
     expect(find.text('Cris'), findsOneWidget);
     expect(find.text('Viajante'), findsOneWidget); // sem nome publico
     expect(find.text('Aguardando resposta'), findsNWidgets(2));
-    expect(find.text('Cancelar pedido'), findsOneWidget);
+    expect(find.text('Cancelar pedido'), findsNWidgets(2));
+    expect(find.text('Enviados (2)'), findsOneWidget);
+
+    await tester.tap(find.text('Cancelar pedido').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(social.actions, isEmpty);
+    expect(find.text('Pedido cancelado.'), findsOneWidget);
+    expect(find.text('Viajante'), findsNothing);
+    expect(find.text('Enviados (1)'), findsOneWidget);
 
     await tester.tap(find.text('Cancelar pedido'));
     await tester.pump();

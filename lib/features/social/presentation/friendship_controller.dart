@@ -12,6 +12,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const friendRequestGeneric = 'Não foi possível enviar o pedido a esse e-mail.';
 const friendRequestTooMany = 'Você já tem muitos pedidos aguardando resposta.';
 const friendAlreadySent = 'Você já enviou um pedido a essa pessoa.';
+const friendBlockedByMe =
+    'Você recusou ou removeu essa pessoa. Desbloqueie em Pedidos de amizade.';
+const friendRequestCancelled = 'Pedido cancelado.';
 const friendAlreadyFriends = 'Vocês já são amigos.';
 const friendCrossAccepted = 'Pedido cruzado: vocês agora são amigos.';
 const friendshipGone = 'Esta amizade não existe mais.';
@@ -70,6 +73,10 @@ class FriendshipController extends Notifier<void> {
       if (view != null) {
         if (view.friends.any((f) => f.id == found.id)) {
           return const FriendLookup.blocked(friendAlreadyFriends);
+        }
+        // So quando o bloqueio e meu: o outro lado nunca fica sabendo.
+        if (view.blockedByMe.any((f) => f.otherUid(me.uid) == found.id)) {
+          return const FriendLookup.blocked(friendBlockedByMe);
         }
         if (view.outgoing.any((f) => f.otherUid(me.uid) == found.id)) {
           return const FriendLookup.blocked(friendAlreadySent);
@@ -130,13 +137,21 @@ class FriendshipController extends Notifier<void> {
     );
   }
 
-  Future<String> cancel(Friendship f) => _run(
-        f,
-        (me, other) => ref
-            .read(socialRepositoryProvider)
-            .cancelRequest(me: me.uid, other: other),
-        'Pedido cancelado.',
-      );
+  /// Todo pedido enviado e tratado igual: um pedido recusado em silencio (que
+  /// o remetente ve como pendente) nao toca o servidor e responde o mesmo texto,
+  /// para a interface nao revelar a recusa.
+  Future<String> cancel(Friendship f) async {
+    if (f.status != FriendshipStatus.pending) return friendRequestCancelled;
+    final text = await _run(
+      f,
+      (me, other) => ref
+          .read(socialRepositoryProvider)
+          .cancelRequest(me: me.uid, other: other),
+      friendRequestCancelled,
+    );
+    // Recusado entre o toque e a escrita: mesma resposta, sem "nao existe mais".
+    return text == friendshipGone ? friendRequestCancelled : text;
+  }
 
   Future<String> unblock(Friendship f) => _run(
         f,

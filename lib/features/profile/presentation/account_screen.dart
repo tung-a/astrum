@@ -266,7 +266,7 @@ class _FriendTile extends ConsumerWidget {
     final synergy = getAstralSynergy(me.zodiacSign, friend.zodiacSign);
     return Card(
       child: ExpansionTile(
-        title: Text(friend.name),
+        title: Text(friend.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text([
           if (friend.zodiacSign.isNotEmpty) friend.zodiacSign,
           '${synergy.title} (${synergy.score}/5)',
@@ -312,6 +312,9 @@ class _FriendTile extends ConsumerWidget {
   }
 
   Future<void> _confirmRemove(BuildContext context, WidgetRef ref) async {
+    // O amigo some da lista antes do await voltar (o tile e desmontado): o
+    // messenger e capturado antes de qualquer await.
+    final messenger = ScaffoldMessenger.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -335,9 +338,7 @@ class _FriendTile extends ConsumerWidget {
     if (ok != true) return;
     final text =
         await ref.read(friendshipControllerProvider.notifier).remove(friend);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-    }
+    messenger.showSnackBar(SnackBar(content: Text(text)));
   }
 }
 

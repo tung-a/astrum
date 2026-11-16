@@ -238,6 +238,9 @@ class FakeSocialRepository implements SocialRepository {
   Object? friendshipError;
   final deletedAllFriendships = <String>[];
 
+  /// Gancho chamado a cada escrita de amizade (ex.: tirar o item do stream).
+  void Function(String action)? onAction;
+
   @override
   Stream<List<Friendship>> watchFriendships(String uid) {
     watchFriendshipsCalls++;
@@ -261,6 +264,7 @@ class FakeSocialRepository implements SocialRepository {
   Future<ActionOutcome> _record(String what, String other) async {
     if (friendshipError != null) throw friendshipError!;
     actions.add('$what:$other');
+    onAction?.call('$what:$other');
     return actionOutcome;
   }
 

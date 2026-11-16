@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:astrum/features/profile/presentation/account_screen.dart';
 import 'package:astrum/features/social/domain/friend.dart';
 import 'package:astrum/features/social/domain/friendship.dart';
@@ -21,10 +23,11 @@ void main() {
   late FakeSocialRepository social;
   setUp(() => social = FakeSocialRepository());
 
-  Future<void> open(WidgetTester tester, List<Friendship> list) =>
+  Future<void> open(WidgetTester tester, List<Friendship> list,
+          {Stream<List<Friendship>>? stream}) =>
       pumpScreen(tester, const AccountScreen(), user: testUser(), overrides: [
         socialRepositoryProvider.overrideWithValue(social),
-        friendshipsProvider.overrideWith((ref) => Stream.value(list)),
+        friendshipsProvider.overrideWith((ref) => stream ?? Stream.value(list)),
       ]);
 
   Future<void> settle(WidgetTester tester) async {
@@ -82,7 +85,13 @@ void main() {
 
   testWidgets('remover amizade: dialogo explica o bloqueio e confirma',
       (tester) async {
-    await open(tester, [_friend('u2', 'Luna')]);
+    final ctl = StreamController<List<Friendship>>();
+    addTearDown(ctl.close);
+    await open(tester, const [], stream: ctl.stream);
+    ctl.add([_friend('u2', 'Luna')]);
+    await settle(tester);
+    // O amigo some da lista assim que a remocao acontece (como no Firestore).
+    social.onAction = (_) => ctl.add(const []);
     await tester.scrollUntilVisible(find.text('Luna'), 200,
         scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('Luna'));

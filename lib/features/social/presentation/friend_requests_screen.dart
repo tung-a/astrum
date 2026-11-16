@@ -26,14 +26,19 @@ class _FriendRequestsScreenState extends ConsumerState<FriendRequestsScreen> {
   /// toque, sem aceite duplo).
   final _busy = <String>{};
 
+  /// Pedidos enviados cancelados nesta sessao (esconde a lapide de um pedido
+  /// recusado em silencio, que o servidor nao apaga).
+  final _hidden = <String>{};
+
   Future<void> _do(
       Friendship f, Future<String> Function(FriendshipController c) op) async {
     if (!_busy.add(f.id)) return;
     setState(() {});
+    final messenger = ScaffoldMessenger.of(context);
     final text = await op(ref.read(friendshipControllerProvider.notifier));
     if (!mounted) return;
     setState(() => _busy.remove(f.id));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    messenger.showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
@@ -59,71 +64,84 @@ class _FriendRequestsScreenState extends ConsumerState<FriendRequestsScreen> {
             ),
           ),
         ),
-        data: (v) => ListView(
-          padding: const EdgeInsets.fromLTRB(20, 72, 20, 24),
-          children: [
-            _Header('Recebidos (${v.incoming.length})'),
-            if (v.incoming.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text(requestsEmptyText,
-                    style: TextStyle(color: AstrumColors.muted)),
-              ),
-            for (final f in v.incoming)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(f.requesterName,
-                          style: const TextStyle(fontSize: 18)),
-                      const Text('quer entrar na sua constelação',
-                          style: TextStyle(color: AstrumColors.muted)),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          FilledButton(
-                            onPressed: _busy.contains(f.id)
-                                ? null
-                                : () => _do(f, (c) => c.accept(f)),
-                            child: const Text('Aceitar'),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton(
-                            onPressed: _busy.contains(f.id)
-                                ? null
-                                : () => _do(f, (c) => c.decline(f)),
-                            child: const Text('Recusar'),
-                          ),
-                        ],
-                      ),
-                    ],
+        data: (v) {
+          final outgoing =
+              v.outgoing.where((f) => !_hidden.contains(f.id)).toList();
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 72, 20, 24),
+            children: [
+              _Header('Recebidos (${v.incoming.length})'),
+              if (v.incoming.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(requestsEmptyText,
+                      style: TextStyle(color: AstrumColors.muted)),
+                ),
+              for (final f in v.incoming)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(f.requesterName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 18)),
+                        const Text('quer entrar na sua constelação',
+                            style: TextStyle(color: AstrumColors.muted)),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            FilledButton(
+                              onPressed: _busy.contains(f.id)
+                                  ? null
+                                  : () => _do(f, (c) => c.accept(f)),
+                              child: const Text('Aceitar'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: _busy.contains(f.id)
+                                  ? null
+                                  : () => _do(f, (c) => c.decline(f)),
+                              child: const Text('Recusar'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            if (v.outgoing.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _Header('Enviados (${v.outgoing.length})'),
-              for (final f in v.outgoing)
-                _OutgoingTile(
-                  friendship: f,
-                  busy: _busy.contains(f.id),
-                  onCancel: () => _do(f, (c) => c.cancel(f)),
-                ),
+              if (outgoing.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                // Inclui os recusados em silencio (o remetente nao e avisado),
+                // por isso difere de `pendingOutgoingCount` (cota do cliente).
+                _Header('Enviados (${outgoing.length})'),
+                for (final f in outgoing)
+                  _OutgoingTile(
+                    friendship: f,
+                    busy: _busy.contains(f.id),
+                    onCancel: () async {
+                      await _do(f, (c) => c.cancel(f));
+                      if (mounted && f.status != FriendshipStatus.pending) {
+                        setState(() => _hidden.add(f.id));
+                      }
+                    },
+                  ),
+              ],
+              if (v.blockedByMe.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const _Header('Recusados e removidos'),
+                for (final f in v.blockedByMe)
+                  _BlockedTile(
+                    friendship: f,
+                    busy: _busy.contains(f.id),
+                    onUnblock: () => _do(f, (c) => c.unblock(f)),
+                  ),
+              ],
             ],
-            if (v.blockedByMe.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const _Header('Recusados e removidos'),
-              for (final f in v.blockedByMe)
-                _BlockedTile(
-                  friendship: f,
-                  busy: _busy.contains(f.id),
-                  onUnblock: () => _do(f, (c) => c.unblock(f)),
-                ),
-            ],
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -140,9 +158,10 @@ class _Header extends StatelessWidget {
       );
 }
 
-/// Pedido enviado. Um pedido recusado continua igual aqui ("Aguardando
-/// resposta", sem cancelar): a recusa e silenciosa e cancelar liberaria um novo
-/// pedido.
+/// Pedido enviado. Todos os enviados sao iguais ("Aguardando resposta" e
+/// "Cancelar pedido"), inclusive o recusado em silencio: cancelar esse nao
+/// altera o servidor (a lapide fica, ou o remetente poderia pedir de novo) e so
+/// o esconde na sessao.
 class _OutgoingTile extends ConsumerWidget {
   const _OutgoingTile(
       {required this.friendship, required this.busy, required this.onCancel});
@@ -158,14 +177,12 @@ class _OutgoingTile extends ConsumerWidget {
             'Viajante';
     return Card(
       child: ListTile(
-        title: Text(name),
+        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: const Text('Aguardando resposta'),
-        trailing: friendship.status == FriendshipStatus.pending
-            ? TextButton(
-                onPressed: busy ? null : onCancel,
-                child: const Text('Cancelar pedido'),
-              )
-            : null,
+        trailing: TextButton(
+          onPressed: busy ? null : onCancel,
+          child: const Text('Cancelar pedido'),
+        ),
       ),
     );
   }
@@ -186,7 +203,7 @@ class _BlockedTile extends ConsumerWidget {
         'Viajante';
     return Card(
       child: ListTile(
-        title: Text(name),
+        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: const Text('Não pode pedir amizade até você desbloquear'),
         trailing: TextButton(
           onPressed: busy ? null : onUnblock,

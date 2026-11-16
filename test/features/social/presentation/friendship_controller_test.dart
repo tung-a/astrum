@@ -100,6 +100,22 @@ void main() {
       expect(social.searchedEmails, ['n@x.com']); // nem busca na cota cheia
     });
 
+    test('bloqueio meu avisa como desbloquear; o dele nao revela nada',
+        () async {
+      social.usersByEmail['b@x.com'] = const Friend(id: 'b', name: 'Bê');
+      social.usersByEmail['d@x.com'] = const Friend(id: 'd', name: 'Dê');
+      final ctl = await setup(relations: [
+        _f('b',
+            requester: 'b',
+            status: FriendshipStatus.declined,
+            declinedBy: 'u1'),
+        // Recusado por ele, pedido meu: nao aparece como bloqueio meu.
+        _f('d', status: FriendshipStatus.declined, declinedBy: 'd'),
+      ]);
+      expect((await ctl.lookup('b@x.com')).message, friendBlockedByMe);
+      expect((await ctl.lookup('d@x.com')).message, friendAlreadySent);
+    });
+
     test('sem perfil nao busca', () async {
       final off = await setup(loggedIn: false);
       expect((await off.lookup('a@x.com')).message, friendFailed);
@@ -169,6 +185,18 @@ void main() {
           'Amizade removida.');
       expect(social.actions,
           ['accept:u2', 'decline:u2', 'cancel:u3', 'unblock:u4', 'remove:u5']);
+    });
+
+    test('cancelar recusado em silencio: mesmo texto, sem tocar o servidor',
+        () async {
+      final ctl = await setup();
+      final tomb =
+          _f('u6', status: FriendshipStatus.declined, declinedBy: 'u6');
+      expect(await ctl.cancel(tomb), 'Pedido cancelado.');
+      expect(social.actions, isEmpty);
+      // Recusado entre o toque e a escrita: tambem "Pedido cancelado."
+      social.actionOutcome = ActionOutcome.gone;
+      expect(await ctl.cancel(_f('u7')), 'Pedido cancelado.');
     });
 
     test('relacao que sumiu: Esta amizade nao existe mais', () async {
