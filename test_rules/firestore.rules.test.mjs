@@ -1111,3 +1111,80 @@ test('publicProfiles list: busca por hash com limit(1) ok; sem limit, limit > 1,
   await assertSucceeds(getDoc(doc(as('alice'), 'publicProfiles/carol')));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'publicProfiles/carol')));
 });
+
+// ---- etapa 12: rodada de revisao (casos de contorno; as regras NAO mudam)
+test('friendships R-S8 (caracterizacao): quem foi recusado apaga o proprio perfil, apaga a lapide, refaz o perfil e pede de novo', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  const dec = { status: 'declined', declinedBy: 'bob', respondedAt: serverTimestamp() };
+  await assertSucceeds(updateDoc(fref(as('bob'), 'alice', 'bob'), dec));
+  const a = as('alice');
+  // com o perfil, a lapide nao some
+  await assertFails(deleteDoc(fref(a, 'alice', 'bob')));
+  // contorno: sem users/alice, a regra de "exclusao de conta" libera a lapide
+  await assertSucceeds(deleteDoc(doc(a, 'users/alice')));
+  await assertSucceeds(deleteDoc(fref(a, 'alice', 'bob')));
+  // recria a conta (perfil e perfil publico) e pede de novo
+  await assertSucceeds(setDoc(doc(a, 'users/alice'), baseUser()));
+  await assertSucceeds(setDoc(doc(a, 'publicProfiles/alice'), pub({ name: 'A' })));
+  // RISCO ACEITO R-S8: equivale a criar outra conta; as regras nao distinguem.
+  // Defesa real: App Check (etapa 13). Se este teste passar a FALHAR, o risco
+  // foi mitigado nas regras e a documentacao deve ser atualizada.
+  await assertSucceeds(setDoc(fref(a, 'alice', 'bob'), reqDoc('alice', 'bob')));
+});
+
+test('friendships create: uid com "_" (id ambiguo a_b_c) negado', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'users/a_b'), baseUser({ name: 'AB' }));
+    await setDoc(doc(db, 'users/c'), baseUser({ name: 'C' }));
+    await setDoc(doc(db, 'publicProfiles/c'), pub({ name: 'C' }));
+  });
+  const ok = { uids: ['a_b', 'c'], requesterUid: 'a_b', requesterName: 'AB', status: 'pending', createdAt: serverTimestamp() };
+  await assertFails(setDoc(doc(as('a_b'), 'friendships/a_b_c'), ok));
+  // pelo lado do "c" (uids ordenados, outro dono): tambem negado
+  await assertFails(setDoc(doc(as('c'), 'friendships/a_b_c'), { ...ok, requesterUid: 'c', requesterName: 'C' }));
+});
+
+test('friendships/intencao: enviar intencao a si mesmo e negado (nao existe friendships/alice_alice)', async () => {
+  await seedFriendUsers();
+  const n = { type: 'intention', intentionId: 'luz', intentionLabel: 'Luz', fromName: 'A', fromUid: 'alice', read: false, createdAt: serverTimestamp() };
+  await assertFails(addDoc(collection(as('alice'), 'users/alice/notifications'), n));
+  // e o documento do "par" consigo mesmo nao pode ser criado
+  await assertFails(setDoc(doc(as('alice'), 'friendships/alice_alice'), reqDoc('alice', 'alice')));
+});
+
+test('friendships (caracterizacao): declined -> declined por quem recusou, reescrevendo respondedAt, e negado', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob', { status: 'declined', declinedBy: 'bob', respondedAt: Timestamp.now() });
+  const again = { status: 'declined', declinedBy: 'bob', respondedAt: serverTimestamp() };
+  await assertFails(updateDoc(fref(as('bob'), 'alice', 'bob'), again));
+  const d = await readFs('alice', 'bob');
+  if (d.declinedBy !== 'bob' || d.status !== 'declined') throw new Error('lapide mudou');
+});
+
+test('friendships create: uids com elemento nao string e requesterName com mais de 100 caracteres negados', async () => {
+  await seedFriendUsers();
+  const db = as('alice');
+  await assertFails(setDoc(doc(db, 'friendships/1_alice'), reqDoc('alice', 'bob', { uids: [1, 'alice'] })));
+  await assertFails(setDoc(fref(db, 'alice', 'bob'), reqDoc('alice', 'bob', { uids: ['alice', 2] })));
+  await assertFails(setDoc(fref(db, 'alice', 'bob'), reqDoc('alice', 'bob', { uids: ['alice', null] })));
+  // nome de 101 caracteres IGUAL ao de users/alice: so o limite de tamanho barra
+  const longName = 'x'.repeat(101);
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'users/alice'), baseUser({ name: longName })));
+  await assertFails(setDoc(fref(db, 'alice', 'bob'), reqDoc('alice', 'bob', { requesterName: longName })));
+  // 100 caracteres iguais ao perfil: passa (o limite e inclusivo)
+  const okName = 'x'.repeat(100);
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'users/alice'), baseUser({ name: okName })));
+  await assertSucceeds(setDoc(fref(db, 'alice', 'bob'), reqDoc('alice', 'bob', { requesterName: okName })));
+});
+
+test('friendships recusa: pedido ja cancelado (documento inexistente) nao pode ser recusado', async () => {
+  await seedFriendUsers();
+  await seedFs('alice', 'bob');
+  await assertSucceeds(deleteDoc(fref(as('alice'), 'alice', 'bob'))); // cancelado
+  const dec = { status: 'declined', declinedBy: 'bob', respondedAt: serverTimestamp() };
+  await assertFails(updateDoc(fref(as('bob'), 'alice', 'bob'), dec));
+  await assertFails(setDoc(fref(as('bob'), 'alice', 'bob'), { ...reqDoc('alice', 'bob'), status: 'declined', declinedBy: 'bob' }));
+  if ((await readFs('alice', 'bob')) !== null) throw new Error('documento nao deveria existir');
+});
