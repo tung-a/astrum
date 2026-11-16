@@ -2,6 +2,7 @@ import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/core/firebase/paged_delete.dart';
 import 'package:astrum/features/profile/domain/public_profile.dart';
 import 'package:astrum/features/social/domain/friend.dart';
+import 'package:astrum/features/social/domain/friendship.dart';
 import 'package:astrum/features/social/domain/intention_notice.dart';
 import 'package:astrum/features/social/domain/recipient_unavailable.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,6 +30,165 @@ class SocialRepository {
               )
               .toList(),
         );
+  }
+
+  // ---- amizades com aceite (friendships/{pairId}, etapa 12)
+
+  /// Todas as relacoes em que [uid] e membro (amigos, pedidos e lapides).
+  /// Consulta `array-contains` em campo unico: indice automatico.
+  Stream<List<Friendship>> watchFriendships(String uid) {
+    return _db.friendshipsCol
+        .where('uids', arrayContains: uid)
+        .snapshots()
+        .map((snap) => [
+              for (final d in snap.docs)
+                if (Friendship.fromData(d.id, d.data()) case final f?) f,
+            ]);
+  }
+
+  /// Nome publico de [uid] (publicProfiles), ou null se nao existir/estiver
+  /// oculto. So para rotular um pedido enviado, cujo documento ainda nao tem o
+  /// nome do destinatario.
+  Future<String?> publicNameOf(String uid) async {
+    try {
+      final snap = await _db.publicDoc(uid).get();
+      final name = snap.data()?['name'];
+      return name is String && name.isNotEmpty ? name : null;
+    } on FirebaseException {
+      return null;
+    }
+  }
+
+  /// Pede amizade a [other]. Transacao: o par tem um unico documento, entao
+  /// duplicata e pedido cruzado se resolvem pelo proprio id.
+  Future<RequestOutcome> requestFriendship({
+    required String me,
+    required String myName,
+    required String other,
+  }) async {
+    final ref = _db.friendshipDoc(pairIdOf(me, other));
+    try {
+      return await runGuarded(() => _db.runTransaction((tx) async {
+            final snap = await tx.get(ref);
+            if (!snap.exists) {
+              tx.set(ref, {
+                'uids': [me, other]..sort(),
+                'requesterUid': me,
+                'requesterName': myName,
+                'status': FriendshipStatus.pending.wire,
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+              return RequestOutcome.sent;
+            }
+            final f = Friendship.fromData(snap.id, snap.data()!);
+            if (f == null) return RequestOutcome.unavailable;
+            switch (f.status) {
+              case FriendshipStatus.accepted:
+                return RequestOutcome.alreadyFriends;
+              case FriendshipStatus.pending:
+                if (f.requesterUid == me) return RequestOutcome.alreadySent;
+                // O outro ja tinha pedido: os dois querem, vira amizade.
+                tx.update(ref, {
+                  'status': FriendshipStatus.accepted.wire,
+                  'responderName': myName,
+                  'respondedAt': FieldValue.serverTimestamp(),
+                });
+                return RequestOutcome.crossAccepted;
+              case FriendshipStatus.declined:
+                // Meu pedido recusado segue como "enviado" (recusa silenciosa).
+                if (f.requesterUid == me &&
+                    f.declinedBy == other &&
+                    f.responderName == null) {
+                  return RequestOutcome.alreadySent;
+                }
+                return RequestOutcome.unavailable;
+            }
+          }));
+    } on FirebaseException catch (e) {
+      // Regras negaram o create/aceite: destino sem busca, conta excluida...
+      if (e.code == 'permission-denied') return RequestOutcome.unavailable;
+      rethrow;
+    }
+  }
+
+  /// Aceita o pedido de [other]. Idempotente (aceite duplo = sucesso).
+  Future<ActionOutcome> acceptFriendship({
+    required String me,
+    required String myName,
+    required String other,
+  }) =>
+      _act(
+        pairIdOf(me, other),
+        (ref) => ref.update({
+          'status': FriendshipStatus.accepted.wire,
+          'responderName': myName,
+          'respondedAt': FieldValue.serverTimestamp(),
+        }),
+        alreadyDone: (f) => f?.status == FriendshipStatus.accepted,
+      );
+
+  /// Recusa o pedido de [other] (vira lapide: ele nao pede de novo).
+  Future<ActionOutcome> declineFriendship(
+          {required String me, required String other}) =>
+      _declineLike(me, other);
+
+  /// Remove uma amizade aceita (vira lapide de quem removeu).
+  Future<ActionOutcome> removeFriendship(
+          {required String me, required String other}) =>
+      _declineLike(me, other);
+
+  Future<ActionOutcome> _declineLike(String me, String other) => _act(
+        pairIdOf(me, other),
+        (ref) => ref.update({
+          'status': FriendshipStatus.declined.wire,
+          'declinedBy': me,
+          'respondedAt': FieldValue.serverTimestamp(),
+        }),
+        alreadyDone: (f) =>
+            f?.status == FriendshipStatus.declined && f?.declinedBy == me,
+      );
+
+  /// Cancela um pedido meu ainda pendente.
+  Future<ActionOutcome> cancelRequest(
+          {required String me, required String other}) =>
+      _act(
+        pairIdOf(me, other),
+        (ref) => ref.delete(),
+        alreadyDone: (f) => f == null,
+      );
+
+  /// Desbloqueia: apaga a lapide que EU criei (recusa ou remocao).
+  Future<ActionOutcome> unblock({required String me, required String other}) =>
+      _act(
+        pairIdOf(me, other),
+        (ref) => ref.delete(),
+        alreadyDone: (f) => f == null,
+      );
+
+  /// Executa [op]; se as regras negarem ou o documento sumir, relê o par e
+  /// decide entre "ja estava feito" e "nao existe mais". Outros erros
+  /// (`unavailable`, etc.) sobem.
+  Future<ActionOutcome> _act(
+    String pairId,
+    Future<void> Function(DocumentReference<Map<String, dynamic>> ref) op, {
+    required bool Function(Friendship? current) alreadyDone,
+  }) async {
+    final ref = _db.friendshipDoc(pairId);
+    try {
+      await runGuarded(() => op(ref));
+      return ActionOutcome.done;
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied' && e.code != 'not-found') rethrow;
+      final DocumentSnapshot<Map<String, dynamic>> snap;
+      try {
+        snap = await ref.get();
+      } on FirebaseException {
+        rethrow; // sem a releitura nao da para decidir: erro original
+      }
+      final current =
+          snap.exists ? Friendship.fromData(snap.id, snap.data()!) : null;
+      return alreadyDone(current) ? ActionOutcome.done : ActionOutcome.gone;
+    }
   }
 
   /// Busca por e-mail em publicProfiles (hash); nunca le `users`. O Friend
@@ -89,6 +249,12 @@ class SocialRepository {
     }
   }
 
+  /// Executa uma escrita das amizades. So sobrescrevivel em teste (injetar
+  /// `permission-denied`, `unavailable`...: fake_cloud_firestore nao avalia
+  /// regras).
+  @visibleForTesting
+  Future<T> runGuarded<T>(Future<T> Function() op) => op();
+
   /// Grava a notificacao na caixa do destino. So sobrescrevivel em teste.
   @visibleForTesting
   Future<void> writeNotification(String toUid, Map<String, dynamic> data) =>
@@ -103,6 +269,12 @@ class SocialRepository {
 
   Future<void> deleteAllFriends(String uid) =>
       deleteQueryPaged(_userDoc(uid).collection('friends'));
+
+  /// Apaga todas as relacoes do uid (amigos, pedidos enviados/recebidos e
+  /// lapides). Roda DEPOIS de apagar o perfil: o marcador "perfil ausente" e o
+  /// que as regras exigem para apagar relacoes alheias a mim (recusado etc.).
+  Future<void> deleteAllFriendships(String uid) =>
+      deleteQueryPaged(_db.friendshipsCol.where('uids', arrayContains: uid));
 
   /// Notificacoes que o usuario RECEBEU (na propria caixa).
   Future<void> deleteAllReceivedNotifications(String uid) =>

@@ -13,6 +13,7 @@ import 'package:astrum/features/rituals/domain/ritual_event.dart';
 import 'package:astrum/features/rituals/presentation/rituals_providers.dart';
 import 'package:astrum/features/social/data/social_repository.dart';
 import 'package:astrum/features/social/domain/friend.dart';
+import 'package:astrum/features/social/domain/friendship.dart';
 import 'package:astrum/features/social/domain/intention_notice.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -248,6 +249,77 @@ class FakeSocialRepository implements SocialRepository {
   Stream<List<Friend>> watchFriends(String uid) {
     watchFriendsCalls++;
     return const Stream.empty();
+  }
+
+  // ---- amizades com aceite (etapa 12)
+  int watchFriendshipsCalls = 0;
+  final friendshipsCtl = StreamController<List<Friendship>>.broadcast();
+  final requests = <({String me, String myName, String other})>[];
+  final actions = <String>[]; // 'accept:u2', 'decline:u2', ...
+  final publicNames = <String, String>{};
+  RequestOutcome requestOutcome = RequestOutcome.sent;
+  ActionOutcome actionOutcome = ActionOutcome.done;
+
+  /// Falha injetada nas escritas (ex.: FirebaseException `unavailable`).
+  Object? friendshipError;
+  final deletedAllFriendships = <String>[];
+
+  @override
+  Stream<List<Friendship>> watchFriendships(String uid) {
+    watchFriendshipsCalls++;
+    return friendshipsCtl.stream;
+  }
+
+  @override
+  Future<String?> publicNameOf(String uid) async => publicNames[uid];
+
+  @override
+  Future<RequestOutcome> requestFriendship({
+    required String me,
+    required String myName,
+    required String other,
+  }) async {
+    if (friendshipError != null) throw friendshipError!;
+    requests.add((me: me, myName: myName, other: other));
+    return requestOutcome;
+  }
+
+  Future<ActionOutcome> _record(String what, String other) async {
+    if (friendshipError != null) throw friendshipError!;
+    actions.add('$what:$other');
+    return actionOutcome;
+  }
+
+  @override
+  Future<ActionOutcome> acceptFriendship(
+          {required String me,
+          required String myName,
+          required String other}) =>
+      _record('accept', other);
+
+  @override
+  Future<ActionOutcome> declineFriendship(
+          {required String me, required String other}) =>
+      _record('decline', other);
+
+  @override
+  Future<ActionOutcome> removeFriendship(
+          {required String me, required String other}) =>
+      _record('remove', other);
+
+  @override
+  Future<ActionOutcome> cancelRequest(
+          {required String me, required String other}) =>
+      _record('cancel', other);
+
+  @override
+  Future<ActionOutcome> unblock({required String me, required String other}) =>
+      _record('unblock', other);
+
+  @override
+  Future<void> deleteAllFriendships(String uid) async {
+    log?.add('friendships.deleteAll');
+    deletedAllFriendships.add(uid);
   }
 
   @override

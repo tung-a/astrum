@@ -25,6 +25,33 @@ enum FriendshipStatus {
   }
 }
 
+/// Resultado de pedir amizade (`SocialRepository.requestFriendship`).
+enum RequestOutcome {
+  /// Pedido criado (pendente).
+  sent,
+
+  /// O outro lado ja tinha pedido: virou amizade na hora.
+  crossAccepted,
+
+  /// Ja existe um pedido meu (inclusive o recusado em silencio).
+  alreadySent,
+  alreadyFriends,
+
+  /// Nao foi possivel (recusa/remocao anterior, busca desligada, conta
+  /// excluida): a mesma resposta para todos os casos, sem vazar o motivo.
+  unavailable,
+}
+
+/// Resultado de aceitar, recusar, remover, cancelar ou desbloquear.
+enum ActionOutcome {
+  /// Feito (ou ja estava feito: idempotente).
+  done,
+
+  /// A relacao nao esta mais no estado esperado ("Esta amizade nao existe
+  /// mais").
+  gone,
+}
+
 /// Um documento `friendships/{pairId}`: a relacao entre duas pessoas.
 class Friendship {
   const Friendship({
