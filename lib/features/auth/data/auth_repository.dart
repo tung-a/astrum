@@ -16,6 +16,11 @@ abstract interface class AuthRepository {
 
   Future<void> signOut();
 
+  /// Envia o e-mail de redefinicao de senha. Nao revela se a conta existe
+  /// (`user-not-found` conta como sucesso). Lanca [AuthException] para e-mail
+  /// invalido, rede e excesso de tentativas.
+  Future<void> sendPasswordReset(String email);
+
   /// Reautentica o usuario logado com a senha (exigido antes de excluir a
   /// conta). Lanca [AuthException]; nunca registra a senha.
   ///
@@ -115,6 +120,17 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _auth.signOut();
+
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      debugPrint('sendPasswordReset falhou: ${e.code}');
+      if (e.code == 'user-not-found') return; // nao revela se a conta existe
+      throw AuthException(authErrorCodeFromFirebase(e.code));
+    }
+  }
 
   @override
   Future<void> reauthenticate(String password) async {

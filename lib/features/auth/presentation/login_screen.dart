@@ -20,7 +20,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _password = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
+  bool _resetting = false;
   String? _error;
+  String? _info;
 
   @override
   void dispose() {
@@ -47,6 +49,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       });
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = _email.text.trim();
+    if (email.isEmpty) {
+      setState(() {
+        _info = null;
+        _error = passwordResetNeedsEmailMessage;
+      });
+      return;
+    }
+    setState(() {
+      _error = null;
+      _info = null;
+      _resetting = true;
+    });
+    try {
+      await ref.read(authRepositoryProvider).sendPasswordReset(email);
+      if (mounted) setState(() => _info = passwordResetSentMessage);
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _error = passwordResetErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _resetting = false);
     }
   }
 
@@ -111,10 +137,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
               ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _loading || _resetting ? null : _forgotPassword,
+                  child: const Text('Esqueci minha senha'),
+                ),
+              ),
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
                 Text(_error!,
                     style: const TextStyle(color: AstrumColors.destructive)),
+              ],
+              if (_info != null) ...[
+                const SizedBox(height: 4),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(_info!,
+                      style: const TextStyle(color: AstrumColors.gold)),
+                ),
               ],
               const SizedBox(height: 24),
               FilledButton(

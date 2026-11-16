@@ -105,4 +105,15 @@ void main() {
         'Por segurança, digite sua senha novamente para concluir.');
     expect(m(AuthErrorCode.unknown), contains('Toque em Tentar de novo.'));
   });
+
+  test('passwordResetErrorMessage: textos do esqueci minha senha', () {
+    String m(AuthErrorCode c) => passwordResetErrorMessage(AuthException(c));
+    expect(m(AuthErrorCode.invalidEmail), 'E-mail inválido.');
+    expect(
+        m(AuthErrorCode.network), 'Sem conexão. Conecte-se e tente de novo.');
+    expect(m(AuthErrorCode.tooManyRequests),
+        'Muitas tentativas. Aguarde alguns minutos e tente de novo.');
+    expect(m(AuthErrorCode.unknown),
+        'Não foi possível enviar o link. Tente de novo.');
+  });
 }

@@ -94,6 +94,16 @@ class FakeFirebaseAuth implements FirebaseAuth {
   FirebaseAuthException? nextUserUpdateNameError;
   Object? nextUserDeleteError;
   FakeUser? lastCreatedUser;
+  FirebaseAuthException? resetError;
+  final resetEmails = <String>[];
+
+  @override
+  Future<void> sendPasswordResetEmail(
+      {required String email, ActionCodeSettings? actionCodeSettings}) async {
+    calls.add('sendPasswordReset');
+    resetEmails.add(email);
+    if (resetError != null) throw resetError!;
+  }
 
   @override
   Future<UserCredential> signInWithEmailAndPassword(

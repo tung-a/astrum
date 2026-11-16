@@ -298,4 +298,31 @@ void main() {
       await repo.deleteAccount(); // sem usuario: nada a fazer
     });
   });
+
+  group('sendPasswordReset', () {
+    test('envia o e-mail sem espacos', () async {
+      await repo.sendPasswordReset('  a@b.c ');
+      expect(auth.resetEmails, ['a@b.c']);
+    });
+
+    test('user-not-found conta como sucesso (nao revela a conta)', () async {
+      auth.resetError = FirebaseAuthException(code: 'user-not-found');
+      await repo.sendPasswordReset('a@b.c');
+    });
+
+    test('e-mail invalido, rede e excesso de tentativas viram AuthException',
+        () async {
+      for (final (code, expected) in [
+        ('invalid-email', AuthErrorCode.invalidEmail),
+        ('network-request-failed', AuthErrorCode.network),
+        ('too-many-requests', AuthErrorCode.tooManyRequests),
+      ]) {
+        auth.resetError = FirebaseAuthException(code: code);
+        await expectLater(
+            repo.sendPasswordReset('a@b.c'),
+            throwsA(
+                isA<AuthException>().having((e) => e.code, 'code', expected)));
+      }
+    });
+  });
 }

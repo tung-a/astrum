@@ -96,3 +96,18 @@ String deleteAccountErrorMessage(AuthException e,
           'foi apagada. Toque em Tentar de novo.';
   }
 }
+
+const passwordResetSentMessage =
+    'Se houver uma conta com esse e-mail, enviamos um link para redefinir a '
+    'senha. Confira também a caixa de spam.';
+const passwordResetNeedsEmailMessage =
+    'Digite seu e-mail acima para receber o link.';
+
+/// Texto de erro do "Esqueci minha senha".
+String passwordResetErrorMessage(AuthException e) => switch (e.code) {
+      AuthErrorCode.invalidEmail => 'E-mail inválido.',
+      AuthErrorCode.network => 'Sem conexão. Conecte-se e tente de novo.',
+      AuthErrorCode.tooManyRequests =>
+        'Muitas tentativas. Aguarde alguns minutos e tente de novo.',
+      _ => 'Não foi possível enviar o link. Tente de novo.',
+    };

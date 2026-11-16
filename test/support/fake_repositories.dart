@@ -318,6 +318,15 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async => signOutCalls++;
 
+  final resetEmails = <String>[];
+  AuthException? resetError;
+
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    resetEmails.add(email);
+    if (resetError != null) throw resetError!;
+  }
+
   final reauthCalls = <String>[];
   int deleteAccountCalls = 0;
   AuthException? reauthError;
