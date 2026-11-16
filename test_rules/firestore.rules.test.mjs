@@ -608,11 +608,19 @@ test('perfil ausente: conversa nova (com e sem mensagem no batch) negada; com pe
   const db = as('alice');
   await assertSucceeds(setDoc(doc(db, 'users/alice/conversations/ok'), conv(0)));
   await assertSucceeds(deleteDoc(doc(db, 'users/alice')));
+  // update e delete de conversa existente continuam do dono, sem perfil
+  await assertSucceeds(updateDoc(doc(db, 'users/alice/conversations/ok'), { messageCount: 1, updatedAt: Timestamp.now() }));
   await assertFails(setDoc(doc(db, 'users/alice/conversations/n1'), conv(0)));
   const b = writeBatch(db);
   b.set(doc(db, 'users/alice/conversations/n2'), conv(1));
   b.set(doc(db, 'users/alice/conversations/n2/messages/m0001'), msg());
   await assertFails(b.commit());
+  // outro usuario nunca cria na conversa alheia, com ou sem perfil
+  await assertFails(setDoc(doc(as('bob'), 'users/alice/conversations/n3'), conv(0)));
+  // recriado o perfil, o create volta a ser permitido
+  await env.withSecurityRulesDisabled(async (ctx) => { await setDoc(doc(ctx.firestore(), 'users/alice'), baseUser()); });
+  await assertSucceeds(setDoc(doc(db, 'users/alice/conversations/n4'), conv(0)));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice/conversations/n4')));
 });
 
 test('intencao: destino sem perfil (conta excluida) negada; com perfil ok', async () => {

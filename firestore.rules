@@ -298,7 +298,7 @@ service cloud.firestore {
         // Sem perfil (exclusao de conta em andamento) nao nasce conversa nova.
         allow create: if isOwner(uid) && validConv(request.resource.data)
           && request.resource.data.messageCount <= 1
-          && exists(/databases/$(database)/documents/users/$(uid));
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid));
         allow update: if isOwner(uid) && validConv(request.resource.data)
           && request.resource.data.createdAt == resource.data.createdAt
           && (request.resource.data.messageCount == resource.data.messageCount
