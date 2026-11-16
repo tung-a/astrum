@@ -117,6 +117,11 @@ void main() {
         "request.resource.data.status == 'recusada'"
       ),
       (
+        'friendshipAccepted (notifications)',
+        ").data.status == 'accepted'",
+        ").data.status == 'aceita'"
+      ),
+      (
         'friendshipNameMax',
         'requesterName.size() <= 100',
         'requesterName.size() <= 99'

@@ -135,8 +135,9 @@ List<String> findRulesDivergences(String rules) {
 
   // Amizades: o bloco `match /friendships/{pid}` usa exatamente os tres status
   // do contrato, o mesmo separador de id e o limite de nome.
-  final fsBlock = RegExp(r'match /friendships/\{pid\} \{([\s\S]*?)\n    \}\n')
-      .firstMatch(rules);
+  final fsBlock =
+      RegExp(r'match /friendships/\{pid\} \{([\s\S]*?)\r?\n    \}\r?\n')
+          .firstMatch(rules);
   if (fsBlock == null) {
     missing('friendships');
   } else {
@@ -193,6 +194,10 @@ List<String> findRulesDivergences(String rules) {
       friendshipIdSeparator,
       RegExp(r"pid == request\.resource\.data\.uids\[0\] \+ '([^']*)' \+ "
           r"request\.resource\.data\.uids\[1\]"));
+
+  // Intencoes exigem o status aceito da relacao do par.
+  strRule('friendshipAccepted (notifications)', friendshipAccepted,
+      RegExp(r"friendships/\$\(pairId\([^)]*\)\)\)\.data\.status == '(\w+)'"));
 
   return out;
 }

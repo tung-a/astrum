@@ -181,19 +181,12 @@ class FakeSocialRepository implements SocialRepository {
   final usersByEmail = <String, Friend>{};
   final searchedEmails = <String>[];
   final intentions = <Map<String, String>>[];
-  final deletedAllFriends = <String>[];
   final deletedReceived = <String>[];
   final deletedSent = <String>[];
   Object? sendError;
 
   List<String>? log;
   Object? deleteSentError;
-
-  @override
-  Future<void> deleteAllFriends(String uid) async {
-    log?.add('friends.deleteAll');
-    deletedAllFriends.add(uid);
-  }
 
   @override
   Future<void> deleteAllReceivedNotifications(String uid) async {

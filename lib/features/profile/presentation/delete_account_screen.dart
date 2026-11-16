@@ -11,13 +11,13 @@ const deleteAccountBody =
     'Esta ação é permanente e não pode ser desfeita. Vamos apagar: seu perfil '
     'e seus dados de nascimento, seu mapa astral e horóscopos salvos, sua '
     'Poeira Estelar e todos os seus itens, seus eventos e rituais, todo o '
-    'histórico de conversas com o oráculo, sua lista de amigos e as '
-    'notificações que você recebeu, as intenções que você enviou, seu perfil '
-    'público (você deixa de aparecer na busca de amigos), os registros de uso '
-    'associados à sua conta e o acesso com seu e-mail e senha. Poeira Estelar '
-    'e itens não podem ser recuperados nem reembolsados. Seu nome pode '
-    'continuar aparecendo na lista de amigos de quem adicionou você, até essa '
-    'pessoa removê-lo. Cópias de segurança do provedor (Google/Firebase) '
+    'histórico de conversas com o oráculo, suas amizades e seus pedidos de '
+    'amizade (enviados e recebidos), as notificações que você recebeu, as '
+    'intenções que você enviou, seu perfil público (você deixa de aparecer na '
+    'busca de amigos), os registros de uso associados à sua conta e o acesso '
+    'com seu e-mail e senha. Poeira Estelar e itens não podem ser recuperados '
+    'nem reembolsados. Seu nome deixa de aparecer para quem era seu amigo ou '
+    'tinha pedido amizade. Cópias de segurança do provedor (Google/Firebase) '
     'podem levar algum tempo para serem eliminadas.';
 
 const deleteAccountMissingBody =

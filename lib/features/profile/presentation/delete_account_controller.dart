@@ -19,7 +19,7 @@ enum DeleteStep {
   profile('Apagando seu perfil…'),
   conversations('Apagando conversas…'),
   events('Apagando eventos…'),
-  friends('Apagando sua lista de amigos…'),
+  friends('Apagando amizades e pedidos…'),
   notifications('Apagando notificações…'),
   sentIntentions('Apagando intenções enviadas…'),
   usageRecords('Apagando registros de uso…'),
@@ -180,7 +180,7 @@ class DeleteAccountController extends Notifier<DeleteAccountState> {
     _at(DeleteStep.events);
     await events.deleteAllEvents(uid);
     _at(DeleteStep.friends);
-    await social.deleteAllFriends(uid);
+    await social.deleteAllFriendships(uid);
     _at(DeleteStep.notifications);
     await social.deleteAllReceivedNotifications(uid);
     _at(DeleteStep.sentIntentions);
@@ -195,7 +195,7 @@ class DeleteAccountController extends Notifier<DeleteAccountState> {
     }
     await chat.deleteAllConversations(uid);
     await events.deleteAllEvents(uid);
-    await social.deleteAllFriends(uid);
+    await social.deleteAllFriendships(uid);
     await social.deleteAllReceivedNotifications(uid);
   }
 

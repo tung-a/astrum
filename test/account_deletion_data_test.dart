@@ -63,9 +63,29 @@ void main() {
 
   group('SocialRepository: exclusao', () {
     Future<void> seed() async {
-      await db.doc('users/u1/friends/f1').set({'name': 'F1'});
-      await db.doc('users/u1/friends/f2').set({'name': 'F2'});
-      await db.doc('users/u2/friends/f1').set({'name': 'F1 do u2'});
+      // amizade aceita, pedido recebido, lapide em que u1 foi o recusado e uma
+      // relacao alheia
+      await db.doc('friendships/u1_u2').set({
+        'uids': ['u1', 'u2'],
+        'requesterUid': 'u1',
+        'status': 'accepted'
+      });
+      await db.doc('friendships/u1_u3').set({
+        'uids': ['u1', 'u3'],
+        'requesterUid': 'u3',
+        'status': 'pending'
+      });
+      await db.doc('friendships/u1_u4').set({
+        'uids': ['u1', 'u4'],
+        'requesterUid': 'u1',
+        'status': 'declined',
+        'declinedBy': 'u4'
+      });
+      await db.doc('friendships/u2_u3').set({
+        'uids': ['u2', 'u3'],
+        'requesterUid': 'u2',
+        'status': 'pending'
+      });
       await db.doc('users/u1/notifications/r1').set({'fromUid': 'u2'});
       // intencoes enviadas por u1 em caixas de terceiros e a de outro remetente
       await db.doc('users/u2/notifications/s1').set({'fromUid': 'u1'});
@@ -73,19 +93,20 @@ void main() {
       await db.doc('users/u3/notifications/o1').set({'fromUid': 'u2'});
     }
 
-    test('deleteAllFriends e deleteAllReceivedNotifications: so o uid',
+    test('deleteAllFriendships e deleteAllReceivedNotifications: so o uid',
         () async {
       await seed();
       final repo = SocialRepository(db);
 
-      await repo.deleteAllFriends('u1');
+      await repo.deleteAllFriendships('u1');
+      await repo.deleteAllFriendships('u1'); // idempotente
       await repo.deleteAllReceivedNotifications('u1');
 
-      expect((await db.collection('users/u1/friends').get()).docs, isEmpty);
+      // amizade, pedido recebido e lapide de u1 somem; a relacao alheia fica
+      final left = await db.collection('friendships').get();
+      expect(left.docs.map((d) => d.id), ['u2_u3']);
       expect(
           (await db.collection('users/u1/notifications').get()).docs, isEmpty);
-      expect(
-          (await db.collection('users/u2/friends').get()).docs, hasLength(1));
       expect((await db.collection('users/u2/notifications').get()).docs,
           hasLength(1));
     });

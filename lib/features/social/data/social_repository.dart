@@ -242,9 +242,6 @@ class SocialRepository {
   // ---- exclusao de conta (cada metodo e idempotente; offline lanca
   // ServerOfflineException)
 
-  Future<void> deleteAllFriends(String uid) =>
-      deleteQueryPaged(_userDoc(uid).collection('friends'));
-
   /// Apaga todas as relacoes do uid (amigos, pedidos enviados/recebidos e
   /// lapides). Roda DEPOIS de apagar o perfil: o marcador "perfil ausente" e o
   /// que as regras exigem para apagar relacoes alheias a mim (recusado etc.).

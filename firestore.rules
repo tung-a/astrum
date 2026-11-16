@@ -234,30 +234,22 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
 
       // Subcolecoes: cada uma com regra propria (sem curinga).
-      // Create exige o perfil (users/{uid}): sem perfil nao ha evento/amigo
-      // novo (o cadastro cria o perfil antes). Update/delete seguem so do dono.
+      // Create exige o perfil (users/{uid}): sem perfil nao ha evento novo (o
+      // cadastro cria o perfil antes). Update/delete seguem so do dono.
+      // (A antiga subcolecao friends nao existe mais: amizade vive em
+      // friendships/{pairId}, etapa 12; o caminho cai no curinga negado.)
       match /events/{id} {
         allow read, update, delete: if isOwner(uid);
         allow create: if isOwner(uid)
           && exists(/databases/$(database)/documents/users/$(request.auth.uid));
       }
 
-      // Create exige o perfil (users/{uid}): sem perfil nao ha evento/amigo
-      // novo (o cadastro cria o perfil antes). Update/delete seguem so do dono.
-      match /friends/{id} {
-        allow read, update, delete: if isOwner(uid);
-        allow create: if isOwner(uid)
-          && exists(/databases/$(database)/documents/users/$(request.auth.uid));
-      }
-
-      // Notificacoes de intencao: um usuario logado so envia para quem esta na
-      // PROPRIA lista de amigos (users/{remetente}/friends/{destinatario}, que e
-      // o que o app grava em addFriend). A intencao vem de lista fixa (a mesma
-      // de account_screen.dart), o rotulo e derivado do id e fromName deve ser
-      // o nome do perfil do remetente: nada de texto livre. So o dono
-      // le/marca/apaga.
-      // Limite: a lista de amigos e gravavel pelo proprio remetente, entao a
-      // amizade e auto-declarada (nao ha aceite do destinatario).
+      // Notificacoes de intencao: so entre AMIGOS ACEITOS. O documento
+      // friendships/{pairId} do par (remetente, destinatario) precisa existir
+      // com status 'accepted' (pedido pendente, recusado ou amizade removida
+      // nega). A intencao vem de lista fixa (a mesma de account_screen.dart), o
+      // rotulo e derivado do id e fromName deve ser o nome do perfil do
+      // remetente: nada de texto livre. So o dono le/marca/apaga.
       match /notifications/{id} {
         function labelOk(intentionId, label) {
           return (intentionId == 'luz' && label == 'Luz')
@@ -280,7 +272,7 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/users/$(request.auth.uid))
           && request.resource.data.fromName
             == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
-          && exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(uid))
+          && get(/databases/$(database)/documents/friendships/$(pairId(request.auth.uid, uid))).data.status == 'accepted'
           // O destino precisa existir (conta excluida nao recebe intencao).
           && exists(/databases/$(database)/documents/users/$(uid))
           && request.resource.data.createdAt == request.time;
