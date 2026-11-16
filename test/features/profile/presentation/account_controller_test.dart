@@ -81,7 +81,7 @@ void main() {
     ]);
   });
 
-  test('sendIntention a conta excluida: avisa e remove o amigo da lista',
+  test('sendIntention a conta excluida: so avisa e mantem o amigo',
       () async {
     final ctl = await setup();
     social.sendError = const RecipientUnavailableException();
@@ -89,8 +89,8 @@ void main() {
     final text = await ctl.sendIntention(
         testUser(), const Friend(id: 'u2', name: 'Luna'), 'luz', 'Luz');
 
-    expect(text, 'Esta conta não existe mais.');
-    expect(social.removedFriends, [(uid: 'u1', friendId: 'u2')]);
+    expect(text, 'Esta conta não está mais disponível.');
+    expect(social.removedFriends, isEmpty);
     expect(social.intentions, isEmpty);
   });
 }

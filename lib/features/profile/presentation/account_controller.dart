@@ -30,8 +30,8 @@ class AccountController extends Notifier<void> {
     return '${found.name} entrou na sua constelação.';
   }
 
-  /// Envia a intencao e devolve o texto do snackbar. Se a conta do amigo foi
-  /// excluida, remove-o da propria lista (limpeza preguicosa).
+  /// Envia a intencao e devolve o texto do snackbar. Se a conta do amigo
+  /// parece excluida, so avisa (nao mexe na lista).
   Future<String> sendIntention(
       AppUser me, Friend friend, String id, String label) async {
     final social = ref.read(socialRepositoryProvider);
@@ -45,10 +45,9 @@ class AccountController extends Notifier<void> {
       );
       return '$label enviada a ${friend.name}';
     } on RecipientUnavailableException {
-      try {
-        await social.removeFriend(me.uid, friend.id);
-      } catch (_) {}
-      return 'Esta conta não existe mais.';
+      // Nao remove o amigo: o publicProfile some tambem quando a pessoa
+      // desliga a busca, e a conta pode existir.
+      return 'Esta conta não está mais disponível.';
     }
   }
 

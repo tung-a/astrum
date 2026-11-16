@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:astrum/core/storage/local_data_cleaner.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,11 +9,13 @@ class _Db extends FakeFirebaseFirestore {
   int clears = 0;
   Object? clearError;
   Future<void>? pending;
+  Completer<void>? clearGate;
 
   @override
   Future<void> clearPersistence() async {
     clears++;
     if (clearError != null) throw clearError!;
+    await clearGate?.future;
   }
 
   @override
@@ -47,6 +51,17 @@ void main() {
     final sp = await prefs({LocalDataCleaner.pendingKey: true});
     final c = LocalDataCleaner(sp);
     expect(await c.runPendingCacheWipe(db), isFalse);
+    expect(c.isCacheWipePending, isTrue);
+  });
+
+  test('clearPersistence que nao termina: flag fica e nao lanca', () async {
+    final db = _Db()..clearGate = Completer<void>();
+    final sp = await prefs({LocalDataCleaner.pendingKey: true});
+    final c = LocalDataCleaner(sp);
+    expect(
+        await c.runPendingCacheWipe(db,
+            timeout: const Duration(milliseconds: 20)),
+        isFalse);
     expect(c.isCacheWipePending, isTrue);
   });
 

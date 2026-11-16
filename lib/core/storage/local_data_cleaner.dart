@@ -24,11 +24,15 @@ class LocalDataCleaner {
 
   /// Chamada em `main`, depois de `Firebase.initializeApp` e ANTES de qualquer
   /// uso do Firestore. Se der certo remove a flag; se falhar (ex.:
-  /// `failed-precondition`) a flag fica para a proxima partida. Nunca lanca.
-  Future<bool> runPendingCacheWipe(FirebaseFirestore db) async {
+  /// `failed-precondition`) ou estourar [timeout], a flag fica para a proxima
+  /// partida e o app abre normalmente. Nunca lanca.
+  Future<bool> runPendingCacheWipe(
+    FirebaseFirestore db, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
     if (!isCacheWipePending) return false;
     try {
-      await db.clearPersistence();
+      await db.clearPersistence().timeout(timeout);
       await _prefs.remove(pendingKey);
       return true;
     } catch (_) {
@@ -52,9 +56,15 @@ class LocalDataCleaner {
 
   /// Fim da conta (exclusao): apaga tudo de `shared_preferences` e deixa so a
   /// flag de limpeza do cache para a proxima partida a frio.
+  ///
+  /// Grava a flag ANTES de limpar e remove as demais chaves uma a uma, para
+  /// nao haver janela sem flag (um kill entre os dois passos perderia a
+  /// limpeza do cache).
   Future<void> wipeOnAccountEnd() async {
-    await _prefs.clear();
     await markCacheWipePending();
+    for (final k in _prefs.getKeys().toList()) {
+      if (k != pendingKey) await _prefs.remove(k);
+    }
   }
 
   /// Logout: drena as escritas pendentes; so marca a limpeza se drenou (se

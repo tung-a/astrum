@@ -289,13 +289,20 @@ void main() {
 
     test('deleteAccount: usuario ja excluido (outro aparelho) e sucesso',
         () async {
-      for (final code in ['user-not-found', 'user-token-expired']) {
-        logged().deleteError = FirebaseAuthException(code: code);
-        await repo.deleteAccount();
-        expect(auth.currentUser, isNull); // sessao local encerrada
-      }
+      logged().deleteError = FirebaseAuthException(code: 'user-not-found');
+      await repo.deleteAccount();
+      expect(auth.currentUser, isNull); // sessao local encerrada
       auth.setUser(null);
       await repo.deleteAccount(); // sem usuario: nada a fazer
+    });
+    test('user-token-expired nao e tratado como sucesso', () async {
+      final u = logged();
+      u.deleteError = FirebaseAuthException(code: 'user-token-expired');
+      await expectLater(
+          repo.deleteAccount(),
+          throwsA(isA<AuthException>().having(
+              (e) => e.code, 'code', AuthErrorCode.requiresRecentLogin)));
+      expect(auth.currentUser, isNotNull);
     });
   });
 

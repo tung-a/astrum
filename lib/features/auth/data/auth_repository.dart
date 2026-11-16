@@ -158,14 +158,18 @@ class FirebaseAuthRepository implements AuthRepository {
       await user.delete();
     } on FirebaseAuthException catch (e) {
       debugPrint('deleteAccount falhou: ${e.code}');
-      if (e.code == 'user-not-found' ||
-          e.code == 'user-token-expired' ||
-          e.code == 'no-current-user') {
+      // So user-not-found prova que a conta ja nao existe; token expirado e
+      // demais erros voltam como erro normal.
+      if (e.code == 'user-not-found') {
         // Outro aparelho ja excluiu a conta: so encerra a sessao local.
         try {
           await _auth.signOut();
         } catch (_) {}
         return;
+      }
+      if (e.code == 'user-token-expired') {
+        // Sessao vencida: reautenticar resolve.
+        throw const AuthException(AuthErrorCode.requiresRecentLogin);
       }
       throw AuthException(authErrorCodeFromFirebase(e.code));
     }
