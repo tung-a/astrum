@@ -132,7 +132,7 @@ Pendências registradas pela etapa 6 (não implementadas):
 - (Etapa 11, fora de escopo) `emailHash` arbitrário pode ser gravado pelo dono no próprio `publicProfile`.
 - (Etapa 11, impacto nulo) `/admin` com `isLoading` deixa passar durante o cadastro (`inFlight`); as regras negam o acesso.
 - Limites de campos do cadastro (`SignUpLimits`) espelham `profileShapeOk`; COBERTO na etapa 7: `SignUpLimits` usa `rules_contract.dart` e `test/rules_contract_test.dart` detecta divergência com `firestore.rules`. `AnalyticsService` agora exige `firestore`/`auth` (sem default de `.instance`).
-- (Etapa 11) `reauthenticate` e `deleteAccount`: só documentados como ponto de extensão em `AuthRepository`; `AuthErrorCode.requiresRecentLogin` já existe.
+- (Etapa 11) `reauthenticate` e `deleteAccount`: só documentados como ponto de extensão em `AuthRepository`; `AuthErrorCode.requiresRecentLogin` já existe. **Resolvido na etapa 11** (implementados, junto de `sendPasswordReset`; perfil ausente detectado por `watchProfile`; M1 e M3 corrigidos; `rebuildPublicProfiles` removido).
 - (M1) `rebuildPublicProfiles` segue falhando para terceiros (permission-denied); só isolado, com o erro convertido em `AdminOperationException`.
 - Mensagens de erro do cadastro seguem dependentes do texto do Firebase (inglês); texto novo de falha pós-Auth: "Não foi possível concluir o cadastro. Tente novamente." (+ "Se persistir, entre em contato." se o rollback falhou); revisar com designer/writer.
 - Checklist manual 8.3 e relatório `docs/qa/etapa-6.md` pelo `qa`.

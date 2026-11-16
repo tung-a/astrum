@@ -6,6 +6,19 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 
 ## [Não lançado]
 
+### Adicionado (etapa 11: exclusão de dados e de conta)
+
+- Exclusão de conta (Perfil > "Excluir minha conta"): reautenticação por senha, diálogo final e cascata no cliente (perfil, conversas, eventos, amigos, notificações, intenções enviadas, registros de uso e usuário Auth), idempotente e retomável ("Tentar de novo"). Conta sem perfil cai na mesma tela.
+- Oráculo: menu "Apagar esta conversa" e "Apagar todo o histórico"; aviso de privacidade atualizado (sem "em breve").
+- "Esqueci minha senha" na tela de login; aviso "Sua conta foi excluída." depois da exclusão.
+- Interruptor "Aparecer na busca de amigos" e avatar zodiacal escondido no perfil público quando "Exibir meu signo" está desligado.
+- Regras do Firestore: delete do dono em `users` e `publicProfiles`, `exists(users/{uid})` na criação de conversa e de intenção, collection group de intenções enviadas (com índice) e leitura/exclusão dos próprios `analytics_events`. **Implantar índice e regras antes do cliente.**
+- Android: `data_extraction_rules.xml`; iOS: cache do Firestore fora do backup (validar em Mac).
+
+### Removido (etapa 11)
+
+- `rebuildPublicProfiles` e o botão "Recriar perfis públicos" do painel de admin.
+
 ### Removido
 
 - Histórico local do oráculo em shared_preferences (`LegacyChatStore`) e o migrador: não há usuários ativos, então não há migração.

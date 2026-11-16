@@ -88,10 +88,11 @@ abstract interface class AuthRepository {
 
   Future<void> signOut();
 
-  // Ponto de extensao (etapa 11, NAO implementar agora):
+  // Ponto de extensao REALIZADO na etapa 11 (docs/architecture/step11-account-deletion.md):
   //   Future<void> reauthenticate(String password);  // EmailAuthProvider.credential + user.reauthenticateWithCredential
-  //   Future<void> deleteAccount();                  // apagar dados, depois user.delete()
-  // AuthErrorCode.requiresRecentLogin ja existe para mapear o erro.
+  //   Future<void> deleteAccount();                  // user.delete() por ultimo, depois de apagar os dados
+  //   Future<void> sendPasswordReset(String email);  // "Esqueci minha senha"
+  // AuthErrorCode.requiresRecentLogin mapeia o requires-recent-login.
 }
 
 class FirebaseAuthRepository implements AuthRepository {

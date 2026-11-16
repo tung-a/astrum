@@ -231,7 +231,9 @@ Depois da etapa (versão futura): ~~remover `LegacyChatStore` e os `.bak`~~ (cor
 
 ## 14. Dívida da etapa 11 (registrada após a revisão)
 
-Não implementado na etapa 10; a exclusão de conta e a UI de apagar são **bloqueantes de release** (`docs/release-checklist.md`, seção 6b).
+**Resolvida na etapa 11** (`docs/architecture/step11-account-deletion.md`, seção 14 para os desvios; verificação manual pendente em `docs/release-checklist.md`, seção 6b). Resumo: cascata no cliente (sem Admin SDK no app) com varredura final; limpeza do cache na próxima partida a frio em vez de `terminate()` em sessão; iOS exclui o diretório do Firestore do backup no `AppDelegate`; logout drena `waitForPendingWrites` (5 s). A auditoria de órfãos com Admin SDK segue como rotina de operação.
+
+Texto original da dívida (não implementado na etapa 10):
 
 - Logout e exclusão de conta: `FirebaseFirestore.terminate()` seguido de `clearPersistence()` para limpar o cache local (conteúdo de conversas no aparelho).
 - Exclusão recursiva no servidor (Admin SDK, `firebase-tools firestore:delete --recursive` ou extensão Delete User Data), que também varre mensagens órfãs (corrida de LGPD da seção 5).
