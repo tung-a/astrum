@@ -1,7 +1,9 @@
+import 'package:astrum/core/firebase/paged_delete.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 
 /// Operacao que exige o servidor (ex.: exclusao) tentada sem conexao.
-class ChatOfflineException implements Exception {
+/// E uma [ServerOfflineException]: a exclusao de conta trata as duas igual.
+class ChatOfflineException extends ServerOfflineException {
   const ChatOfflineException();
   @override
   String toString() =>

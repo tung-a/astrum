@@ -4,6 +4,7 @@ import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/core/firebase/paged_delete.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
+import 'package:astrum/core/storage/local_data_cleaner.dart';
 import 'package:astrum/features/economy/domain/equip_slot.dart';
 import 'package:astrum/features/economy/domain/equip_slot_field.dart';
 import 'package:astrum/features/economy/domain/profile_pictures.dart';
@@ -53,6 +54,15 @@ abstract interface class ProfileRepository {
   /// Idempotente. Offline (commit que nao completa) lanca
   /// [ServerOfflineException].
   Future<void> deleteProfile(String uid);
+
+  /// Pre-condicao da exclusao: le `users/{uid}` DO SERVIDOR (o documento
+  /// inexistente nao e erro). Offline lanca [ServerOfflineException] antes de
+  /// qualquer exclusao.
+  Future<void> ensureServerReachable(String uid);
+
+  /// Aguarda (ate 5 s) as escritas locais pendentes subirem; false se nao
+  /// drenou no prazo (offline).
+  Future<bool> drainPendingWrites();
 }
 
 class FirestoreProfileRepository implements ProfileRepository {
@@ -226,6 +236,25 @@ class FirestoreProfileRepository implements ProfileRepository {
       _update(uid, {
         'dailyTarot': {'date': date, 'card': card, 'meaning': meaning},
       });
+
+  @override
+  Future<void> ensureServerReachable(String uid) async {
+    try {
+      await _userDoc(uid)
+          .get(const GetOptions(source: Source.server))
+          .timeout(commitTimeout);
+    } on TimeoutException {
+      throw const ServerOfflineException();
+    } on FirebaseException catch (e) {
+      if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        throw const ServerOfflineException();
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<bool> drainPendingWrites() => LocalDataCleaner.drainPendingWrites(_db);
 
   /// Commit do batch de exclusao. So sobrescrevivel em teste.
   @visibleForTesting

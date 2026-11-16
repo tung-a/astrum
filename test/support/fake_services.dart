@@ -60,7 +60,23 @@ class FakeAnalytics implements AnalyticsService {
   final events = <String>[];
 
   @override
-  Future<void> logEvent(String eventName) async => events.add(eventName);
+  Future<void> logEvent(String eventName) async {
+    events.add(eventName);
+    log?.add(eventName);
+  }
+
+  final deletedOwnEventsOf = <String>[];
+  Object? deleteOwnEventsError;
+
+  /// Registro opcional da ordem entre repositorios (testes da exclusao).
+  List<String>? log;
+
+  @override
+  Future<void> deleteOwnEvents(String uid) async {
+    log?.add('analytics.deleteOwn');
+    if (deleteOwnEventsError != null) throw deleteOwnEventsError!;
+    deletedOwnEventsOf.add(uid);
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

@@ -30,6 +30,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    ref.read(accountDeletedNoticeProvider.notifier).state = false;
     setState(() {
       _error = null;
       _loading = true;
@@ -75,6 +76,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AstrumColors.muted),
               ),
+              if (ref.watch(accountDeletedNoticeProvider)) ...[
+                const SizedBox(height: 16),
+                Semantics(
+                  liveRegion: true,
+                  child: const Text(
+                    'Sua conta foi excluída.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AstrumColors.gold),
+                  ),
+                ),
+              ],
               const SizedBox(height: 36),
               TextField(
                 controller: _email,
@@ -117,7 +129,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => context.go('/register'),
+                onPressed: () {
+                  ref.read(accountDeletedNoticeProvider.notifier).state = false;
+                  context.go('/register');
+                },
                 child: const Text('Criar conta astral'),
               ),
             ],

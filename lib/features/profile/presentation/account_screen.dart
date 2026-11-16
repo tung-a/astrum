@@ -2,7 +2,6 @@ import 'package:astrum/core/astro/synergy.dart';
 import 'package:astrum/core/astro/zodiac.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/theme/astrum_colors.dart';
-import 'package:astrum/features/auth/presentation/auth_providers.dart';
 import 'package:astrum/features/economy/domain/profile_pictures.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/account_controller.dart';
@@ -162,8 +161,16 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           ...friends.map((f) => _FriendTile(friend: f, me: profile)),
           const SizedBox(height: 24),
           OutlinedButton(
-            onPressed: () => ref.read(authRepositoryProvider).signOut(),
+            onPressed: () =>
+                ref.read(accountControllerProvider.notifier).signOut(),
             child: const Text('Sair'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            style:
+                TextButton.styleFrom(foregroundColor: AstrumColors.destructive),
+            onPressed: () => context.push('/account/delete'),
+            child: const Text('Excluir minha conta'),
           ),
         ],
       ),

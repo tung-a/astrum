@@ -1,3 +1,5 @@
+import 'package:astrum/core/storage/prefs_providers.dart';
+import 'package:astrum/features/auth/presentation/auth_providers.dart';
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/social/domain/friend.dart';
@@ -47,6 +49,22 @@ class AccountController extends Notifier<void> {
         await social.removeFriend(me.uid, friend.id);
       } catch (_) {}
       return 'Esta conta não existe mais.';
+    }
+  }
+
+  /// Sair: drena as escritas pendentes (ate 5 s), encerra a sessao e marca a
+  /// limpeza do cache do Firestore para a proxima partida a frio. Se as
+  /// escritas nao drenaram (offline) o cache fica e as pendencias sobrevivem.
+  Future<void> signOut() async {
+    var drained = false;
+    try {
+      drained = await ref.read(profileRepositoryProvider).drainPendingWrites();
+    } catch (_) {}
+    await ref.read(authRepositoryProvider).signOut();
+    if (drained) {
+      try {
+        await ref.read(localDataCleanerProvider).markCacheWipePending();
+      } catch (_) {}
     }
   }
 }

@@ -69,10 +69,30 @@ class FakeProfileRepository implements ProfileRepository {
   final deletedProfiles = <String>[];
   Object? deleteProfileError;
 
+  /// Registro opcional da ordem entre repositorios (testes da exclusao).
+  List<String>? log;
+  Object? reachableError;
+  bool drained = true;
+  int drainCalls = 0;
+
   @override
   Future<void> deleteProfile(String uid) async {
+    log?.add('profile.delete');
     if (deleteProfileError != null) throw deleteProfileError!;
     deletedProfiles.add(uid);
+  }
+
+  @override
+  Future<void> ensureServerReachable(String uid) async {
+    log?.add('profile.reachable');
+    if (reachableError != null) throw reachableError!;
+  }
+
+  @override
+  Future<bool> drainPendingWrites() async {
+    drainCalls++;
+    log?.add('profile.drain');
+    return drained;
   }
 
   @override
@@ -123,8 +143,15 @@ class FakeEventsRepository implements EventsRepository {
   final added = <({String uid, RitualEvent event})>[];
   final deletedAll = <String>[];
 
+  List<String>? log;
+  Object? deleteError;
+  Completer<void>? gate;
+
   @override
   Future<void> deleteAllEvents(String uid) async {
+    log?.add('events.deleteAll');
+    if (gate != null) await gate!.future;
+    if (deleteError != null) throw deleteError!;
     deletedAll.add(uid);
   }
 
@@ -166,15 +193,27 @@ class FakeSocialRepository implements SocialRepository {
     removedFriends.add((uid: uid, friendId: friendId));
   }
 
-  @override
-  Future<void> deleteAllFriends(String uid) async => deletedAllFriends.add(uid);
+  List<String>? log;
+  Object? deleteSentError;
 
   @override
-  Future<void> deleteAllReceivedNotifications(String uid) async =>
-      deletedReceived.add(uid);
+  Future<void> deleteAllFriends(String uid) async {
+    log?.add('friends.deleteAll');
+    deletedAllFriends.add(uid);
+  }
 
   @override
-  Future<void> deleteSentIntentions(String uid) async => deletedSent.add(uid);
+  Future<void> deleteAllReceivedNotifications(String uid) async {
+    log?.add('received.deleteAll');
+    deletedReceived.add(uid);
+  }
+
+  @override
+  Future<void> deleteSentIntentions(String uid) async {
+    log?.add('sent.delete');
+    if (deleteSentError != null) throw deleteSentError!;
+    deletedSent.add(uid);
+  }
 
   @override
   Future<Friend?> findUserByEmail(String email) async {
@@ -282,6 +321,7 @@ class FakeAuthRepository implements AuthRepository {
   final reauthCalls = <String>[];
   int deleteAccountCalls = 0;
   AuthException? reauthError;
+  Completer<void>? completerReauth;
   AuthException? deleteAccountError;
 
   /// Registro opcional da ordem entre repositorios (testes da exclusao).
@@ -291,6 +331,7 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> reauthenticate(String password) async {
     reauthCalls.add(password);
     log?.add('reauthenticate');
+    if (completerReauth != null) await completerReauth!.future;
     if (reauthError != null) throw reauthError!;
   }
 

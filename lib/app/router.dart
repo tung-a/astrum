@@ -12,6 +12,7 @@ import 'package:astrum/features/economy/presentation/inventory_screen.dart';
 import 'package:astrum/features/economy/presentation/shop_screen.dart';
 import 'package:astrum/features/oracle/presentation/oracle_screen.dart';
 import 'package:astrum/features/profile/presentation/account_screen.dart';
+import 'package:astrum/features/profile/presentation/delete_account_screen.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/rituals/presentation/rituals_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -134,6 +135,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               : null;
         },
         builder: (_, __) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/account/delete',
+        builder: (_, __) => const DeleteAccountScreen(),
       ),
       GoRoute(path: '/shop', builder: (_, __) => const ShopScreen()),
       GoRoute(path: '/inventory', builder: (_, __) => const InventoryScreen()),
