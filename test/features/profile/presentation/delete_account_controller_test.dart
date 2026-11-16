@@ -308,6 +308,42 @@ void main() {
     expect(log, isEmpty);
   });
 
+  test('uid nulo nao herda dataDeleted/started do usuario anterior', () async {
+    auth.deleteAccountError = const AuthException(AuthErrorCode.network);
+    await ctl().run(_secret);
+    expect(st().dataDeleted, isTrue);
+    expect(st().started, isTrue);
+
+    c.read(_testUid.notifier).state = null;
+    await ctl().run(_secret);
+    expect(st().phase, DeletePhase.failed);
+    expect(st().dataDeleted, isFalse);
+    expect(st().started, isFalse);
+    expect(st().message, 'Não foi possível concluir. Tente de novo.');
+  });
+
+  test('uid vira nulo no meio do run: o run mantem o uid local', () async {
+    final gate = Completer<void>();
+    auth.completerReauth = gate;
+    final run = ctl().run(_secret);
+    await pumpEventQueue();
+    c.read(_testUid.notifier).state = null;
+    gate.complete();
+    await run;
+    expect(st().phase, DeletePhase.done);
+    expect(profile.deletedProfiles, ['u1']);
+  });
+
+  test('conta ja excluida em outro aparelho: mensagem neutra, sem cascata',
+      () async {
+    auth.reauthError = const AuthException(AuthErrorCode.accountGone);
+    await ctl().run(_secret);
+    expect(st().phase, DeletePhase.failed);
+    expect(st().failure, DeleteFailureKind.accountGone);
+    expect(st().message, 'Esta conta já foi excluída.');
+    expect(log, ['reauthenticate']);
+  });
+
   test('sem provedor de senha (reauth unknown): mensagem neutra', () async {
     auth.reauthError = const AuthException(AuthErrorCode.unknown);
     await ctl().run(_secret);

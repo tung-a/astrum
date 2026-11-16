@@ -233,6 +233,16 @@ void main() {
               (e) => e.code, 'code', AuthErrorCode.invalidCredentials)));
     });
 
+    test('reauthenticate: user-not-found encerra a sessao e vira accountGone',
+        () async {
+      logged().reauthError = FirebaseAuthException(code: 'user-not-found');
+      await expectLater(
+          repo.reauthenticate('x'),
+          throwsA(isA<AuthException>()
+              .having((e) => e.code, 'code', AuthErrorCode.accountGone)));
+      expect(auth.signOutCalls, 1);
+    });
+
     test('reauthenticate: muitas tentativas e rede', () async {
       final u = logged()
         ..reauthError = FirebaseAuthException(code: 'too-many-requests');

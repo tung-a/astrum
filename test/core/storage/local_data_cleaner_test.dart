@@ -65,6 +65,33 @@ void main() {
     expect(c.isCacheWipePending, isTrue);
   });
 
+  test('clearPersistence que termina depois do prazo: a flag e removida',
+      () async {
+    final db = _Db()..clearGate = Completer<void>();
+    final sp = await prefs({LocalDataCleaner.pendingKey: true});
+    final c = LocalDataCleaner(sp);
+    expect(
+        await c.runPendingCacheWipe(db,
+            timeout: const Duration(milliseconds: 20)),
+        isFalse);
+    expect(c.isCacheWipePending, isTrue);
+    db.clearGate!.complete();
+    await pumpEventQueue();
+    expect(c.isCacheWipePending, isFalse);
+  });
+
+  test('clearPersistence que falha depois do prazo: flag fica, sem excecao',
+      () async {
+    final gate = Completer<void>();
+    final db = _Db()..clearGate = gate;
+    final sp = await prefs({LocalDataCleaner.pendingKey: true});
+    final c = LocalDataCleaner(sp);
+    await c.runPendingCacheWipe(db, timeout: const Duration(milliseconds: 20));
+    gate.completeError(StateError('failed-precondition'));
+    await pumpEventQueue();
+    expect(c.isCacheWipePending, isTrue);
+  });
+
   test('wipeOnAccountEnd apaga prefs e deixa so a flag', () async {
     final sp = await prefs({
       'astrum.chat.notice.u1': true,

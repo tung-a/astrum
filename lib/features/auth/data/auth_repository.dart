@@ -146,6 +146,14 @@ class FirebaseAuthRepository implements AuthRepository {
           EmailAuthProvider.credential(email: email, password: password));
     } on FirebaseAuthException catch (e) {
       debugPrint('reauthenticate falhou: ${e.code}');
+      if (e.code == 'user-not-found') {
+        // Conta excluida em outro aparelho: encerra a sessao local (o router
+        // leva ao login) em vez de prender o usuario na tela de exclusao.
+        try {
+          await _auth.signOut();
+        } catch (_) {}
+        throw const AuthException(AuthErrorCode.accountGone);
+      }
       throw AuthException(authErrorCodeFromFirebase(e.code));
     }
   }

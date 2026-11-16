@@ -39,6 +39,7 @@ enum DeleteFailureKind {
   wrongPassword,
   tooManyRequests,
   requiresRecentLogin,
+  accountGone,
   unknown,
 }
 
@@ -122,6 +123,9 @@ class DeleteAccountController extends Notifier<DeleteAccountState> {
     if (state.phase == DeletePhase.running) return; // duplo toque
     final uid = ref.read(currentUidProvider);
     if (uid == null) {
+      // Nao ha run em andamento aqui (guarda acima): descarta o estado do
+      // usuario anterior (dataDeleted/started) antes de falhar.
+      state = const DeleteAccountState();
       _fail(const AuthException(AuthErrorCode.unknown), DeleteStep.verifying);
       return;
     }
@@ -239,6 +243,7 @@ class DeleteAccountController extends Notifier<DeleteAccountState> {
         AuthErrorCode.requiresRecentLogin =>
           DeleteFailureKind.requiresRecentLogin,
         AuthErrorCode.network => DeleteFailureKind.offline,
+        AuthErrorCode.accountGone => DeleteFailureKind.accountGone,
         _ => DeleteFailureKind.unknown,
       };
     }
@@ -269,6 +274,8 @@ String deleteFailureMessage(DeleteFailureKind kind,
       deleteAccountErrorMessage(a(AuthErrorCode.tooManyRequests)),
     DeleteFailureKind.requiresRecentLogin =>
       deleteAccountErrorMessage(a(AuthErrorCode.requiresRecentLogin)),
+    DeleteFailureKind.accountGone =>
+      deleteAccountErrorMessage(a(AuthErrorCode.accountGone)),
     DeleteFailureKind.offline =>
       deleteAccountErrorMessage(a(AuthErrorCode.network), partial: partial),
     DeleteFailureKind.unknown =>

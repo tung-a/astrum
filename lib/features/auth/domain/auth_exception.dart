@@ -17,6 +17,9 @@ enum AuthErrorCode {
   /// Commit do perfil sem resposta no prazo: a conta Auth foi mantida (o write
   /// pode efetivar depois); so signOut.
   profileCreationTimeout,
+  /// A conta ja foi excluida (ex.: em outro aparelho); a sessao local foi
+  /// encerrada.
+  accountGone,
   unknown,
 }
 
@@ -93,6 +96,8 @@ String deleteAccountErrorMessage(AuthException e,
           ? 'Sem conexão. Conecte-se e toque em Tentar de novo. '
               'O que já foi apagado continua apagado.'
           : 'Sem conexão. Conecte-se e toque em Tentar de novo.';
+    case AuthErrorCode.accountGone:
+      return 'Esta conta já foi excluída.';
     case AuthErrorCode.requiresRecentLogin:
       return 'Por segurança, digite sua senha novamente para concluir.';
     default:

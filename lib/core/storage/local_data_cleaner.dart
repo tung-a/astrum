@@ -25,16 +25,28 @@ class LocalDataCleaner {
   /// Chamada em `main`, depois de `Firebase.initializeApp` e ANTES de qualquer
   /// uso do Firestore. Se der certo remove a flag; se falhar (ex.:
   /// `failed-precondition`) ou estourar [timeout], a flag fica para a proxima
-  /// partida e o app abre normalmente. Nunca lanca.
+  /// partida (se a limpeza terminar depois do prazo, a flag e removida) e o
+  /// app abre normalmente. Nunca lanca.
   Future<bool> runPendingCacheWipe(
     FirebaseFirestore db, {
     Duration timeout = const Duration(seconds: 3),
   }) async {
     if (!isCacheWipePending) return false;
+    final wipe = db.clearPersistence();
     try {
-      await db.clearPersistence().timeout(timeout);
+      await wipe.timeout(timeout);
       await _prefs.remove(pendingKey);
       return true;
+    } on TimeoutException {
+      // A limpeza nativa pode concluir depois do prazo. Se concluir, remove a
+      // flag: sem isso o app limparia de novo na proxima partida e perderia
+      // escritas offline de um novo usuario. Sem await: nao trava a partida.
+      unawaited(wipe.then<void>((_) async {
+        try {
+          await _prefs.remove(pendingKey);
+        } catch (_) {}
+      }, onError: (Object _) {}));
+      return false;
     } catch (_) {
       return false;
     }
