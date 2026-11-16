@@ -381,8 +381,8 @@ service cloud.firestore {
 
     // -------------------------------------------------------- publicProfiles
     // Perfil publico minimo para a busca de amigo por e-mail: so nome, avatar e
-    // SHA-256 do e-mail (hex, 64 chars). Qualquer logado le; so o dono escreve e
-    // apaga (exclusao de conta).
+    // SHA-256 do e-mail (hex, 64 chars). Qualquer logado le por uid e consulta
+    // com limit(1); so o dono escreve e apaga (exclusao de conta).
     match /publicProfiles/{uid} {
       function validPublic(d) {
         return d.keys().hasOnly(['name', 'avatar', 'emailHash'])
@@ -392,7 +392,11 @@ service cloud.firestore {
           && d.emailHash.matches('^[0-9a-f]{64}$');
       }
 
-      allow read: if signedIn();
+      // get por uid (nomes de pedidos enviados); list so com limit <= 1 (a busca
+      // por hash usa limit(1)). Encarece, mas NAO impede a varredura paginada
+      // por um cliente forjado: a barreira real e o App Check (etapa 13).
+      allow get: if signedIn();
+      allow list: if signedIn() && request.query.limit <= 1;
       allow create, update: if isOwner(uid) && validPublic(request.resource.data);
       allow delete: if isOwner(uid);
     }

@@ -176,7 +176,8 @@ class SocialRepository {
     }
   }
 
-  /// Busca por e-mail em publicProfiles (hash); nunca le `users`. O Friend
+  /// Busca por e-mail em publicProfiles (hash); nunca le `users`. O
+  /// `limit(1)` e exigido pelas regras (`list` so com limit <= 1). O Friend
   /// devolvido nao tem e-mail nem signo (nao constam no perfil publico).
   Future<Friend?> findUserByEmail(String email) async {
     if (email.trim().isEmpty) return null;

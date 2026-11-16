@@ -7,7 +7,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc, collection, getDocs,
-  query, where, serverTimestamp, Timestamp,
+  query, where, limit, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 
 let env;
@@ -587,7 +587,7 @@ test('publicProfiles: logado le de outro; anonimo nao; consulta por emailHash ok
     await setDoc(doc(ctx.firestore(), 'publicProfiles/bob'), pub({ name: 'B' }));
   });
   await assertSucceeds(getDoc(doc(as('alice'), 'publicProfiles/bob')));
-  await assertSucceeds(getDocs(query(collection(as('alice'), 'publicProfiles'), where('emailHash', '==', HASH))));
+  await assertSucceeds(getDocs(query(collection(as('alice'), 'publicProfiles'), where('emailHash', '==', HASH), limit(1))));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'publicProfiles/bob')));
 });
 
@@ -1089,4 +1089,25 @@ test('friendships exclusao de conta: batch de 400 deletes (pagina da cascata) se
   await assertSucceeds(b.commit());
   const left = await getDocs(query(collection(as('alice'), 'friendships'), where('uids', 'array-contains', 'alice')));
   if (left.size !== 0) throw new Error(`sobraram ${left.size} relacoes`);
+});
+
+// ---- etapa 12, passo 7: publicProfiles com list limitado (busca por hash = limit(1))
+test('publicProfiles list: busca por hash com limit(1) ok; sem limit, limit > 1, sem filtro e anonimo negados', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'publicProfiles/bob'), pub({ name: 'B' }));
+    await setDoc(doc(db, 'publicProfiles/carol'), pub({ name: 'C', emailHash: 'b'.repeat(64) }));
+  });
+  const col = (db) => collection(db, 'publicProfiles');
+  const found = await assertSucceeds(getDocs(query(col(as('alice')), where('emailHash', '==', HASH), limit(1))));
+  if (found.size !== 1) throw new Error(`esperava 1 perfil, veio ${found.size}`);
+  await assertSucceeds(getDocs(query(col(as('alice')), limit(1))));
+  await assertFails(getDocs(query(col(as('alice')), where('emailHash', '==', HASH))));
+  await assertFails(getDocs(query(col(as('alice')), where('emailHash', '==', HASH), limit(2))));
+  await assertFails(getDocs(col(as('alice'))));
+  await assertFails(getDocs(query(col(as('alice')), limit(500))));
+  await assertFails(getDocs(query(col(env.unauthenticatedContext().firestore()), where('emailHash', '==', HASH), limit(1))));
+  // get por uid continua livre para logados
+  await assertSucceeds(getDoc(doc(as('alice'), 'publicProfiles/carol')));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'publicProfiles/carol')));
 });
