@@ -115,8 +115,15 @@ test('compra: diminui e +1 item ok; saldo negativo, 2 itens ou sem item negados'
   await assertSucceeds(updateDoc(ref, { 'wallet.stardust': 400, inventory: ['skin_classic', 'bg_void', 'a'] }));
 });
 
-test('delete do perfil negado', async () => {
-  await assertFails(deleteDoc(doc(as('alice'), 'users/alice')));
+test('delete do perfil: dono ok; outro usuario, admin e anonimo negados', async () => {
+  const ref = (db) => doc(db, 'users/alice');
+  await assertFails(deleteDoc(ref(as('bob'))));
+  await assertFails(deleteDoc(ref(as('root'))));
+  await assertFails(deleteDoc(ref(env.unauthenticatedContext().firestore())));
+  await assertSucceeds(deleteDoc(ref(as('alice'))));
+  let existe = true;
+  await env.withSecurityRulesDisabled(async (ctx) => { existe = (await getDoc(doc(ctx.firestore(), 'users/alice'))).exists(); });
+  if (existe) throw new Error('perfil nao foi apagado');
 });
 
 test('subcolecoes: so o dono', async () => {
@@ -541,7 +548,149 @@ test('publicProfiles: campo extra (email), hash de tamanho errado ou nao hex, no
   await assertFails(setDoc(ref, { name: 'A', emailHash: HASH })); // sem avatar
 });
 
-test('publicProfiles: delete pelo dono negado', async () => {
+test('publicProfiles: dono apaga e recria; outro uid, admin e anonimo negados', async () => {
   await assertSucceeds(setDoc(doc(as('alice'), 'publicProfiles/alice'), pub()));
-  await assertFails(deleteDoc(doc(as('alice'), 'publicProfiles/alice')));
+  await assertFails(deleteDoc(doc(as('bob'), 'publicProfiles/alice')));
+  await assertFails(deleteDoc(doc(as('root'), 'publicProfiles/alice')));
+  await assertFails(deleteDoc(doc(env.unauthenticatedContext().firestore(), 'publicProfiles/alice')));
+  await assertSucceeds(deleteDoc(doc(as('alice'), 'publicProfiles/alice')));
+  const snap = await getDoc(doc(as('bob'), 'publicProfiles/alice'));
+  if (snap.exists()) throw new Error('perfil publico nao foi apagado');
+  await assertSucceeds(setDoc(doc(as('alice'), 'publicProfiles/alice'), pub()));
+});
+
+// ---- etapa 11: exclusao de conta (perfil ausente, intencoes enviadas, analytics)
+const seedAlice = () => env.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.firestore();
+  await setDoc(doc(db, 'users/alice/conversations/c1'), conv(1));
+  await setDoc(doc(db, 'users/alice/conversations/c1/messages/m0001'), msg());
+  await setDoc(doc(db, 'users/alice/events/e1'), { title: 't' });
+  await setDoc(doc(db, 'users/alice/friends/bob'), { name: 'B' });
+  await setDoc(doc(db, 'users/alice/notifications/n1'), { type: 'intention', fromUid: 'bob', read: false });
+});
+
+test('perfil ausente: dono ainda le e apaga conversas, mensagens, eventos, amigos e notificacoes', async () => {
+  await seedAlice();
+  const db = as('alice');
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice')));
+  await assertSucceeds(getDocs(collection(db, 'users/alice/conversations')));
+  await assertSucceeds(getDocs(collection(db, 'users/alice/conversations/c1/messages')));
+  await assertSucceeds(getDocs(collection(db, 'users/alice/events')));
+  await assertSucceeds(getDocs(collection(db, 'users/alice/friends')));
+  await assertSucceeds(getDocs(collection(db, 'users/alice/notifications')));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice/conversations/c1/messages/m0001')));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice/conversations/c1')));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice/events/e1')));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice/friends/bob')));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice/notifications/n1')));
+  // apagar de novo (documento inexistente) e idempotente
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice')));
+});
+
+test('perfil ausente: conversa nova (com e sem mensagem no batch) negada; com perfil ok', async () => {
+  const db = as('alice');
+  await assertSucceeds(setDoc(doc(db, 'users/alice/conversations/ok'), conv(0)));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice')));
+  await assertFails(setDoc(doc(db, 'users/alice/conversations/n1'), conv(0)));
+  const b = writeBatch(db);
+  b.set(doc(db, 'users/alice/conversations/n2'), conv(1));
+  b.set(doc(db, 'users/alice/conversations/n2/messages/m0001'), msg());
+  await assertFails(b.commit());
+});
+
+test('intencao: destino sem perfil (conta excluida) negada; com perfil ok', async () => {
+  const n = { type: 'intention', intentionId: 'luz', intentionLabel: 'Luz', fromName: 'A', fromUid: 'alice', read: false, createdAt: serverTimestamp() };
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'users/alice/friends/bob'), { name: 'B' });
+    await setDoc(doc(db, 'users/alice/friends/ghost'), { name: 'G' });
+  });
+  await assertFails(addDoc(collection(as('alice'), 'users/ghost/notifications'), n));
+  await assertSucceeds(addDoc(collection(as('alice'), 'users/bob/notifications'), n));
+  await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'users/bob')));
+  await assertFails(addDoc(collection(as('alice'), 'users/bob/notifications'), n));
+});
+
+// CARACTERIZACAO (nao e um requisito): com delete liberado, o dono apaga e
+// recria o perfil; o saldo volta a 500 (o create exige exatamente 500) e o
+// inventario volta ao padrao. Sem ganho acima do teto atual.
+test('caracterizacao: apagar e recriar o perfil volta o saldo a 500 (nao acima)', async () => {
+  const db = as('alice');
+  await assertSucceeds(updateDoc(doc(db, 'users/alice'), { 'wallet.stardust': 400, inventory: ['skin_classic', 'bg_void', 'a'] }));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice')));
+  await assertFails(setDoc(doc(db, 'users/alice'), baseUser({ wallet: { stardust: 501 } })));
+  await assertFails(setDoc(doc(db, 'users/alice'), baseUser({ inventory: ['skin_classic', 'bg_void', 'a'] })));
+  await assertSucceeds(setDoc(doc(db, 'users/alice'), baseUser()));
+  const snap = await getDoc(doc(db, 'users/alice'));
+  if (snap.data().wallet.stardust !== 500) throw new Error('saldo nao voltou a 500');
+  if (snap.data().inventory.length !== 2) throw new Error('inventario nao voltou ao padrao');
+});
+
+// ---- intencoes enviadas (collection group)
+const seedSent = () => env.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.firestore();
+  const base = { type: 'intention', intentionId: 'luz', intentionLabel: 'Luz', fromName: 'A', read: false };
+  await setDoc(doc(db, 'users/bob/notifications/s1'), { ...base, fromUid: 'alice', createdAt: Timestamp.now() });
+  await setDoc(doc(db, 'users/root/notifications/s2'), { ...base, fromUid: 'alice', createdAt: Timestamp.now() });
+  await setDoc(doc(db, 'users/bob/notifications/o1'), { ...base, fromUid: 'carol', createdAt: Timestamp.now() });
+  await setDoc(doc(db, 'users/alice/notifications/r1'), { ...base, fromUid: 'bob', createdAt: Timestamp.now() });
+});
+const { collectionGroup } = await import('firebase/firestore');
+
+test('intencoes enviadas: remetente consulta por fromUid e apaga as suas na caixa alheia', async () => {
+  await seedSent();
+  const db = as('alice');
+  const snap = await assertSucceeds(getDocs(query(collectionGroup(db, 'notifications'), where('fromUid', '==', 'alice'))));
+  if (snap.size !== 2) throw new Error(`esperava 2 intencoes enviadas, veio ${snap.size}`);
+  for (const d of snap.docs) await assertSucceeds(deleteDoc(d.ref));
+  const after = await getDocs(query(collectionGroup(as('alice'), 'notifications'), where('fromUid', '==', 'alice')));
+  if (after.size !== 0) throw new Error('intencoes enviadas nao foram apagadas');
+});
+
+test('intencoes enviadas: fromUid de outro, consulta sem filtro e delete de terceiros negados', async () => {
+  await seedSent();
+  const db = as('alice');
+  await assertFails(getDocs(query(collectionGroup(db, 'notifications'), where('fromUid', '==', 'carol'))));
+  await assertFails(getDocs(collectionGroup(db, 'notifications')));
+  await assertFails(getDocs(query(collectionGroup(db, 'notifications'), where('read', '==', false))));
+  await assertFails(deleteDoc(doc(db, 'users/bob/notifications/o1')));
+  await assertFails(getDoc(doc(db, 'users/bob/notifications/o1')));
+  await assertFails(getDocs(query(collectionGroup(env.unauthenticatedContext().firestore(), 'notifications'), where('fromUid', '==', 'alice'))));
+  // admin nao ganha delete de terceiros
+  await assertFails(deleteDoc(doc(as('root'), 'users/bob/notifications/o1')));
+  await assertFails(deleteDoc(doc(as('root'), 'users/bob/notifications/s1')));
+});
+
+test('intencoes enviadas: dono da caixa continua lendo e apagando as recebidas', async () => {
+  await seedSent();
+  const db = as('alice');
+  await assertSucceeds(getDocs(collection(db, 'users/alice/notifications')));
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice/notifications/r1')));
+});
+
+// ---- analytics_events: leitura e exclusao do proprio userId
+test('analytics: dono consulta por userId e apaga os seus; sem filtro e userId alheio negados', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'analytics_events/a1'), { eventName: 'login', userId: 'alice', createdAt: Timestamp.now() });
+    await setDoc(doc(db, 'analytics_events/a2'), { eventName: 'login', userId: 'alice', createdAt: Timestamp.now() });
+    await setDoc(doc(db, 'analytics_events/b1'), { eventName: 'login', userId: 'bob', createdAt: Timestamp.now() });
+    await setDoc(doc(db, 'analytics_events/x1'), { eventName: 'account_delete_completed', userId: 'anonymous', createdAt: Timestamp.now() });
+  });
+  const db = as('alice');
+  const col = collection(db, 'analytics_events');
+  await assertFails(getDocs(col));
+  await assertFails(getDocs(query(col, where('userId', '==', 'bob'))));
+  await assertFails(getDocs(query(col, where('userId', '==', 'anonymous'))));
+  const mine = await assertSucceeds(getDocs(query(col, where('userId', '==', 'alice'))));
+  if (mine.size !== 2) throw new Error(`esperava 2 eventos, veio ${mine.size}`);
+  await assertFails(deleteDoc(doc(db, 'analytics_events/b1')));
+  await assertFails(deleteDoc(doc(db, 'analytics_events/x1')));
+  await assertFails(deleteDoc(doc(env.unauthenticatedContext().firestore(), 'analytics_events/a1')));
+  await assertFails(updateDoc(doc(db, 'analytics_events/a1'), { eventName: 'outro' }));
+  for (const d of mine.docs) await assertSucceeds(deleteDoc(d.ref));
+  // admin continua lendo tudo, mas nao apaga eventos de terceiros
+  const all = await assertSucceeds(getDocs(collection(as('root'), 'analytics_events')));
+  if (all.size !== 2) throw new Error(`admin esperava 2 eventos restantes, veio ${all.size}`);
+  await assertFails(deleteDoc(doc(as('root'), 'analytics_events/b1')));
 });

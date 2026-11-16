@@ -220,9 +220,12 @@ service cloud.firestore {
         && walletShapeOk()
         && (noEconomyChange() || isCheckin() || isPurchase());
 
-      // Sem delete pelo cliente: apagar e recriar o perfil devolveria o saldo
-      // inicial. Exclusao de conta (LGPD) precisa de decisao propria.
-      allow delete: if false;
+      // Exclusao de conta (LGPD, etapa 11): o dono apaga o proprio perfil; o
+      // documento ausente e o marcador server-side de "exclusao em andamento".
+      // Efeito economico (caracterizado em test_rules): apagar e recriar o perfil
+      // devolve o saldo inicial de 500 e o inventario padrao, sem ganho acima do
+      // teto atual. Admin NAO apaga perfil de terceiros (menor privilegio).
+      allow delete: if isOwner(uid);
 
       // Subcolecoes: cada uma com regra propria (sem curinga).
       match /events/{id} {
@@ -264,6 +267,8 @@ service cloud.firestore {
           && request.resource.data.fromName
             == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
           && exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(uid))
+          // O destino precisa existir (conta excluida nao recebe intencao).
+          && exists(/databases/$(database)/documents/users/$(uid))
           && request.resource.data.createdAt == request.time;
         allow update: if isOwner(uid)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
@@ -282,8 +287,10 @@ service cloud.firestore {
         allow read: if isOwner(uid);
         // Na criacao o contador e 0 (ou 1, se a primeira mensagem vai no mesmo
         // batch). Depois so fica igual ou sobe exatamente 1; nunca diminui.
+        // Sem perfil (exclusao de conta em andamento) nao nasce conversa nova.
         allow create: if isOwner(uid) && validConv(request.resource.data)
-          && request.resource.data.messageCount <= 1;
+          && request.resource.data.messageCount <= 1
+          && exists(/databases/$(database)/documents/users/$(uid));
         allow update: if isOwner(uid) && validConv(request.resource.data)
           && request.resource.data.createdAt == resource.data.createdAt
           && (request.resource.data.messageCount == resource.data.messageCount
@@ -326,8 +333,12 @@ service cloud.firestore {
         && request.resource.data.userId is string
         && (request.resource.data.userId == (signedIn() ? request.auth.uid : 'anonymous'))
         && request.resource.data.createdAt == request.time;
-      allow read: if isAdmin();
-      allow update, delete: if false;
+      // Leitura e exclusao do proprio userId (exclusao de conta); o evento
+      // 'anonymous' nao casa com nenhum uid. Consulta sem filtro por userId e
+      // negada para o usuario comum.
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow update: if false;
     }
 
     // ------------------------------------------------- cristais_propriedades
@@ -353,10 +364,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ------------------------------------------- intencoes enviadas (grupo)
+    // Collection group: o REMETENTE consulta e apaga as intencoes que enviou,
+    // em qualquer caixa (exclusao de conta). Restrito a fromUid == auth.uid;
+    // usa resource.data.fromUid (sem get com padrao) para a consulta provar a
+    // restricao. Efeito aceito: o remetente pode retirar intencao ainda nao lida.
+    match /{path=**}/notifications/{id} {
+      allow read, delete: if signedIn() && resource.data.fromUid == request.auth.uid;
+    }
+
     // -------------------------------------------------------- publicProfiles
     // Perfil publico minimo para a busca de amigo por e-mail: so nome, avatar e
-    // SHA-256 do e-mail (hex, 64 chars). Qualquer logado le; so o dono escreve;
-    // sem delete pelo cliente.
+    // SHA-256 do e-mail (hex, 64 chars). Qualquer logado le; so o dono escreve e
+    // apaga (exclusao de conta).
     match /publicProfiles/{uid} {
       function validPublic(d) {
         return d.keys().hasOnly(['name', 'avatar', 'emailHash'])
@@ -368,7 +388,7 @@ service cloud.firestore {
 
       allow read: if signedIn();
       allow create, update: if isOwner(uid) && validPublic(request.resource.data);
-      allow delete: if false;
+      allow delete: if isOwner(uid);
     }
 
     // Qualquer outro caminho: negado.
