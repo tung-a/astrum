@@ -40,6 +40,8 @@ void main() {
         AuthErrorCode.tooManyRequests);
     expect(authErrorCodeFromFirebase('network-request-failed'),
         AuthErrorCode.network);
+    expect(authErrorCodeFromFirebase('wrong-password'),
+        AuthErrorCode.invalidCredentials);
     expect(authErrorCodeFromFirebase('requires-recent-login'),
         AuthErrorCode.requiresRecentLogin);
     expect(authErrorCodeFromFirebase('outro'), AuthErrorCode.unknown);
@@ -86,5 +88,21 @@ void main() {
     expect(d.toString(), isNot(contains('segredo123')));
     expect(const AuthException(AuthErrorCode.unknown).toString(),
         isNot(contains('segredo123')));
+  });
+
+  test('deleteAccountErrorMessage: textos da exclusao', () {
+    String m(AuthErrorCode c, {bool after = false}) =>
+        deleteAccountErrorMessage(AuthException(c), afterDataDeleted: after);
+    expect(m(AuthErrorCode.invalidCredentials),
+        'Senha incorreta. Nada foi apagado.');
+    expect(m(AuthErrorCode.invalidCredentials, after: true),
+        'Senha incorreta. Tente de novo.');
+    expect(m(AuthErrorCode.tooManyRequests),
+        'Muitas tentativas. Aguarde alguns minutos e tente de novo.');
+    expect(m(AuthErrorCode.network),
+        contains('O que já foi apagado continua apagado.'));
+    expect(m(AuthErrorCode.requiresRecentLogin),
+        'Por segurança, digite sua senha novamente para concluir.');
+    expect(m(AuthErrorCode.unknown), contains('Toque em Tentar de novo.'));
   });
 }

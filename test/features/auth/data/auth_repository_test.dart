@@ -207,4 +207,95 @@ void main() {
     await repo.signOut();
     expect(auth.signOutCalls, 1);
   });
+
+  group('reauthenticate e deleteAccount', () {
+    FakeUser logged({String? email = 'a@b.c'}) {
+      final u = FakeUser('u1', email: email, calls: auth.calls);
+      auth.setUser(u);
+      return u;
+    }
+
+    test('reauthenticate usa credencial de e-mail e senha do usuario atual',
+        () async {
+      final u = logged();
+      await repo.reauthenticate('minhasenha');
+      expect(u.reauthCalls, 1);
+      final cred = u.lastCredential! as EmailAuthCredential;
+      expect(cred.email, 'a@b.c');
+      expect(cred.password, 'minhasenha');
+    });
+
+    test('reauthenticate: senha errada vira invalidCredentials', () async {
+      logged().reauthError = FirebaseAuthException(code: 'wrong-password');
+      await expectLater(
+          repo.reauthenticate('x'),
+          throwsA(isA<AuthException>().having(
+              (e) => e.code, 'code', AuthErrorCode.invalidCredentials)));
+    });
+
+    test('reauthenticate: muitas tentativas e rede', () async {
+      final u = logged()
+        ..reauthError = FirebaseAuthException(code: 'too-many-requests');
+      await expectLater(
+          repo.reauthenticate('x'),
+          throwsA(isA<AuthException>()
+              .having((e) => e.code, 'code', AuthErrorCode.tooManyRequests)));
+      u.reauthError = FirebaseAuthException(code: 'network-request-failed');
+      await expectLater(
+          repo.reauthenticate('x'),
+          throwsA(isA<AuthException>()
+              .having((e) => e.code, 'code', AuthErrorCode.network)));
+    });
+
+    test('reauthenticate: sem usuario, sem e-mail ou sem provedor senha',
+        () async {
+      await expectLater(
+          repo.reauthenticate('x'), throwsA(isA<AuthException>()));
+      logged(email: null);
+      await expectLater(
+          repo.reauthenticate('x'), throwsA(isA<AuthException>()));
+      final u = logged()..providers = [FakeUserInfo('google.com')];
+      await expectLater(
+          repo.reauthenticate('x'),
+          throwsA(isA<AuthException>()
+              .having((e) => e.code, 'code', AuthErrorCode.unknown)));
+      expect(u.reauthCalls, 0);
+    });
+
+    test('a excecao nao carrega a senha', () async {
+      logged().reauthError = FirebaseAuthException(code: 'wrong-password');
+      try {
+        await repo.reauthenticate('SENHA-SECRETA');
+      } on AuthException catch (e) {
+        expect(e.toString(), isNot(contains('SENHA-SECRETA')));
+        expect(e.detail, isNull);
+      }
+    });
+
+    test('deleteAccount chama user.delete', () async {
+      final u = logged();
+      await repo.deleteAccount();
+      expect(u.deleteCalls, 1);
+    });
+
+    test('deleteAccount: requires-recent-login vira AuthException', () async {
+      logged().deleteError =
+          FirebaseAuthException(code: 'requires-recent-login');
+      await expectLater(
+          repo.deleteAccount(),
+          throwsA(isA<AuthException>().having(
+              (e) => e.code, 'code', AuthErrorCode.requiresRecentLogin)));
+    });
+
+    test('deleteAccount: usuario ja excluido (outro aparelho) e sucesso',
+        () async {
+      for (final code in ['user-not-found', 'user-token-expired']) {
+        logged().deleteError = FirebaseAuthException(code: code);
+        await repo.deleteAccount();
+        expect(auth.currentUser, isNull); // sessao local encerrada
+      }
+      auth.setUser(null);
+      await repo.deleteAccount(); // sem usuario: nada a fazer
+    });
+  });
 }

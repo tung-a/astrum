@@ -272,4 +272,26 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async => signOutCalls++;
+
+  final reauthCalls = <String>[];
+  int deleteAccountCalls = 0;
+  AuthException? reauthError;
+  AuthException? deleteAccountError;
+
+  /// Registro opcional da ordem entre repositorios (testes da exclusao).
+  List<String>? log;
+
+  @override
+  Future<void> reauthenticate(String password) async {
+    reauthCalls.add(password);
+    log?.add('reauthenticate');
+    if (reauthError != null) throw reauthError!;
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    deleteAccountCalls++;
+    log?.add('deleteAccount');
+    if (deleteAccountError != null) throw deleteAccountError!;
+  }
 }

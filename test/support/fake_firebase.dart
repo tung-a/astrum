@@ -22,6 +22,23 @@ class FakeUser implements User {
   FirebaseAuthException? updateDisplayNameError;
   Object? deleteError;
   int deleteCalls = 0;
+  FirebaseAuthException? reauthError;
+  int reauthCalls = 0;
+  AuthCredential? lastCredential;
+  List<UserInfo> providers = [FakeUserInfo('password')];
+
+  @override
+  List<UserInfo> get providerData => providers;
+
+  @override
+  Future<UserCredential> reauthenticateWithCredential(
+      AuthCredential credential) async {
+    calls.add('reauthenticate');
+    reauthCalls++;
+    lastCredential = credential;
+    if (reauthError != null) throw reauthError!;
+    return FakeUserCredential(this);
+  }
 
   @override
   Future<void> updateDisplayName(String? name) async {
@@ -35,6 +52,17 @@ class FakeUser implements User {
     deleteCalls++;
     if (deleteError != null) throw deleteError!;
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class FakeUserInfo implements UserInfo {
+  FakeUserInfo(this.providerId);
+
+  @override
+  final String providerId;
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

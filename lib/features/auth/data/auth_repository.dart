@@ -16,11 +16,20 @@ abstract interface class AuthRepository {
 
   Future<void> signOut();
 
-  // Ponto de extensao (etapa 11, NAO implementar agora):
-  //   Future<void> reauthenticate(String password);
-  //     (EmailAuthProvider.credential + user.reauthenticateWithCredential)
-  //   Future<void> deleteAccount();   // apagar dados, depois user.delete()
-  // AuthErrorCode.requiresRecentLogin ja existe para mapear o erro.
+  /// Reautentica o usuario logado com a senha (exigido antes de excluir a
+  /// conta). Lanca [AuthException]; nunca registra a senha.
+  ///
+  /// Hoje o unico provedor e e-mail e senha. Se entrar Google ou Apple, a
+  /// reautenticacao muda (credencial do provedor) e, no Sign in with Apple, a
+  /// exclusao precisa revogar o token (`revokeTokenWithAuthorizationCode`).
+  Future<void> reauthenticate(String password);
+
+  /// Exclui o usuario Auth (`user.delete()`); deve ser o ULTIMO passo da
+  /// exclusao de conta (depois dele nenhuma chamada ao Firestore tem
+  /// `request.auth`). `requires-recent-login` vira [AuthException] com
+  /// [AuthErrorCode.requiresRecentLogin]; usuario ja excluido (outro
+  /// aparelho) conta como sucesso.
+  Future<void> deleteAccount();
 }
 
 class FirebaseAuthRepository implements AuthRepository {
@@ -106,4 +115,43 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _auth.signOut();
+
+  @override
+  Future<void> reauthenticate(String password) async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+    if (user == null ||
+        email == null ||
+        !user.providerData.any((p) => p.providerId == 'password')) {
+      throw const AuthException(AuthErrorCode.unknown);
+    }
+    try {
+      await user.reauthenticateWithCredential(
+          EmailAuthProvider.credential(email: email, password: password));
+    } on FirebaseAuthException catch (e) {
+      debugPrint('reauthenticate falhou: ${e.code}');
+      throw AuthException(authErrorCodeFromFirebase(e.code));
+    }
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return; // ja excluida/encerrada em outro lugar
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      debugPrint('deleteAccount falhou: ${e.code}');
+      if (e.code == 'user-not-found' ||
+          e.code == 'user-token-expired' ||
+          e.code == 'no-current-user') {
+        // Outro aparelho ja excluiu a conta: so encerra a sessao local.
+        try {
+          await _auth.signOut();
+        } catch (_) {}
+        return;
+      }
+      throw AuthException(authErrorCodeFromFirebase(e.code));
+    }
+  }
 }

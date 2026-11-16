@@ -8,7 +8,7 @@ enum AuthErrorCode {
   tooManyRequests,
   network,
 
-  /// Ponto de extensao da etapa 11 (reautenticacao antes de excluir conta).
+  /// A janela de reautenticacao venceu (ex.: ao excluir a conta).
   requiresRecentLogin,
 
   /// Auth criado, perfil falhou, rollback executado.
@@ -39,6 +39,7 @@ class AuthException implements Exception {
 /// Mapeia o codigo do FirebaseAuthException para [AuthErrorCode].
 AuthErrorCode authErrorCodeFromFirebase(String code) => switch (code) {
       'invalid-credential' => AuthErrorCode.invalidCredentials,
+      'wrong-password' => AuthErrorCode.invalidCredentials,
       'email-already-in-use' => AuthErrorCode.emailInUse,
       'weak-password' => AuthErrorCode.weakPassword,
       'invalid-email' => AuthErrorCode.invalidEmail,
@@ -71,4 +72,27 @@ String signUpErrorMessage(AuthException e) {
     return 'Este e-mail já tem uma conta. Entre com seu e-mail e senha.';
   }
   return e.detail ?? 'Não foi possível criar a conta';
+}
+
+/// Texto de erro da exclusao de conta (senha, rede, janela de reautenticacao).
+/// [afterDataDeleted]: o erro veio depois de os dados terem sido apagados (a
+/// senha e pedida de novo so para `user.delete()`).
+String deleteAccountErrorMessage(AuthException e,
+    {bool afterDataDeleted = false}) {
+  switch (e.code) {
+    case AuthErrorCode.invalidCredentials:
+      return afterDataDeleted
+          ? 'Senha incorreta. Tente de novo.'
+          : 'Senha incorreta. Nada foi apagado.';
+    case AuthErrorCode.tooManyRequests:
+      return 'Muitas tentativas. Aguarde alguns minutos e tente de novo.';
+    case AuthErrorCode.network:
+      return 'Sem conexão. Conecte-se e toque em Tentar de novo. '
+          'O que já foi apagado continua apagado.';
+    case AuthErrorCode.requiresRecentLogin:
+      return 'Por segurança, digite sua senha novamente para concluir.';
+    default:
+      return 'Não foi possível concluir a exclusão. Parte dos seus dados já '
+          'foi apagada. Toque em Tentar de novo.';
+  }
 }
