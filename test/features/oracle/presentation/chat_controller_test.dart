@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:astrum/core/analytics/analytics_providers.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
+import 'package:astrum/features/oracle/data/chat_repository.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:astrum/features/oracle/presentation/chat_controller.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,6 +38,27 @@ class _SpyRepo extends InMemoryChatRepository {
         updatedAt: updatedAt,
         title: title,
         isNew: isNew);
+  }
+}
+
+/// Exclusao que falha (ou espera) sob comando.
+class _DeleteRepo extends _SpyRepo {
+  Object? deleteError;
+  Completer<void>? gate;
+  final deleted = <String>[];
+
+  @override
+  Future<void> deleteConversation(String uid, String convId) async {
+    if (gate != null) await gate!.future;
+    if (deleteError != null) throw deleteError!;
+    deleted.add(convId);
+    return super.deleteConversation(uid, convId);
+  }
+
+  @override
+  Future<List<String>> deleteAllConversations(String uid) async {
+    if (deleteError != null) throw deleteError!;
+    return super.deleteAllConversations(uid);
   }
 }
 
@@ -553,6 +576,122 @@ void main() {
 
       expect(st(c).current.messages.map((m) => m.text),
           ['Recomecar', 'resposta do oraculo']);
+    });
+  });
+
+  group('exclusao de conversas', () {
+    late _DeleteRepo drepo;
+    setUp(() {
+      drepo = _DeleteRepo();
+      repo = drepo;
+    });
+
+    Future<ProviderContainer> setupDel() => setup();
+
+    test('deleteCurrent apaga a selecionada e cai na proxima; registra evento',
+        () async {
+      await seed('u1', 'a', 2, title: 'A', at: DateTime(2026, 1, 1));
+      await seed('u1', 'b', 2, title: 'B', at: DateTime(2026, 2, 1));
+      final c = await setupDel();
+      expect(st(c).current.id, 'b');
+
+      final r = await ctl(c).deleteCurrent();
+      await pumpEventQueue();
+
+      expect(r, ChatDeleteResult.ok);
+      expect(drepo.deleted, ['b']);
+      expect(st(c).current.id, 'a');
+      expect(st(c).deleting, isFalse);
+      expect(analytics.events, contains('chat_delete_conversation'));
+    });
+
+    test('rascunho nunca gravado: descarta em memoria, sem rede', () async {
+      await seed('u1', 'a', 2, title: 'A');
+      final c = await setupDel();
+      await ctl(c).newConversation();
+      expect(ctl(c).currentIsUnsavedDraft, isTrue);
+
+      final r = await ctl(c).deleteCurrent();
+      await pumpEventQueue();
+
+      expect(r, ChatDeleteResult.ok);
+      expect(drepo.deleted, isEmpty);
+      expect(st(c).current.id, 'a');
+      expect(analytics.events, isNot(contains('chat_delete_conversation')));
+    });
+
+    test('deleteAll apaga tudo e cai no rascunho', () async {
+      await seed('u1', 'a', 2, title: 'A');
+      await seed('u1', 'b', 2, title: 'B');
+      final c = await setupDel();
+
+      final r = await ctl(c).deleteAll();
+      await pumpEventQueue();
+
+      expect(r, ChatDeleteResult.ok);
+      expect(st(c).conversations.single.title, 'Conversa 1');
+      expect(st(c).current.messages, isEmpty);
+      expect(analytics.events, contains('chat_delete_all'));
+    });
+
+    test('offline vira ChatDeleteResult.offline e nada some', () async {
+      await seed('u1', 'a', 2, title: 'A');
+      final c = await setupDel();
+      drepo.deleteError = const ChatOfflineException();
+
+      expect(await ctl(c).deleteCurrent(), ChatDeleteResult.offline);
+      expect(await ctl(c).deleteAll(), ChatDeleteResult.offline);
+      drepo.deleteError = FirebaseException(
+          plugin: 'cloud_firestore', code: 'deadline-exceeded');
+      expect(await ctl(c).deleteAll(), ChatDeleteResult.offline);
+      expect(st(c).deleting, isFalse);
+      expect(st(c).current.id, 'a');
+      expect(analytics.events, isEmpty);
+    });
+
+    test('outro erro vira failed; nova tentativa conclui (idempotente)',
+        () async {
+      await seed('u1', 'a', 2, title: 'A');
+      final c = await setupDel();
+      drepo.deleteError = StateError('boom');
+      expect(await ctl(c).deleteCurrent(), ChatDeleteResult.failed);
+      drepo.deleteError = null;
+      expect(await ctl(c).deleteCurrent(), ChatDeleteResult.ok);
+    });
+
+    test('durante a exclusao: deleting bloqueia envio e nova conversa',
+        () async {
+      await seed('u1', 'a', 2, title: 'A');
+      final c = await setupDel();
+      drepo.gate = Completer<void>();
+
+      final fut = ctl(c).deleteCurrent();
+      await Future<void>.delayed(Duration.zero);
+      expect(st(c).deleting, isTrue);
+      expect(await ctl(c).send('oi'), isFalse);
+      expect(oracle.calls, isEmpty);
+      expect(await ctl(c).deleteAll(), ChatDeleteResult.failed); // sem duplo
+      drepo.gate!.complete();
+      expect(await fut, ChatDeleteResult.ok);
+      expect(st(c).deleting, isFalse);
+    });
+
+    test('resposta em andamento e descartada se a conversa foi apagada',
+        () async {
+      await seed('u1', 'a', 2, title: 'A');
+      drepo.appends.clear();
+      final gate = Completer<String>();
+      oracle.completer = gate;
+      final c = await setup();
+
+      final future = ctl(c).send('Oi');
+      await Future<void>.delayed(Duration.zero);
+      await ctl(c).deleteCurrent();
+      await pumpEventQueue();
+      gate.complete('resposta');
+      await future;
+
+      expect(drepo.appends.where((a) => a.role == 'model'), isEmpty);
     });
   });
 }

@@ -20,9 +20,11 @@ const chatNoticeTitle = 'Seu histórico fica na nuvem';
 const chatNoticeBody =
     'As conversas com o oráculo são armazenadas na nuvem (Firebase, região de '
     'São Paulo, southamerica-east1) para sincronizar entre os seus aparelhos. '
-    'Elas ficam guardadas até serem apagadas, sem prazo de expiração. Em '
-    'breve você poderá apagá-las no app, e elas poderão ser apagadas junto '
-    'com a sua conta.';
+    'Elas ficam guardadas até você apagá-las, sem prazo de expiração. Você '
+    'pode apagar uma conversa ou todo o histórico no menu do Oráculo; tudo '
+    'também é apagado se você excluir a sua conta.';
+
+enum _OracleMenu { deleteCurrent, deleteAll }
 
 class OracleScreen extends ConsumerStatefulWidget {
   const OracleScreen({super.key});
@@ -83,6 +85,47 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
     return mounted;
   }
 
+  Future<void> _confirmDelete(_OracleMenu action) async {
+    final all = action == _OracleMenu.deleteAll;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(all ? 'Apagar todo o histórico?' : 'Apagar esta conversa?'),
+        content: Text(all
+            ? 'Todas as conversas com o oráculo, inclusive as que não '
+                'aparecem na lista, serão apagadas da nuvem e de todos os '
+                'seus aparelhos. Não é possível desfazer.'
+            : 'As mensagens desta conversa serão apagadas da nuvem e de '
+                'todos os seus aparelhos. Não é possível desfazer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style:
+                TextButton.styleFrom(foregroundColor: AstrumColors.destructive),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(all ? 'Apagar tudo' : 'Apagar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final controller = ref.read(chatControllerProvider.notifier);
+    final result =
+        all ? await controller.deleteAll() : await controller.deleteCurrent();
+    if (!mounted) return;
+    final text = switch (result) {
+      ChatDeleteResult.ok => all ? 'Histórico apagado.' : 'Conversa apagada.',
+      ChatDeleteResult.offline =>
+        'Sem conexão. Nada foi apagado. Tente de novo quando estiver online.',
+      ChatDeleteResult.failed =>
+        'Não foi possível apagar. Parte pode ter sido apagada; tente novamente.',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
   /// Envia [preset] (chip) ou o texto do campo. O controller decide se aceita
   /// (hidratado, nao vazio, sem resposta em andamento, conversa nao cheia, mesmo
   /// usuario de antes do aviso); o campo so e limpo quando aceita, e nunca por
@@ -90,7 +133,11 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
   Future<void> _send({String? preset}) async {
     final text = (preset ?? _input.text).trim();
     final chat = ref.read(chatControllerProvider);
-    if (text.isEmpty || chat.loading || !chat.hydrated || chat.limitReached) {
+    if (text.isEmpty ||
+        chat.loading ||
+        chat.deleting ||
+        !chat.hydrated ||
+        chat.limitReached) {
       return;
     }
     final uid = ref.read(currentUidProvider);
@@ -135,11 +182,14 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
       actions: [
         IconButton(
           tooltip: 'Nova conversa',
-          onPressed: profile == null ? null : controller.newConversation,
+          onPressed: profile == null || chat.deleting
+              ? null
+              : controller.newConversation,
           icon: const Icon(Icons.add_comment_outlined),
         ),
         if (chat.conversations.length > 1)
           PopupMenuButton<int>(
+            enabled: !chat.deleting,
             onSelected: controller.select,
             itemBuilder: (context) => [
               for (var i = 0; i < chat.conversations.length; i++)
@@ -147,9 +197,33 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
                     value: i, child: Text(chat.conversations[i].title)),
             ],
           ),
+        if (profile != null)
+          PopupMenuButton<_OracleMenu>(
+            tooltip: 'Mais opções',
+            icon: const Icon(Icons.more_vert),
+            enabled: !chat.deleting,
+            onSelected: _confirmDelete,
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: _OracleMenu.deleteCurrent,
+                enabled: chat.hydrated && !controller.currentIsUnsavedDraft,
+                child: const Text('Apagar esta conversa'),
+              ),
+              PopupMenuItem(
+                value: _OracleMenu.deleteAll,
+                enabled: chat.hydrated,
+                child: const Text('Apagar todo o histórico'),
+              ),
+            ],
+          ),
       ],
       body: Column(
         children: [
+          if (chat.deleting)
+            Semantics(
+              label: 'Apagando…',
+              child: const LinearProgressIndicator(),
+            ),
           if (chat.error && !chat.hydrated)
             Padding(
               padding: const EdgeInsets.all(12),
@@ -177,6 +251,7 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
                       (q) => ActionChip(
                         label: Text(q),
                         onPressed: profile == null ||
+                                chat.deleting ||
                                 !chat.hydrated ||
                                 chat.limitReached
                             ? null
@@ -254,6 +329,7 @@ class _OracleScreenState extends ConsumerState<OracleScreen> {
                 const SizedBox(width: 8),
                 IconButton.filled(
                   onPressed: chat.loading ||
+                          chat.deleting ||
                           profile == null ||
                           !chat.hydrated ||
                           chat.limitReached

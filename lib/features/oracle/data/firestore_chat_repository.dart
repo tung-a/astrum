@@ -141,14 +141,17 @@ class FirestoreChatRepository implements ChatRepository {
   }
 
   @override
-  Future<void> deleteAllConversations(String uid) async {
+  Future<List<String>> deleteAllConversations(String uid) async {
+    final ids = <String>[];
     while (true) {
       final page = await getServerPage(_convs(uid).limit(_listLimit));
       if (page.docs.isEmpty) break;
       for (final d in page.docs) {
         await deleteConversation(uid, d.id);
+        ids.add(d.id);
       }
     }
+    return ids;
   }
 
   @override

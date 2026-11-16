@@ -80,9 +80,11 @@ class InMemoryChatRepository implements ChatRepository {
   }
 
   @override
-  Future<void> deleteAllConversations(String uid) async {
+  Future<List<String>> deleteAllConversations(String uid) async {
+    final ids = _of(uid).keys.toList();
     _of(uid).clear();
     _changes.add(null);
+    return ids;
   }
 
   @override

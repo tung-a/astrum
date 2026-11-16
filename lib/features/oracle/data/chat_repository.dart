@@ -40,7 +40,8 @@ abstract interface class ChatRepository {
   Future<void> deleteConversation(String uid, String convId);
 
   /// Apaga todas as conversas do [uid], paginando ate esvaziar (nao so 50).
-  Future<void> deleteAllConversations(String uid);
+  /// Devolve os ids apagados (usados na varredura final da exclusao de conta).
+  Future<List<String>> deleteAllConversations(String uid);
 
   String newId();
 }

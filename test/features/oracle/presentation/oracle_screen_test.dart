@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:astrum/core/analytics/analytics_providers.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/core/storage/prefs_providers.dart';
+import 'package:astrum/features/oracle/data/chat_repository.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/oracle/presentation/oracle_screen.dart';
@@ -35,6 +36,23 @@ class _FlakyRepo extends InMemoryChatRepository {
   Stream<List<ChatConversation>> watchConversations(String uid) => fail
       ? Stream<List<ChatConversation>>.error(StateError('unavailable'))
       : super.watchConversations(uid);
+}
+
+/// Exclusao que falha com o erro dado ate [error] virar null.
+class _FailDeleteRepo extends InMemoryChatRepository {
+  Object? error;
+
+  @override
+  Future<void> deleteConversation(String uid, String convId) async {
+    if (error != null) throw error!;
+    return super.deleteConversation(uid, convId);
+  }
+
+  @override
+  Future<List<String>> deleteAllConversations(String uid) async {
+    if (error != null) throw error!;
+    return super.deleteAllConversations(uid);
+  }
 }
 
 void main() {
@@ -277,9 +295,9 @@ void main() {
     const body =
         'As conversas com o oráculo são armazenadas na nuvem (Firebase, região de '
         'São Paulo, southamerica-east1) para sincronizar entre os seus aparelhos. '
-        'Elas ficam guardadas até serem apagadas, sem prazo de expiração. Em '
-        'breve você poderá apagá-las no app, e elas poderão ser apagadas junto '
-        'com a sua conta.';
+        'Elas ficam guardadas até você apagá-las, sem prazo de expiração. Você '
+        'pode apagar uma conversa ou todo o histórico no menu do Oráculo; tudo '
+        'também é apagado se você excluir a sua conta.';
 
     testWidgets('aparece antes do 1o envio, uma unica vez por uid',
         (tester) async {
@@ -319,6 +337,133 @@ void main() {
       await settle(tester);
 
       expect(find.text(body), findsNothing);
+    });
+  });
+
+  group('apagar conversa e historico', () {
+    Future<InMemoryChatRepository> seeded() async {
+      final chats = InMemoryChatRepository();
+      for (final id in ['a', 'b']) {
+        await chats.appendMessage('u1',
+            convId: id,
+            message: ChatTurnStored(
+                id: 'm$id',
+                role: 'user',
+                text: 'pergunta $id',
+                createdAt: DateTime(2026, 1, id == 'a' ? 1 : 2)),
+            updatedAt: DateTime(2026, 1, id == 'a' ? 1 : 2),
+            title: 'Conversa $id',
+            isNew: true);
+      }
+      return chats;
+    }
+
+    Future<void> settleUi(WidgetTester t) async {
+      for (var i = 0; i < 6; i++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    Future<void> openMenu(WidgetTester tester, String item) async {
+      await tester.tap(find.byTooltip('Mais opções'));
+      await settleUi(tester);
+      await tester.tap(find.text(item));
+      await settleUi(tester);
+    }
+
+    testWidgets('apagar esta conversa: confirma, apaga e avisa',
+        (tester) async {
+      final chats = await seeded();
+      await pumpOracle(tester, chats: chats, sp: await prefs());
+
+      await openMenu(tester, 'Apagar esta conversa');
+      expect(find.text('Apagar esta conversa?'), findsOneWidget);
+      expect(
+          find.text('As mensagens desta conversa serão apagadas da nuvem e de '
+              'todos os seus aparelhos. Não é possível desfazer.'),
+          findsOneWidget);
+      await tester.tap(find.text('Apagar'));
+      await settleUi(tester);
+
+      expect(find.text('Conversa apagada.'), findsOneWidget);
+      final list = await chats.watchConversations('u1').first;
+      expect(list.map((c) => c.id), ['a']); // a mais recente (b) foi apagada
+    });
+
+    testWidgets('cancelar nao apaga nada', (tester) async {
+      final chats = await seeded();
+      await pumpOracle(tester, chats: chats, sp: await prefs());
+
+      await openMenu(tester, 'Apagar todo o histórico');
+      expect(find.text('Apagar todo o histórico?'), findsOneWidget);
+      await tester.tap(find.text('Cancelar'));
+      await settleUi(tester);
+
+      expect(find.text('Histórico apagado.'), findsNothing);
+      expect(await chats.watchConversations('u1').first, hasLength(2));
+    });
+
+    testWidgets('apagar todo o historico: apaga tudo e avisa', (tester) async {
+      final chats = await seeded();
+      await pumpOracle(tester, chats: chats, sp: await prefs());
+
+      await openMenu(tester, 'Apagar todo o histórico');
+      await tester.tap(find.text('Apagar tudo'));
+      await settleUi(tester);
+
+      expect(find.text('Histórico apagado.'), findsOneWidget);
+      expect(await chats.watchConversations('u1').first, isEmpty);
+    });
+
+    testWidgets('offline: mensagem de nada apagado', (tester) async {
+      final chats = _FailDeleteRepo()..error = const ChatOfflineException();
+      await pumpOracle(tester, chats: chats, sp: await prefs());
+      await chats.appendMessage('u1',
+          convId: 'a',
+          message: ChatTurnStored(
+              id: 'm',
+              role: 'user',
+              text: 'x',
+              createdAt: DateTime(2026, 1, 1)),
+          updatedAt: DateTime(2026, 1, 1),
+          isNew: true);
+      await settleUi(tester);
+
+      await openMenu(tester, 'Apagar todo o histórico');
+      await tester.tap(find.text('Apagar tudo'));
+      await settleUi(tester);
+
+      expect(
+          find.text(
+              'Sem conexão. Nada foi apagado. Tente de novo quando estiver online.'),
+          findsOneWidget);
+    });
+
+    testWidgets('outro erro: mensagem de parte apagada', (tester) async {
+      final chats = _FailDeleteRepo()..error = StateError('x');
+      await pumpOracle(tester, chats: chats, sp: await prefs());
+
+      await openMenu(tester, 'Apagar todo o histórico');
+      await tester.tap(find.text('Apagar tudo'));
+      await settleUi(tester);
+
+      expect(
+          find.text(
+              'Não foi possível apagar. Parte pode ter sido apagada; tente novamente.'),
+          findsOneWidget);
+    });
+
+    testWidgets('rascunho nunca gravado: "Apagar esta conversa" desabilitado',
+        (tester) async {
+      await pumpOracle(tester,
+          chats: InMemoryChatRepository(), sp: await prefs());
+
+      await tester.tap(find.byTooltip('Mais opções'));
+      await settleUi(tester);
+      final item = tester.widget<PopupMenuItem>(find.byWidgetPredicate((w) =>
+          w is PopupMenuItem &&
+          (w.child as Text).data == 'Apagar esta conversa'));
+      expect(item.enabled, isFalse);
     });
   });
 }

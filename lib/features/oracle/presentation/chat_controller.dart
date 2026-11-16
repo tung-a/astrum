@@ -4,10 +4,12 @@ import 'package:astrum/core/analytics/analytics_providers.dart';
 import 'package:astrum/core/clock/clock_providers.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/core/firebase/session_providers.dart';
+import 'package:astrum/features/oracle/data/chat_repository.dart';
 import 'package:astrum/features/oracle/domain/chat_limits.dart';
 import 'package:astrum/features/oracle/domain/chat_models.dart';
 import 'package:astrum/features/oracle/presentation/oracle_providers.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +19,9 @@ const chatLimitText =
 
 const _replyError = 'Não foi possível obter a resposta. Tente novamente.';
 
+/// Resultado da exclusao de uma conversa ou de todo o historico.
+enum ChatDeleteResult { ok, offline, failed }
+
 class ChatState {
   const ChatState({
     this.conversations = const [],
@@ -25,6 +30,7 @@ class ChatState {
     this.hydrated = false,
     this.error = false,
     this.limitReached = false,
+    this.deleting = false,
   });
 
   /// Rascunho (se houver) e depois as conversas da nuvem, da mais recente para
@@ -41,6 +47,10 @@ class ChatState {
   /// A conversa selecionada nao comporta mais mensagens (calculado pelo
   /// controller, nao pelo texto exibido).
   final bool limitReached;
+
+  /// Exclusao de conversa(s) em andamento: envio, chips, "Nova conversa" e o
+  /// menu ficam desabilitados.
+  final bool deleting;
 
   int get index {
     final i = conversations.indexWhere((c) => c.id == selectedId);
@@ -59,6 +69,7 @@ class ChatState {
     bool? hydrated,
     bool? error,
     bool? limitReached,
+    bool? deleting,
   }) =>
       ChatState(
         conversations: conversations ?? this.conversations,
@@ -67,6 +78,7 @@ class ChatState {
         hydrated: hydrated ?? this.hydrated,
         error: error ?? this.error,
         limitReached: limitReached ?? this.limitReached,
+        deleting: deleting ?? this.deleting,
       );
 }
 
@@ -295,6 +307,7 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
     final uid = _uid;
     if (trimmed.isEmpty ||
         state.loading ||
+        state.deleting ||
         !state.hydrated ||
         uid == null ||
         (expectedUid != null && expectedUid != uid)) {
@@ -354,13 +367,92 @@ class ChatController extends AutoDisposeNotifier<ChatState> {
 
   /// Rascunho em memoria; nao grava. Se ja ha um rascunho vazio, so o seleciona.
   Future<void> newConversation() async {
-    if (!state.hydrated || _uid == null) return;
+    if (!state.hydrated || _uid == null || state.deleting) return;
     _draft ??= ChatConversation(
         id: ref.read(chatRepositoryProvider).newId(),
         title: 'Conversa ${_cloud.length + 1}',
         messages: const []);
     _select(_draft!.id, emit: false);
     _emit();
+  }
+
+  /// A conversa selecionada e um rascunho que nunca foi gravado.
+  bool get currentIsUnsavedDraft =>
+      _draft != null &&
+      _draft!.id == _selectedId &&
+      !_created.contains(_selectedId);
+
+  /// Apaga a conversa selecionada da nuvem (e de todos os aparelhos). Rascunho
+  /// nunca gravado so e descartado em memoria. A lista reativa seleciona a
+  /// proxima conversa (ou um rascunho novo).
+  Future<ChatDeleteResult> deleteCurrent() async {
+    final uid = _uid;
+    final convId = _selectedId;
+    if (uid == null || convId == null || !state.hydrated || state.deleting) {
+      return ChatDeleteResult.failed;
+    }
+    if (currentIsUnsavedDraft) {
+      _draft = null;
+      _created.remove(convId);
+      final next = _cloud.firstOrNull;
+      if (next != null) {
+        _select(next.id, emit: false);
+      } else {
+        _draft = ChatConversation(
+            id: ref.read(chatRepositoryProvider).newId(),
+            title: 'Conversa 1',
+            messages: const []);
+        _select(_draft!.id, emit: false);
+      }
+      _emit();
+      return ChatDeleteResult.ok;
+    }
+    final gen = _gen;
+    state = state.copyWith(deleting: true);
+    try {
+      await ref.read(chatRepositoryProvider).deleteConversation(uid, convId);
+      unawaited(ref
+          .read(analyticsServiceProvider)
+          .logEvent('chat_delete_conversation'));
+      return ChatDeleteResult.ok;
+    } catch (e) {
+      return _deleteFailure(e, 'exclusao');
+    } finally {
+      if (_alive && gen == _gen) state = state.copyWith(deleting: false);
+    }
+  }
+
+  /// Apaga todo o historico (inclusive o que nao aparece na lista).
+  Future<ChatDeleteResult> deleteAll() async {
+    final uid = _uid;
+    if (uid == null || !state.hydrated || state.deleting) {
+      return ChatDeleteResult.failed;
+    }
+    final gen = _gen;
+    state = state.copyWith(deleting: true);
+    try {
+      await ref.read(chatRepositoryProvider).deleteAllConversations(uid);
+      unawaited(ref.read(analyticsServiceProvider).logEvent('chat_delete_all'));
+      return ChatDeleteResult.ok;
+    } catch (e) {
+      return _deleteFailure(e, 'exclusao total');
+    } finally {
+      if (_alive && gen == _gen) state = state.copyWith(deleting: false);
+    }
+  }
+
+  /// So o tipo/codigo do erro vai ao log; nunca texto de conversa.
+  ChatDeleteResult _deleteFailure(Object e, String where) {
+    if (e is FirebaseException) {
+      debugPrint('chat: erro em $where (${e.code})');
+      return e.code == 'unavailable' || e.code == 'deadline-exceeded'
+          ? ChatDeleteResult.offline
+          : ChatDeleteResult.failed;
+    }
+    _log(where, e);
+    return e is ChatOfflineException
+        ? ChatDeleteResult.offline
+        : ChatDeleteResult.failed;
   }
 
   void select(int index) {

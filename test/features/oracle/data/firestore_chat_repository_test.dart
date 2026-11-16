@@ -210,7 +210,8 @@ void main() {
     }
     await repo.appendMessage('u2',
         convId: 'o', message: m(1, 'outro'), updatedAt: t0, isNew: true);
-    await repo.deleteAllConversations('u1');
+    final ids = await repo.deleteAllConversations('u1');
+    expect(ids.toSet(), {for (var i = 0; i < 60; i++) 'c$i'});
     expect((await db.collection('users/u1/conversations').get()).docs, isEmpty);
     expect(await repo.remoteMessageCount('u2', 'o'), 1);
   });
