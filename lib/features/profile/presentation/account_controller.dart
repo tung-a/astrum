@@ -1,6 +1,7 @@
 import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/social/domain/friend.dart';
+import 'package:astrum/features/social/domain/recipient_unavailable.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,14 +28,25 @@ class AccountController extends Notifier<void> {
     return '${found.name} entrou na sua constelação.';
   }
 
-  Future<void> sendIntention(
-      AppUser me, Friend friend, String id, String label) {
-    return ref.read(socialRepositoryProvider).sendIntention(
-          fromUid: me.uid,
-          fromName: me.name,
-          toUid: friend.id,
-          intentionId: id,
-          intentionLabel: label,
-        );
+  /// Envia a intencao e devolve o texto do snackbar. Se a conta do amigo foi
+  /// excluida, remove-o da propria lista (limpeza preguicosa).
+  Future<String> sendIntention(
+      AppUser me, Friend friend, String id, String label) async {
+    final social = ref.read(socialRepositoryProvider);
+    try {
+      await social.sendIntention(
+        fromUid: me.uid,
+        fromName: me.name,
+        toUid: friend.id,
+        intentionId: id,
+        intentionLabel: label,
+      );
+      return '$label enviada a ${friend.name}';
+    } on RecipientUnavailableException {
+      try {
+        await social.removeFriend(me.uid, friend.id);
+      } catch (_) {}
+      return 'Esta conta não existe mais.';
+    }
   }
 }

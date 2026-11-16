@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:astrum/core/astro/natal_chart.dart';
 import 'package:astrum/core/firebase/firestore_paths.dart';
+import 'package:astrum/core/firebase/paged_delete.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/features/economy/domain/equip_slot.dart';
 import 'package:astrum/features/economy/domain/equip_slot_field.dart';
@@ -9,6 +12,7 @@ import 'package:astrum/features/profile/domain/app_user.dart';
 import 'package:astrum/features/profile/domain/public_profile.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 /// Perfil do usuario logado. Nenhum metodo publico aceita Map ou caminho de
 /// campo (wallet/inventory/role/dailyCheckIn inalcancaveis).
@@ -40,14 +44,24 @@ abstract interface class ProfileRepository {
 
   Future<void> saveDailyTarot(String uid,
       {required String date, required String card, required String meaning});
+
+  /// Exclusao de conta: apaga `users/{uid}` e `publicProfiles/{uid}` em UM
+  /// batch (o documento ausente e o marcador de "exclusao em andamento").
+  /// Idempotente. Offline (commit que nao completa) lanca
+  /// [ServerOfflineException].
+  Future<void> deleteProfile(String uid);
 }
 
 class FirestoreProfileRepository implements ProfileRepository {
   FirestoreProfileRepository({
     required FirebaseFirestore db,
     required PublicProfileSync sync,
+    this.commitTimeout = const Duration(seconds: 15),
   })  : _db = db,
         _sync = sync;
+
+  /// Prazo do commit de exclusao (offline ele nunca completa).
+  final Duration commitTimeout;
 
   final FirebaseFirestore _db;
   final PublicProfileSync _sync;
@@ -157,6 +171,27 @@ class FirestoreProfileRepository implements ProfileRepository {
       _update(uid, {
         'dailyTarot': {'date': date, 'card': card, 'meaning': meaning},
       });
+
+  /// Commit do batch de exclusao. So sobrescrevivel em teste.
+  @visibleForTesting
+  Future<void> commitDelete(WriteBatch batch) => batch.commit();
+
+  @override
+  Future<void> deleteProfile(String uid) async {
+    final batch = _db.batch()
+      ..delete(_userDoc(uid))
+      ..delete(_db.publicDoc(uid));
+    try {
+      await commitDelete(batch).timeout(commitTimeout);
+    } on TimeoutException {
+      throw const ServerOfflineException();
+    } on FirebaseException catch (e) {
+      if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        throw const ServerOfflineException();
+      }
+      rethrow;
+    }
+  }
 
   // Unico ponto de escrita do perfil; privado, nenhum metodo publico aceita
   // Map ou caminho de campo (wallet/inventory/role/dailyCheckIn inalcancaveis).

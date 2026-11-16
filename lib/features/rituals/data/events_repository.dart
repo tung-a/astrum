@@ -1,4 +1,5 @@
 import 'package:astrum/core/firebase/firestore_paths.dart';
+import 'package:astrum/core/firebase/paged_delete.dart';
 import 'package:astrum/features/rituals/domain/ritual_event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -35,4 +36,9 @@ class EventsRepository {
   Future<void> deleteEvent(String uid, String eventId) {
     return _userDoc(uid).collection('events').doc(eventId).delete();
   }
+
+  /// Apaga todos os eventos do [uid] (exclusao de conta). Idempotente; offline
+  /// lanca [ServerOfflineException].
+  Future<void> deleteAllEvents(String uid) =>
+      deleteQueryPaged(_userDoc(uid).collection('events'));
 }

@@ -199,15 +199,12 @@ class _FriendTile extends ConsumerWidget {
                     avatar: Icon(i.icon, size: 16, color: i.color),
                     label: Text(i.label),
                     onPressed: () async {
-                      await ref
+                      final text = await ref
                           .read(accountControllerProvider.notifier)
                           .sendIntention(me, friend, i.id, i.label);
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content:
-                                  Text('${i.label} enviada a ${friend.name}')),
-                        );
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(text)));
                       }
                     },
                   ),

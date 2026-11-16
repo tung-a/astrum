@@ -1,5 +1,6 @@
 import 'package:astrum/features/profile/presentation/account_controller.dart';
 import 'package:astrum/features/social/domain/friend.dart';
+import 'package:astrum/features/social/domain/recipient_unavailable.dart';
 import 'package:astrum/features/social/presentation/social_providers.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -65,8 +66,9 @@ void main() {
   test('sendIntention repassa remetente, destinatario e intencao', () async {
     final ctl = await setup();
 
-    await ctl.sendIntention(
+    final text = await ctl.sendIntention(
         testUser(), const Friend(id: 'u2', name: 'Luna'), 'luz', 'Luz');
+    expect(text, 'Luz enviada a Luna');
 
     expect(social.intentions, [
       {
@@ -77,5 +79,18 @@ void main() {
         'intentionLabel': 'Luz',
       }
     ]);
+  });
+
+  test('sendIntention a conta excluida: avisa e remove o amigo da lista',
+      () async {
+    final ctl = await setup();
+    social.sendError = const RecipientUnavailableException();
+
+    final text = await ctl.sendIntention(
+        testUser(), const Friend(id: 'u2', name: 'Luna'), 'luz', 'Luz');
+
+    expect(text, 'Esta conta não existe mais.');
+    expect(social.removedFriends, [(uid: 'u1', friendId: 'u2')]);
+    expect(social.intentions, isEmpty);
   });
 }

@@ -60,6 +60,14 @@ class FakeProfileRepository implements ProfileRepository {
   final equips = <({String uid, EquipSlot slot, String itemId})>[];
   Object? saveError;
   Object? equipError;
+  final deletedProfiles = <String>[];
+  Object? deleteProfileError;
+
+  @override
+  Future<void> deleteProfile(String uid) async {
+    if (deleteProfileError != null) throw deleteProfileError!;
+    deletedProfiles.add(uid);
+  }
 
   @override
   Future<void> saveAstralMap(String uid, List<PlanetPosition> chart) async {
@@ -107,6 +115,13 @@ class FakeEventsRepository implements EventsRepository {
   }
 
   final added = <({String uid, RitualEvent event})>[];
+  final deletedAll = <String>[];
+
+  @override
+  Future<void> deleteAllEvents(String uid) async {
+    deletedAll.add(uid);
+  }
+
   final deleted = <({String uid, String eventId})>[];
 
   @override
@@ -134,6 +149,26 @@ class FakeSocialRepository implements SocialRepository {
   final searchedEmails = <String>[];
   final addedFriends = <({String uid, Friend friend})>[];
   final intentions = <Map<String, String>>[];
+  final removedFriends = <({String uid, String friendId})>[];
+  final deletedAllFriends = <String>[];
+  final deletedReceived = <String>[];
+  final deletedSent = <String>[];
+  Object? sendError;
+
+  @override
+  Future<void> removeFriend(String uid, String friendId) async {
+    removedFriends.add((uid: uid, friendId: friendId));
+  }
+
+  @override
+  Future<void> deleteAllFriends(String uid) async => deletedAllFriends.add(uid);
+
+  @override
+  Future<void> deleteAllReceivedNotifications(String uid) async =>
+      deletedReceived.add(uid);
+
+  @override
+  Future<void> deleteSentIntentions(String uid) async => deletedSent.add(uid);
 
   @override
   Future<Friend?> findUserByEmail(String email) async {
@@ -154,6 +189,7 @@ class FakeSocialRepository implements SocialRepository {
     required String intentionId,
     required String intentionLabel,
   }) async {
+    if (sendError != null) throw sendError!;
     intentions.add({
       'fromUid': fromUid,
       'fromName': fromName,
