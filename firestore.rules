@@ -228,12 +228,20 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
 
       // Subcolecoes: cada uma com regra propria (sem curinga).
+      // Create exige o perfil (users/{uid}): sem perfil nao ha evento/amigo
+      // novo (o cadastro cria o perfil antes). Update/delete seguem so do dono.
       match /events/{id} {
-        allow read, write: if isOwner(uid);
+        allow read, update, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid));
       }
 
+      // Create exige o perfil (users/{uid}): sem perfil nao ha evento/amigo
+      // novo (o cadastro cria o perfil antes). Update/delete seguem so do dono.
       match /friends/{id} {
-        allow read, write: if isOwner(uid);
+        allow read, update, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid));
       }
 
       // Notificacoes de intencao: um usuario logado so envia para quem esta na

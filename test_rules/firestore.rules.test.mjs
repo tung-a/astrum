@@ -126,6 +126,23 @@ test('delete do perfil: dono ok; outro usuario, admin e anonimo negados', async 
   if (existe) throw new Error('perfil nao foi apagado');
 });
 
+test('events/friends: create exige o perfil; update e delete continuam do dono', async () => {
+  // sem perfil: negado
+  await env.withSecurityRulesDisabled(async (ctx) => { await deleteDoc(doc(ctx.firestore(), 'users/alice')); });
+  await assertFails(addDoc(collection(as('alice'), 'users/alice/events'), { title: 't' }));
+  await assertFails(setDoc(doc(as('alice'), 'users/alice/friends/bob'), { name: 'B' }));
+  // com perfil: permitido
+  await env.withSecurityRulesDisabled(async (ctx) => { await setDoc(doc(ctx.firestore(), 'users/alice'), baseUser()); });
+  await assertSucceeds(addDoc(collection(as('alice'), 'users/alice/events'), { title: 't' }));
+  await assertSucceeds(setDoc(doc(as('alice'), 'users/alice/friends/bob'), { name: 'B' }));
+  // update e delete sem perfil continuam permitidos ao dono (cascata da exclusao)
+  await env.withSecurityRulesDisabled(async (ctx) => { await deleteDoc(doc(ctx.firestore(), 'users/alice')); });
+  await assertSucceeds(updateDoc(doc(as('alice'), 'users/alice/friends/bob'), { name: 'B2' }));
+  await assertSucceeds(deleteDoc(doc(as('alice'), 'users/alice/friends/bob')));
+  // outro usuario continua negado
+  await assertFails(setDoc(doc(as('bob'), 'users/alice/friends/x'), { name: 'X' }));
+});
+
 test('subcolecoes: so o dono', async () => {
   await assertSucceeds(addDoc(collection(as('alice'), 'users/alice/events'), { title: 't' }));
   await assertFails(addDoc(collection(as('bob'), 'users/alice/events'), { title: 't' }));
