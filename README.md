@@ -91,14 +91,15 @@ $env:FIRESTORE_EMULATOR_PORT=8091; npm test      # PowerShell
 
 - `docs/architecture/overview.md`: visão geral da arquitetura, das coleções do Firestore e das decisões.
 - `docs/architecture/restructuring.md`: análise da arquitetura atual e proposta de reestruturação (feature-first leve, repositórios por agregado).
-- `docs/plans/reestruturacao-etapas-1-a-3.md`: plano de migração em etapas (o nome é histórico; o arquivo registra também as etapas 4 a 6 e o backlog). As etapas 1 a 8 estão na branch (a 8 reorganizou `lib/` em `app/`, `core/`, `features/` e `shared/`).
+- `docs/plans/reestruturacao-etapas-1-a-3.md`: plano de migração em etapas (o nome é histórico; o arquivo registra também as etapas 4 a 6 e o backlog). As etapas 1 a 11 estão na branch (a 8 reorganizou `lib/` em `app/`, `core/`, `features/` e `shared/`).
 - `docs/architecture/step4-repositories.md`: etapa 4, divisão do `UserRepository` em repositórios por agregado (concluída na branch).
 - `docs/architecture/step5-typed-writes.md`: etapa 5, escritas tipadas no perfil e `EquipSlot` no equipar e na compra (concluída na branch; a atomicidade entre `users` e `publicProfiles` continua pendente).
 - `docs/architecture/step6-auth.md`: etapa 6, `AuthRepository`, cadastro com desfazimento, senha fora da navegação e Firebase fora das telas (implementada na branch, sem commit; aguarda revisão do `reviewer-consultor`).
 - `docs/architecture/step7-data-models.md`: etapa 7, separação de `data/` e `models/`, contrato único com `firestore.rules` e teste de divergência (implementada na branch, sem commit; renomes opcionais do passo 8 não feitos).
 - `docs/architecture/step9-controllers.md`: etapa 9, controllers (`Notifier`) no lugar da lógica das telas, interface `ProfileRepository` e `ChatRepository` (concluída na branch).
 - `docs/architecture/step10-chat-sync.md`: etapa 10, histórico do oráculo no Firestore (concluída na branch; escopo simplificado, ver `docs/decisions/2026-11-chat-sync-decisions.md`).
-- Backlog: 11 exclusão de conta, 12 aceite de amizade, 13 higiene de custo e abuso, 14 upgrade de dependências.
+- `docs/architecture/step11-account-deletion.md`: etapa 11, exclusão de dados e de conta (implementada na branch; falta a verificação manual em aparelho, ver `docs/release-checklist.md`).
+- Backlog: 12 aceite de amizade, 13 higiene de custo e abuso, 14 upgrade de dependências.
 - `docs/decisions/2026-11-restructuring-decisions.md`: decisões de escopo sobre economia, plataformas, exclusão de conta e chat.
 
 O projeto Flutter e suas plataformas nativas ficam na raiz. Imagens e áudios em `assets/` são recursos compartilhados do aplicativo.

@@ -15,6 +15,14 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - Regras do Firestore: delete do dono em `users` e `publicProfiles`, `exists(users/{uid})` na criação de conversa e de intenção, collection group de intenções enviadas (com índice) e leitura/exclusão dos próprios `analytics_events`. **Implantar índice e regras antes do cliente.**
 - Android: `data_extraction_rules.xml`; iOS: cache do Firestore fora do backup (validar em Mac).
 
+### Corrigido (revisão da etapa 11)
+
+- Exclusão de conta: o estado guarda o uid que iniciou a exclusão; trocar de usuário na mesma sessão nunca pula a cascata.
+- Intenção enviada a conta que parece excluída só avisa ("Esta conta não está mais disponível."), sem remover o amigo da lista.
+- Android: `data_extraction_rules.xml` com `path="."` nos excludes. `deleteAccount` só trata `user-not-found` como conta já excluída. Limpeza do cache na partida com prazo de 3 s; a flag de limpeza é gravada antes de apagar as preferências.
+- Oráculo: apagar conversa/histórico é recusado enquanto há resposta em andamento; mensagens de erro da exclusão não dizem que algo foi apagado antes da cascata; interruptor "Aparecer na busca de amigos" avisa e reverte se a gravação falhar.
+- Regras do Firestore: criar `events` e `friends` exige o perfil do usuário.
+
 ### Removido (etapa 11)
 
 - `rebuildPublicProfiles` e o botão "Recriar perfis públicos" do painel de admin.

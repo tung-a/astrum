@@ -42,6 +42,8 @@ Removido na etapa 11: o botao "Recriar perfis publicos" (`rebuildPublicProfiles`
   - [ ] (d) iOS (nao testavel no Windows): conferir em Mac que `AppDelegate.swift` exclui `Library/Application Support/firestore` do backup (`isExcludedFromBackup`) e que o app abre normalmente; UserDefaults continua no backup (so a flag e chaves `astrum.*`).
   - [ ] (e) Auditoria de orfaos com Admin SDK (`users` e subcolecoes sem usuario Auth; mensagens orfas da corrida entre aparelhos; `users/{uid}` recriado por outro aparelho com token ainda valido): ver `scripts/audit_users.md`.
   - [ ] (f) Politica de privacidade atualizada: lista de dados, retencao, Google/Firebase como operador, fontes (google_fonts expoe o IP ao Google) e como excluir (menu do Oraculo e Perfil > Excluir minha conta).
+  - [ ] (h) Android: `flutter build apk --debug` compila com `data_extraction_rules.xml` (`path="."` nos excludes); conferir backup/transferencia em aparelho. iOS: NSUserDefaults seguem no backup do iCloud (so flags `astrum.*`, sem dado pessoal).
+  - [ ] (i) Regras: create de `events` e `friends` exige o perfil; rodar `test_rules` antes de implantar (publicar regras antes do cliente).
   - [ ] (g) Nota para a revisao da App Store: "Perfil > Excluir minha conta".
 - [x] Aviso de privacidade do oraculo (`chatNoticeBody`) revisado: sem "em breve", descreve apagar uma conversa, todo o historico e a exclusao de conta.
 - [ ] Suporte: quem esqueceu a senha usa "Esqueci minha senha" na tela de login; sem a senha nao ha como reautenticar a exclusao.

@@ -643,6 +643,23 @@ test('caracterizacao: apagar e recriar o perfil volta o saldo a 500 (nao acima)'
   if (snap.data().inventory.length !== 2) throw new Error('inventario nao voltou ao padrao');
 });
 
+test('economia: apos apagar e recriar o perfil, o teto e 575 (3 check-ins pela tolerancia de +-1 dia)', async () => {
+  const db = as('alice');
+  await assertSucceeds(deleteDoc(doc(db, 'users/alice')));
+  await assertSucceeds(setDoc(doc(db, 'users/alice'), baseUser()));
+  const day = (off) => {
+    const d = new Date(Date.now() + off * 86400000);
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  };
+  const ref = doc(db, 'users/alice');
+  await assertSucceeds(updateDoc(ref, { dailyCheckIn: day(-1), 'wallet.stardust': 525 }));
+  await assertSucceeds(updateDoc(ref, { dailyCheckIn: day(0), 'wallet.stardust': 550 }));
+  await assertSucceeds(updateDoc(ref, { dailyCheckIn: day(1), 'wallet.stardust': 575 }));
+  // a 4a data nao existe na janela; mesma data e saldo maior seguem negados
+  await assertFails(updateDoc(ref, { dailyCheckIn: day(2), 'wallet.stardust': 600 }));
+  await assertFails(updateDoc(ref, { dailyCheckIn: day(1), 'wallet.stardust': 600 }));
+});
+
 // ---- intencoes enviadas (collection group)
 const seedSent = () => env.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();
