@@ -67,23 +67,43 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     }
   }
 
-  Future<void> _searchFriend() async {
-    final ctl = ref.read(friendshipControllerProvider.notifier);
-    final lookup = await ctl.lookup(_search.text);
-    if (!mounted) return;
-    final found = lookup.friend;
-    final message =
-        found == null ? lookup.message! : await ctl.sendRequest(found);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+  bool _sending = false;
+
+  void _snack(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+
+  /// Busca o e-mail, pede confirmacao com nome e avatar e so entao envia o
+  /// pedido. Nenhuma mensagem revela se o e-mail existe, se a busca esta
+  /// desligada ou se houve recusa.
+  Future<void> _sendRequest() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      final ctl = ref.read(friendshipControllerProvider.notifier);
+      final lookup = await ctl.lookup(_search.text);
+      if (!mounted) return;
+      final found = lookup.friend;
+      if (found == null) return _snack(lookup.message!);
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => _ConfirmRequestDialog(friend: found),
+      );
+      if (ok != true || !mounted) return;
+      final text = await ctl.sendRequest(found);
+      if (!mounted) return;
+      _search.clear();
+      _snack(text);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider).valueOrNull;
-    final friends = ref.watch(friendsProvider).valueOrNull ?? [];
+    final friendsAsync = ref.watch(friendsProvider);
+    final friends = friendsAsync.valueOrNull ?? [];
+    final incoming = ref.watch(incomingRequestCountProvider);
     final avatarAsset = profile == null
         ? null
         : profilePictureAssetPath(
@@ -168,22 +188,52 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           const SizedBox(height: 20),
           const Text('Constelação', style: TextStyle(fontSize: 18)),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _search,
-                  decoration:
-                      const InputDecoration(hintText: 'Email de um viajante'),
-                ),
+          TextField(
+            controller: _search,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => _sendRequest(),
+            decoration: const InputDecoration(hintText: 'Email de um viajante'),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: _sending ? null : _sendRequest,
+              icon: const Icon(Icons.person_add_alt),
+              label: const Text('Enviar pedido'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: Badge.count(
+                count: incoming,
+                isLabelVisible: incoming > 0,
+                child: const Icon(Icons.mail_outline),
               ),
-              IconButton(
-                  onPressed: _searchFriend,
-                  icon: const Icon(Icons.person_add_alt)),
-            ],
+              title: Text('Pedidos de amizade ($incoming)'),
+              subtitle: const Text('Recebidos, enviados e desbloqueio'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/account/requests'),
+            ),
           ),
           const SizedBox(height: 12),
-          if (friends.isEmpty)
+          if (friendsAsync.isLoading && friends.isEmpty)
+            const Center(child: CircularProgressIndicator())
+          else if (friendsAsync.hasError && friends.isEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Não foi possível carregar sua constelação.',
+                    style: TextStyle(color: AstrumColors.muted)),
+                TextButton(
+                  onPressed: () => ref.invalidate(friendshipsProvider),
+                  child: const Text('Tentar de novo'),
+                ),
+              ],
+            )
+          else if (friends.isEmpty)
             const Text('Sua constelação ainda é um céu aberto.',
                 style: TextStyle(color: AstrumColors.muted)),
           ...friends.map((f) => _FriendTile(friend: f, me: profile)),
@@ -246,9 +296,86 @@ class _FriendTile extends ConsumerWidget {
                 )
                 .toList(),
           ),
-          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              style: TextButton.styleFrom(
+                  foregroundColor: AstrumColors.destructive),
+              onPressed: () => _confirmRemove(context, ref),
+              child: const Text('Remover amizade'),
+            ),
+          ),
+          const SizedBox(height: 4),
         ],
       ),
+    );
+  }
+
+  Future<void> _confirmRemove(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remover ${friend.name}?'),
+        content: Text('Vocês deixam de trocar intenções e ${friend.name} não '
+            'poderá pedir amizade de novo, a menos que você desbloqueie.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style:
+                TextButton.styleFrom(foregroundColor: AstrumColors.destructive),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final text =
+        await ref.read(friendshipControllerProvider.notifier).remove(friend);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    }
+  }
+}
+
+/// Confirmacao antes de enviar: nome e avatar publicos de quem sera pedido.
+class _ConfirmRequestDialog extends StatelessWidget {
+  const _ConfirmRequestDialog({required this.friend});
+  final Friend friend;
+
+  @override
+  Widget build(BuildContext context) {
+    final asset =
+        friend.avatar.isEmpty ? null : profilePictureAssetPath(friend.avatar);
+    return AlertDialog(
+      title: Text('Enviar pedido a ${friend.name}?'),
+      content: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: AstrumColors.amethyst,
+            foregroundImage: asset == null ? null : AssetImage(asset),
+            child: Text(friend.name.isNotEmpty ? friend.name[0] : '✦'),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text('A pessoa só entra na sua constelação se aceitar.'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Enviar pedido'),
+        ),
+      ],
     );
   }
 }

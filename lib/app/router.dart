@@ -15,6 +15,7 @@ import 'package:astrum/features/profile/presentation/account_screen.dart';
 import 'package:astrum/features/profile/presentation/delete_account_screen.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/rituals/presentation/rituals_screen.dart';
+import 'package:astrum/features/social/presentation/friend_requests_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -139,6 +140,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/account/delete',
         builder: (_, __) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        path: '/account/requests',
+        builder: (_, __) => const FriendRequestsScreen(),
       ),
       GoRoute(path: '/shop', builder: (_, __) => const ShopScreen()),
       GoRoute(path: '/inventory', builder: (_, __) => const InventoryScreen()),
