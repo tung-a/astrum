@@ -54,7 +54,7 @@ Removido na etapa 11: o botao "Recriar perfis publicos" (`rebuildPublicProfiles`
 - [ ] Rodar `test_rules` (87 testes) numa porta livre: `FIRESTORE_EMULATOR_PORT=<porta> npm test`; nunca contra emulador em uso.
 - [ ] Em dois aparelhos/contas: pedir por e-mail, ver o selo no Perfil, aceitar, trocar intencao nos dois sentidos; recusar e conferir que o remetente continua vendo "Aguardando resposta" (com "Cancelar pedido", que so esconde o item) e nao consegue pedir de novo; remover amizade e desbloquear; pedido cruzado (os dois pedem ao mesmo tempo) vira amizade.
 - [ ] Desligar "Aparecer na busca de amigos" na conta B: A recebe a mensagem generica ao pedir; pedidos ja existentes continuam.
-- [ ] Modo aviao: pedir/aceitar mostram "Sem conexao. Tente de novo quando estiver online."
+- [ ] Modo aviao: pedir mostra na hora e aceitar/recusar/remover/cancelar/desbloquear mostram, em ate ~10 s, "Sem conexao. Tente de novo quando estiver online." e o botao volta a funcionar; ao reconectar a acao nao se repete (idempotente)
 - [ ] Excluir uma conta com pedidos e amizades: as relacoes somem para a outra pessoa; a outra conta nao ve mais o nome.
 - [ ] Risco aceito R-S8: quem foi recusado pode apagar o proprio perfil, apagar a lapide e refazer a conta (equivale a outra conta); mitigacao real: App Check (etapa 13).
 - [ ] Risco aceito R-S1: sem teto de pedidos no servidor (Spark); mitigacao real so com App Check (etapa 13) ou Functions/Blaze.

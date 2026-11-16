@@ -1,3 +1,4 @@
+import 'package:astrum/core/firebase/paged_delete.dart';
 import 'package:astrum/core/firebase/rules_contract.dart';
 import 'package:astrum/features/profile/presentation/profile_providers.dart';
 import 'package:astrum/features/social/domain/friend.dart';
@@ -46,8 +47,9 @@ class FriendshipController extends Notifier<void> {
   }
 
   static bool _isOffline(Object e) =>
-      e is FirebaseException &&
-      (e.code == 'unavailable' || e.code == 'deadline-exceeded');
+      e is ServerOfflineException ||
+      (e is FirebaseException &&
+          (e.code == 'unavailable' || e.code == 'deadline-exceeded'));
 
   /// Texto de erro sem detalhe tecnico (nunca a excecao crua).
   static String _errorText(Object e) =>

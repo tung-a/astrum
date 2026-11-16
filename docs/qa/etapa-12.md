@@ -21,7 +21,9 @@ Ambiente das regras: a porta 8091 foi conferida livre com `Get-NetTCPConnection`
 
 Nenhum achado bloqueia a release do ponto de vista de segurança: as regras negam o que o documento pede. Os achados abaixo são de UX e de documentação. Não foram corrigidos (`lib/` é do builder).
 
-### A1. Escritas offline de aceitar, recusar, remover, cancelar e desbloquear não mostram "Sem conexão" (média, a confirmar no aparelho)
+### A1. Escritas offline de aceitar, recusar, remover, cancelar e desbloquear não mostram "Sem conexão" (média, **RESOLVIDO** no código; confirmar no aparelho via M9)
+
+- **Correção:** `SocialRepository._act` ganhou timeout de escrita (10 s, injetável) que lança `ServerOfflineException`; o controller o traduz para "Sem conexão..." e a tela solta `_busy`. Testes em `test/features/social/presentation/friendship_offline_test.dart` (escrita que nunca completa nas cinco ações, no controller e nos botões da tela). A escrita pode efetivar depois; a ação é idempotente.
 
 - **Esperado** (checklist 6c e seção 7 do arquivo de arquitetura): em modo avião, pedir e aceitar mostram "Sem conexão. Tente de novo quando estiver online.".
 - **Causa provável** (código lido, comportamento do SDK inferido): `FriendshipController._errorText` só traduz `unavailable` e `deadline-exceeded`. Pedir usa `runTransaction`, que exige servidor e deve falhar offline com `unavailable`, o que mostraria a mensagem. Aceitar, recusar, remover, cancelar e desbloquear usam `ref.update` e `ref.delete` simples; o SDK do Firestore tende a enfileirá-los offline e a `Future` só completa com a confirmação do servidor. Nesse caso nenhum erro sobe, o botão continua desabilitado (`_busy`) e a mensagem não aparece até a reconexão.
@@ -36,7 +38,7 @@ Nenhum achado bloqueia a release do ponto de vista de segurança: as regras nega
 - **Teste que fixa o comportamento**: `test/features/social/presentation/friendship_controller_test.dart`, caso "cancelar recusado em silencio", que assevera `Pedido cancelado.` também para `gone` de um pedido pendente. Não alterei esse teste (ele é do builder e a correção é de `lib/`).
 - **Como reproduzir**: A envia pedido a B; B aceita; A, com a tela de Enviados ainda desatualizada (janela curta, ou A offline com cache antigo), toca "Cancelar pedido".
 
-### A3. Documentação: textos da seção 7 incompletos (baixa)
+### A3. Documentação: textos da seção 7 incompletos (baixa, **RESOLVIDO**: texto incluído na seção 7)
 
 - A seção 7 do arquivo de arquitetura lista os snackbars, mas não inclui "Desbloqueado. Você pode buscar essa pessoa de novo.", que existe no código e está testado. Sugestão para o writer: acrescentar.
 

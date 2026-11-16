@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:astrum/core/firebase/firestore_paths.dart';
 import 'package:astrum/core/firebase/paged_delete.dart';
 import 'package:astrum/features/profile/domain/public_profile.dart';
@@ -10,9 +12,17 @@ import 'package:flutter/foundation.dart';
 
 /// Amigos, busca por e-mail e intencoes/notificacoes.
 class SocialRepository {
-  SocialRepository(this._db);
+  SocialRepository(
+    this._db, {
+    Duration writeTimeout = const Duration(seconds: 10),
+  }) : _writeTimeout = writeTimeout;
 
   final FirebaseFirestore _db;
+
+  /// Offline o SDK enfileira a escrita e a Future so completa com o servidor.
+  /// Passado este prazo a acao lanca [ServerOfflineException]; a escrita segue
+  /// na fila local e as acoes sao idempotentes na nova tentativa.
+  final Duration _writeTimeout;
 
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
       _db.userDoc(uid);
@@ -160,8 +170,10 @@ class SocialRepository {
   }) async {
     final ref = _db.friendshipDoc(pairId);
     try {
-      await runGuarded(() => op(ref));
+      await runGuarded(() => op(ref)).timeout(_writeTimeout);
       return ActionOutcome.done;
+    } on TimeoutException {
+      throw const ServerOfflineException();
     } on FirebaseException catch (e) {
       if (e.code != 'permission-denied' && e.code != 'not-found') rethrow;
       final DocumentSnapshot<Map<String, dynamic>> snap;
