@@ -17,7 +17,10 @@ import 'package:flutter/foundation.dart';
 /// Perfil do usuario logado. Nenhum metodo publico aceita Map ou caminho de
 /// campo (wallet/inventory/role/dailyCheckIn inalcancaveis).
 abstract interface class ProfileRepository {
-  /// Perfil do [user]; quem escolhe o usuario e o profileProvider.
+  /// Perfil do [user]; quem escolhe o usuario e o profileProvider. Emite
+  /// `null` quando `users/{uid}` NAO existe no servidor ("perfil ausente":
+  /// conta sem perfil ou exclusao em andamento). Snapshot inexistente que
+  /// veio so do cache (offline) nao conclui nada e nao emite.
   Stream<AppUser?> watchProfile(User user);
 
   Future<void> createProfile({
@@ -75,14 +78,66 @@ class FirestoreProfileRepository implements ProfileRepository {
   /// authStateChanges.
   @override
   Stream<AppUser?> watchProfile(User user) {
-    return _userDoc(user.uid).snapshots().map((snap) {
-      return AppUser.fromFirebase(
-        uid: user.uid,
-        email: user.email ?? '',
-        displayName: user.displayName ?? 'Viajante',
-        data: snap.data(),
-      );
-    });
+    final snaps =
+        _userDoc(user.uid).snapshots(includeMetadataChanges: true).map((s) => (
+              exists: s.exists,
+              fromCache: s.metadata.isFromCache,
+              data: s.data(),
+            ));
+    return mapProfileSnapshots(
+      snaps,
+      uid: user.uid,
+      email: user.email ?? '',
+      displayName: user.displayName ?? 'Viajante',
+    );
+  }
+
+  /// Regra de "perfil ausente" sobre snapshots simplificados (testavel sem
+  /// Firestore): descarta inexistente vindo so do cache (offline sem cache nao
+  /// conclui "ausente"), emite `null` para inexistente do servidor e ignora
+  /// mudancas so de metadados (mesmos dados).
+  @visibleForTesting
+  static Stream<AppUser?> mapProfileSnapshots(
+    Stream<({bool exists, bool fromCache, Map<String, dynamic>? data})> snaps, {
+    required String uid,
+    required String email,
+    required String displayName,
+  }) {
+    // Transformer (e nao async*): cancelar a assinatura nao pode esperar o
+    // proximo evento do stream de origem.
+    bool? lastExists;
+    Map<String, dynamic>? lastData;
+    return snaps.transform(StreamTransformer.fromHandlers(
+      handleData: (s, sink) {
+        if (!s.exists && s.fromCache) return;
+        if (lastExists == s.exists && _sameData(lastData, s.data)) return;
+        lastExists = s.exists;
+        lastData = s.data;
+        sink.add(s.exists
+            ? AppUser.fromFirebase(
+                uid: uid, email: email, displayName: displayName, data: s.data)
+            : null);
+      },
+    ));
+  }
+
+  static bool _sameData(Object? a, Object? b) {
+    if (identical(a, b)) return true;
+    if (a is Map && b is Map) {
+      if (a.length != b.length) return false;
+      for (final k in a.keys) {
+        if (!b.containsKey(k) || !_sameData(a[k], b[k])) return false;
+      }
+      return true;
+    }
+    if (a is List && b is List) {
+      if (a.length != b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+        if (!_sameData(a[i], b[i])) return false;
+      }
+      return true;
+    }
+    return a == b;
   }
 
   @override

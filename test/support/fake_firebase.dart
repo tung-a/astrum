@@ -154,12 +154,26 @@ class FakeUserCredential implements UserCredential {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
+class FakeSnapshotMetadata implements SnapshotMetadata {
+  @override
+  bool get hasPendingWrites => false;
+
+  @override
+  bool get isFromCache => false;
+}
+
 class FakeDocSnapshot implements DocumentSnapshot<Map<String, dynamic>> {
   FakeDocSnapshot(this._data);
   final Map<String, dynamic>? _data;
 
   @override
   Map<String, dynamic>? data() => _data;
+
+  @override
+  bool get exists => _data != null;
+
+  @override
+  SnapshotMetadata get metadata => FakeSnapshotMetadata();
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

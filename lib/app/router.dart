@@ -23,7 +23,11 @@ final _rootKey = GlobalKey<NavigatorState>();
 
 /// Unico trecho do perfil que o redirect consome. Mudancas de saldo,
 /// horoscopo etc. nao alteram este valor e nao reavaliam o redirect.
-typedef RouterProfileKey = ({bool isAdmin, bool isLoading});
+typedef RouterProfileKey = ({
+  bool isAdmin,
+  bool isLoading,
+  bool profileMissing,
+});
 
 final routerProfileKeyProvider = Provider<RouterProfileKey>((ref) {
   final uid = ref.watch(currentUidProvider);
@@ -31,13 +35,24 @@ final routerProfileKeyProvider = Provider<RouterProfileKey>((ref) {
   // e o router nao pode trocar de tela antes do createProfile/rollback.
   final signUpInFlight =
       ref.watch(signUpControllerProvider.select((s) => s.inFlight));
+  // Exclusao de conta em andamento tambem segura o router (a cascata apaga o
+  // perfil antes de terminar).
+  final deletionInFlight = ref.watch(deletionInFlightProvider);
   final key = ref.watch(profileProvider.select((p) {
     final profile = p.valueOrNull;
     // Perfil retido de outro usuario (troca A -> B) nao vale como admin.
     final isAdmin = profile != null && profile.uid == uid && profile.isAdmin;
-    return (isAdmin: isAdmin, isLoading: p.isLoading);
+    // Perfil ausente: logado, sem carregar e o documento nao existe no
+    // servidor (o repositorio so emite null nesse caso).
+    final missing =
+        uid != null && !p.isLoading && p.hasValue && profile == null;
+    return (isAdmin: isAdmin, isLoading: p.isLoading, profileMissing: missing);
   }));
-  return (isAdmin: key.isAdmin, isLoading: key.isLoading || signUpInFlight);
+  return (
+    isAdmin: key.isAdmin,
+    isLoading: key.isLoading || signUpInFlight || deletionInFlight,
+    profileMissing: key.profileMissing,
+  );
 });
 
 /// Decisao de redirect, pura para ser testavel.
@@ -46,11 +61,20 @@ String? decideRedirect({
   required String location,
   required bool isAdmin,
   required bool isLoading,
+  bool profileMissing = false,
 }) {
   final authRoute =
       location == '/login' || location == '/register' || location == '/welcome';
 
   if (!loggedIn && !authRoute) return '/login';
+  // Perfil ausente (conta sem perfil ou exclusao em andamento em outro
+  // aparelho): a unica saida e excluir a conta.
+  if (loggedIn &&
+      profileMissing &&
+      !isLoading &&
+      location != '/account/delete') {
+    return '/account/delete';
+  }
   if (loggedIn && authRoute && !isLoading) {
     return isAdmin ? '/admin' : '/app/cosmos';
   }
@@ -93,6 +117,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         location: state.matchedLocation,
         isAdmin: key.isAdmin,
         isLoading: key.isLoading,
+        profileMissing: key.profileMissing,
       );
     },
     routes: [

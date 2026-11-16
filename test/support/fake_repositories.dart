@@ -38,6 +38,12 @@ class FakeProfileRepository implements ProfileRepository {
     _ctl(user.uid).add(user);
   }
 
+  /// Emite "perfil ausente" (documento inexistente no servidor).
+  void emitMissing(String uid) {
+    _last[uid] = null;
+    _ctl(uid).add(null);
+  }
+
   @override
   Stream<AppUser?> watchProfile(User user) {
     final uid = user.uid;

@@ -110,8 +110,8 @@ void main() {
   testWidgets('troca de admin A para B sem logout: B nao e admin',
       (tester) async {
     final auth = FakeFirebaseAuth(FakeUser('a'));
-    final (container, ctx) = await setup(tester,
-        auth: auth, role: 'admin', uid: 'a');
+    final (container, ctx) =
+        await setup(tester, auth: auth, role: 'admin', uid: 'a');
     expect(container.read(routerProfileKeyProvider).isAdmin, isTrue);
 
     auth.setUser(FakeUser('b'));
@@ -141,5 +141,83 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(await resolve(container, ctx, '/app/cosmos'), '/login');
+  });
+
+  group('perfil ausente', () {
+    String? r(String loc,
+            {bool loggedIn = true,
+            bool loading = false,
+            bool missing = true,
+            bool admin = false}) =>
+        decideRedirect(
+            loggedIn: loggedIn,
+            location: loc,
+            isAdmin: admin,
+            isLoading: loading,
+            profileMissing: missing);
+
+    test('logado com perfil ausente vai para /account/delete', () {
+      expect(r('/app/cosmos'), '/account/delete');
+      expect(r('/login'), '/account/delete');
+      expect(r('/shop'), '/account/delete');
+      expect(r('/admin', admin: true), '/account/delete');
+    });
+
+    test('ja em /account/delete: sem redirect (sem laco)', () {
+      expect(r('/account/delete'), isNull);
+    });
+
+    test('carregando ou cascata em andamento suprime o redirect', () {
+      expect(r('/app/cosmos', loading: true), isNull);
+    });
+
+    test('deslogado continua indo ao login; padrao nao muda o comportamento',
+        () {
+      expect(r('/account/delete', loggedIn: false), '/login');
+      expect(
+          decideRedirect(
+              loggedIn: true,
+              location: '/app/cosmos',
+              isAdmin: false,
+              isLoading: false),
+          isNull);
+    });
+  });
+
+  testWidgets(
+      'perfil ausente no servidor leva a /account/delete (routerProvider real)',
+      (tester) async {
+    final auth = FakeFirebaseAuth(FakeUser('u1'));
+    final (container, ctx) = await setup(tester, auth: auth, role: 'user');
+    expect(container.read(routerProfileKeyProvider).profileMissing, isFalse);
+
+    (container.read(profileRepositoryProvider) as FakeProfileRepository)
+        .emitMissing('u1');
+    await tester.pump();
+    await tester.pump();
+
+    expect(container.read(routerProfileKeyProvider).profileMissing, isTrue);
+    expect(await resolve(container, ctx, '/app/cosmos'), '/account/delete');
+    expect(await resolve(container, ctx, '/account/delete'), '/account/delete');
+
+    // Cascata em andamento: nada de redirect enquanto roda.
+    container.read(deletionInFlightProvider.notifier).state = true;
+    await tester.pump();
+    expect(container.read(routerProfileKeyProvider).isLoading, isTrue);
+    expect(await resolve(container, ctx, '/app/cosmos'), '/app/cosmos');
+  });
+
+  test('deslogado nunca fica com perfil ausente', () async {
+    final auth = FakeFirebaseAuth();
+    final repos = FakeRepos();
+    final container = ProviderContainer(overrides: [
+      firebaseAuthProvider.overrideWithValue(auth),
+      ...repos.overrides,
+    ]);
+    addTearDown(container.dispose);
+    container.listen(profileProvider, (_, __) {});
+    await pumpEventQueue();
+    expect(container.read(profileProvider).hasValue, isTrue);
+    expect(container.read(routerProfileKeyProvider).profileMissing, isFalse);
   });
 }

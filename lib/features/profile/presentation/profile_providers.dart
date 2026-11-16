@@ -19,6 +19,11 @@ final profileRepositoryProvider = Provider<ProfileRepository>(
   ),
 );
 
+/// Exclusao de conta em andamento (a cascata esta rodando): suprime os
+/// redirects do router, como o cadastro em andamento. Quem liga e desliga e o
+/// DeleteAccountController.
+final deletionInFlightProvider = StateProvider<bool>((ref) => false);
+
 /// Perfil do usuario logado. Semantica switchMap: ao mudar o estado de auth
 /// (logout, login de outro usuario) o provider e reconstruido e o Riverpod
 /// cancela a assinatura anterior antes de abrir a do novo uid.
