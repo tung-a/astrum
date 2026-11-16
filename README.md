@@ -98,7 +98,7 @@ $env:FIRESTORE_EMULATOR_PORT=8091; npm test      # PowerShell
 - `docs/architecture/step7-data-models.md`: etapa 7, separação de `data/` e `models/`, contrato único com `firestore.rules` e teste de divergência (implementada na branch, sem commit; renomes opcionais do passo 8 não feitos).
 - `docs/architecture/step9-controllers.md`: etapa 9, controllers (`Notifier`) no lugar da lógica das telas, interface `ProfileRepository` e `ChatRepository` (concluída na branch).
 - `docs/architecture/step10-chat-sync.md`: etapa 10, histórico do oráculo no Firestore (concluída na branch; escopo simplificado, ver `docs/decisions/2026-11-chat-sync-decisions.md`).
-- `docs/architecture/step11-account-deletion.md`: etapa 11, exclusão de dados e de conta (implementada na branch; falta a verificação manual em aparelho, ver `docs/release-checklist.md`).
+- `docs/architecture/step11-account-deletion.md`: etapa 11, exclusão de dados e de conta (etapa 11 concluída na branch; a aguardar a verificação manual em aparelho e o deploy de regras e índice, ver `docs/release-checklist.md`).
 - Backlog: 12 aceite de amizade, 13 higiene de custo e abuso, 14 upgrade de dependências.
 - `docs/decisions/2026-11-restructuring-decisions.md`: decisões de escopo sobre economia, plataformas, exclusão de conta e chat.
 

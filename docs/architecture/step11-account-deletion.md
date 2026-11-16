@@ -113,7 +113,7 @@ Future<void> deleteAccount();
 ```
 
 - `reauthenticate`: `user = _auth.currentUser`; se `user == null || user.email == null` ou `providerData` sem `password` lança `AuthException(unknown)` com `detail` genérico; `EmailAuthProvider.credential(email: user.email!, password: password)`; `reauthenticateWithCredential`. Erros mapeados por `authErrorCodeFromFirebase` (`invalid-credential`, `wrong-password` passa a mapear para `invalidCredentials`, `too-many-requests`, `network-request-failed`). Log só do código.
-- `deleteAccount`: `user.delete()`; `requires-recent-login` vira `AuthException(requiresRecentLogin)` (a UI pede a senha de novo e chama `reauthenticate` + `deleteAccount`, sem repetir os passos de Firestore, que já terminaram); `user-not-found`/`user-token-expired`/`no-current-user` (outro aparelho já excluiu) são tratados como **sucesso** (`signOut` local).
+- `deleteAccount`: `user.delete()`; `requires-recent-login` vira `AuthException(requiresRecentLogin)` (a UI pede a senha de novo e chama `reauthenticate` + `deleteAccount`, sem repetir os passos de Firestore, que já terminaram); `user-not-found` em `deleteAccount` (outro aparelho já excluiu) é tratado como **sucesso** (`signOut` local); `user-token-expired` vira `requiresRecentLogin`. Em `reauthenticate`, `user-not-found` faz `signOut` local e lança `AuthErrorCode.accountGone` ("Esta conta já foi excluída."), nunca deixando o usuário preso na tela. A limpeza do cache (`runPendingCacheWipe`) que estoura o prazo de 3 s remove a flag se a limpeza nativa concluir depois, para não limpar de novo na partida seguinte. Com uid nulo, `run` descarta o estado herdado do usuário anterior.
 - Texto de erro novo em `auth_exception.dart`: `deleteAccountErrorMessage(AuthException)`.
 - Provedores futuros: documentar no comentário da interface que Google e Apple exigem outro fluxo e, no Apple, revogação de token.
 
@@ -131,7 +131,7 @@ Future<void> deleteAccount();
 | `users/{uid}` e subcoleções (eventos, amigos, notificações, conversas, mensagens) | Firestore | Apagados (passos 2 a 9). |
 | `publicProfiles/{uid}` | Firestore (legível por qualquer logado) | Apagado no passo 2; o hash do e-mail some junto. |
 | Intenções que enviei | `users/{outro}/notifications` | Apagadas pelo remetente via collection group (D6). |
-| Meu nome copiado na lista de amigos de outra pessoa | `users/{outro}/friends/{eu}` | **Fica** (só o dono apaga; sem campo para consulta). Mitigação: `sendIntention` para conta excluída recebe `permission-denied` (nova regra `exists(users/{destino})`), a UI mostra "Esta conta não existe mais." e chama `removeFriend`. O texto da tela de exclusão avisa. Backlog: campo `friendUid` + collection group para apagar também. |
+| Meu nome copiado na lista de amigos de outra pessoa | `users/{outro}/friends/{eu}` | **Fica** (só o dono apaga; sem campo para consulta). Mitigação: `sendIntention` para conta excluída recebe `permission-denied` (nova regra `exists(users/{destino})`), a UI mostra "Esta conta não está mais disponível." e chama `removeFriend`. O texto da tela de exclusão avisa. Backlog: campo `friendUid` + collection group para apagar também. |
 | Eventos de analytics com meu uid | `analytics_events` | Apagados (D7); depois só o evento anônimo de conclusão. |
 | Cache local e prefs | Aparelho | Seção 7. |
 | Registro do usuário Auth (e-mail, hash de senha) | Firebase Auth | Removido por `user.delete()`. O Google pode manter logs/cópias de segurança por prazo próprio; o texto da UI não promete prazo. |
@@ -232,7 +232,8 @@ Progresso: "Excluindo sua conta… Não feche o app." mais o rótulo do passo ("
 Erros:
 - Senha incorreta: "Senha incorreta. Nada foi apagado."
 - Muitas tentativas: "Muitas tentativas. Aguarde alguns minutos e tente de novo."
-- Sem conexão: "Sem conexão. Conecte-se e toque em Tentar de novo. O que já foi apagado continua apagado."
+- Sem conexão: sem dados apagados ainda (falha na verificação inicial): "Sem conexão. Conecte-se e toque em Tentar de novo."; com dados já apagados (a cascata começou): "Sem conexão. Conecte-se e toque em Tentar de novo. O que já foi apagado continua apagado."
+- Conta já excluída em outro aparelho (reautenticação devolve `user-not-found`): encerra a sessão local, leva ao login e mostra "Esta conta já foi excluída."
 - Cota diária: "O serviço atingiu o limite de hoje. Tente de novo mais tarde; o que já foi apagado continua apagado."
 - Reautenticação exigida no fim: "Por segurança, digite sua senha novamente para concluir."
 - Outro: "Não foi possível concluir a exclusão. Parte dos seus dados já foi apagada. Toque em Tentar de novo."
@@ -319,7 +320,7 @@ Ordem de implantação: índices e regras (passo 1) antes de distribuir qualquer
 - **Sem `terminate()` em sessão.** A limpeza do cache do Firestore usa só a flag `astrum.wipeCachePending` e `clearPersistence()` na próxima partida a frio (`LocalDataCleaner.runPendingCacheWipe`, chamado em `main` antes de qualquer uso do Firestore). Motivo: reutilizar o Firestore depois de `terminate()` na mesma sessão (cadastro de nova conta logo após a exclusão) é arriscado e não é testável no Windows. A exclusão grava a flag **antes** de apagar dados e `prefs.clear()` mantém só a flag; o logout marca a flag só se `waitForPendingWrites` (5 s) drenou.
 - `ChatOfflineException` passou a **estender** `ServerOfflineException` (core), para o controller de exclusão tratar as duas sem importar `data/` do oráculo.
 - `ProfileRepository` ganhou `ensureServerReachable(uid)` (leitura `Source.server` de `users/{uid}`) e `drainPendingWrites()` (5 s), usados na pré-condição; `FirebaseAuthRepository.deleteAccount` com usuário nulo é sucesso.
-- `sendIntention` a conta excluída: `permission-denied` **e** `publicProfiles/{destino}` ausente viram `RecipientUnavailableException` ("Esta conta não existe mais." e `removeFriend`); com perfil público presente o erro original sobe (evita remover amigo por outra negação de regra). Quem desligou "Aparecer na busca de amigos" pode gerar esse aviso (limite aceito).
+- `sendIntention` a conta excluída: `permission-denied` **e** `publicProfiles/{destino}` ausente viram `RecipientUnavailableException` ("Esta conta não está mais disponível." e `removeFriend`); com perfil público presente o erro original sobe (evita remover amigo por outra negação de regra). Quem desligou "Aparecer na busca de amigos" pode gerar esse aviso (limite aceito).
 - **Remetente lê o campo `read`** das notificações que enviou (a regra de leitura por `fromUid` expõe o documento inteiro): ele vê se o destinatário já leu a intenção. Aceito; registrado como limite.
 - **NSUserDefaults (shared_preferences) no iOS ficam no backup do iCloud.** Hoje só guardam flags `astrum.*` (sem dado pessoal); a exclusão apaga as chaves e deixa só a flag de limpeza. Não guardar dado pessoal ali.
 - **Resíduos de token de 1 h:** depois de `user.delete()`, outro aparelho com ID token ainda válido (até 1 h) pode gravar até o token expirar; `events`/`friends`/conversas/notificações novas agora exigem o perfil, mas campos de `users`/`publicProfiles` recriados por esse aparelho dependem da auditoria de órfãos (`scripts/audit_users.md`).

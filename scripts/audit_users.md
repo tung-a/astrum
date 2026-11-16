@@ -1,4 +1,6 @@
-# Auditoria com Admin SDK (descricao; o script ainda nao existe)
+# Roteiro manual de auditoria com Admin SDK (nao ha script)
+
+Este arquivo e um **roteiro manual**: nenhum script foi escrito. Quem executa monta a consulta com o Admin SDK (ou o console) seguindo os itens abaixo.
 
 Roda o responsavel, com a credencial local de service account. **Nao commitar a credencial.** Plano gratuito (Spark): sem Cloud Functions, entao estas verificacoes sao manuais e periodicas.
 

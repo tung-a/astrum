@@ -21,7 +21,9 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 - Intenção enviada a conta que parece excluída só avisa ("Esta conta não está mais disponível."), sem remover o amigo da lista.
 - Android: `data_extraction_rules.xml` com `path="."` nos excludes. `deleteAccount` só trata `user-not-found` como conta já excluída. Limpeza do cache na partida com prazo de 3 s; a flag de limpeza é gravada antes de apagar as preferências.
 - Oráculo: apagar conversa/histórico é recusado enquanto há resposta em andamento; mensagens de erro da exclusão não dizem que algo foi apagado antes da cascata; interruptor "Aparecer na busca de amigos" avisa e reverte se a gravação falhar.
-- Regras do Firestore: criar `events` e `friends` exige o perfil do usuário.
+- Regras do Firestore: criar `events` e `friends` exige o perfil do usuário; criar `conversations` usa `request.auth.uid` na checagem do perfil, com testes de perfil ausente ampliados.
+- Exclusão de conta: se a limpeza do cache estourar o prazo e concluir depois, a flag de limpeza é removida (não limpa de novo na partida seguinte); com uid nulo o estado do usuário anterior é descartado; conta já excluída em outro aparelho (`user-not-found` na reautenticação) encerra a sessão, leva ao login e mostra "Esta conta já foi excluída.".
+- Dívida registrada: tolerância de ±1 dia do check-in (teto de 575 por criação de conta), em `docs/decisions/2026-11-checkin-tolerancia.md`.
 
 ### Removido (etapa 11)
 

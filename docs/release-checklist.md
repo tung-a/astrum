@@ -23,7 +23,7 @@ Avisos:
 ## 4. Auditoria de perfis antigos (antes do deploy das regras)
 - [ ] Verificar usuarios com `equipped` ou `inventory` fora do catalogo: eles ficam travados em escritas depois das novas regras.
 - [ ] A auditoria e um script com Admin SDK que o responsavel roda com a credencial local. **Nao commitar a credencial.**
-- [ ] PENDENCIA: o script ainda nao existe; ver `scripts/audit_users.md` (apenas descreve o que checar).
+- [ ] PENDENCIA: nao ha script; a auditoria e um roteiro manual em `scripts/audit_users.md` (Admin SDK ou console).
 
 ## 5. Perfis publicos
 Removido na etapa 11: o botao "Recriar perfis publicos" (`rebuildPublicProfiles`) foi apagado. Cada cliente grava o proprio perfil publico; nao ha migracao a fazer.
@@ -35,12 +35,12 @@ Removido na etapa 11: o botao "Recriar perfis publicos" (`rebuildPublicProfiles`
 - [ ] Meditacao (audio toca e para corretamente).
 
 ## 6b. Privacidade e LGPD (BLOQUEANTE)
-- [x] **BLOQUEANTE (implementado e testado na etapa 11; falta a verificacao manual abaixo):** UI de exclusao de conversa/historico do oraculo (menu do Oraculo) e exclusao de conta (Perfil > "Excluir minha conta", rota `/account/delete`), incluindo `users/{uid}/conversations` (LGPD art. 18, VI). Cobertura automatizada: testes de regras (`test_rules`), controller, widget e repositorios. **Nao publicar sem fechar a verificacao manual em aparelho:**
+- [x] **BLOQUEANTE (etapa 11 concluida e testada; a aguardar a verificacao manual abaixo e o deploy de regras e indice):** UI de exclusao de conversa/historico do oraculo (menu do Oraculo) e exclusao de conta (Perfil > "Excluir minha conta", rota `/account/delete`), incluindo `users/{uid}/conversations` (LGPD art. 18, VI). Cobertura automatizada: testes de regras (`test_rules`), controller, widget e repositorios. **Nao publicar sem fechar a verificacao manual em aparelho:**
   - [ ] (a) Implantar indice e regras antes do cliente (ordem: catalogo, indices, regras; ver secao 3).
   - [ ] (b) Testar em aparelho Android e iOS: exclusao com sucesso; modo aviao no meio (retomada com "Tentar de novo"); perfil ausente (conta sem perfil cai na tela de exclusao); criar conta nova logo depois da exclusao, na mesma sessao.
   - [ ] (c) Validar a limpeza local: o cache do Firestore e limpo na proxima partida a frio (flag `astrum.wipeCachePending`; nao ha `terminate()` em sessao). Conferir que depois de excluir/sair e reabrir o app nao resta conversa no aparelho. Se um dia se adotar `terminate()` + `clearPersistence()` na mesma sessao, validar no aparelho que o Firestore continua usavel (cadastrar nova conta em seguida).
   - [ ] (d) iOS (nao testavel no Windows): conferir em Mac que `AppDelegate.swift` exclui `Library/Application Support/firestore` do backup (`isExcludedFromBackup`) e que o app abre normalmente; UserDefaults continua no backup (so a flag e chaves `astrum.*`).
-  - [ ] (e) Auditoria de orfaos com Admin SDK (`users` e subcolecoes sem usuario Auth; mensagens orfas da corrida entre aparelhos; `users/{uid}` recriado por outro aparelho com token ainda valido): ver `scripts/audit_users.md`.
+  - [ ] (e) Auditoria de orfaos com Admin SDK (`users` e subcolecoes sem usuario Auth; mensagens orfas da corrida entre aparelhos; `users/{uid}` recriado por outro aparelho com token ainda valido): roteiro manual em `scripts/audit_users.md`.
   - [ ] (f) Politica de privacidade atualizada: lista de dados, retencao, Google/Firebase como operador, fontes (google_fonts expoe o IP ao Google) e como excluir (menu do Oraculo e Perfil > Excluir minha conta).
   - [ ] (h) Android: `flutter build apk --debug` compila com `data_extraction_rules.xml` (`path="."` nos excludes); conferir backup/transferencia em aparelho. iOS: NSUserDefaults seguem no backup do iCloud (so flags `astrum.*`, sem dado pessoal).
   - [ ] (i) Regras: create de `events` e `friends` exige o perfil; rodar `test_rules` antes de implantar (publicar regras antes do cliente).
