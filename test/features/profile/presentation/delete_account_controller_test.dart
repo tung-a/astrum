@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:astrum/core/analytics/analytics_providers.dart';
 import 'package:astrum/core/firebase/paged_delete.dart';
+import 'package:astrum/core/firebase/session_providers.dart';
 import 'package:astrum/core/storage/local_data_cleaner.dart';
 import 'package:astrum/core/storage/prefs_providers.dart';
 import 'package:astrum/features/auth/domain/auth_exception.dart';
@@ -45,6 +46,8 @@ class _LogChat extends InMemoryChatRepository {
 
 const _secret = 'SENHA-SECRETA-123';
 
+final _testUid = StateProvider<String?>((ref) => 'u1');
+
 void main() {
   late List<String> log;
   late FakeAuthRepository auth;
@@ -86,6 +89,7 @@ void main() {
       socialRepositoryProvider.overrideWithValue(social),
       analyticsServiceProvider.overrideWithValue(analytics),
       prefsProvider.overrideWithValue(prefs),
+      currentUidProvider.overrideWith((ref) => ref.watch(_testUid)),
     ]);
     addTearDown(c.dispose);
   });
@@ -293,6 +297,38 @@ void main() {
     auth.reauthError = const AuthException(AuthErrorCode.invalidCredentials);
     await ctl().run('errada');
     expect(st().message, 'Senha incorreta. Tente de novo.');
+  });
+
+  group('troca de usuario na mesma sessao', () {
+    test('A conclui, B cadastra e exclui: a cascata de B roda', () async {
+      await ctl().run(_secret);
+      expect(st().phase, DeletePhase.done);
+      expect(st().dataDeleted, isTrue);
+
+      c.read(_testUid.notifier).state = 'u2';
+      log.clear();
+      await ctl().run(_secret);
+
+      expect(st().phase, DeletePhase.done);
+      expect(log, contains('profile.delete'));
+      expect(profile.deletedProfiles, ['u1', 'u2']);
+    });
+
+    test('A falha em user.delete, sai e B entra: a cascata de B roda',
+        () async {
+      auth.deleteAccountError = const AuthException(AuthErrorCode.network);
+      await ctl().run(_secret);
+      expect(st().dataDeleted, isTrue);
+
+      auth.deleteAccountError = null;
+      c.read(_testUid.notifier).state = 'u2';
+      log.clear();
+      await ctl().run(_secret);
+
+      expect(st().phase, DeletePhase.done);
+      expect(log, contains('profile.delete'));
+      expect(profile.deletedProfiles, ['u1', 'u2']);
+    });
   });
 
   test('perfil ausente: a mesma exclusao funciona (passos sao idempotentes)',

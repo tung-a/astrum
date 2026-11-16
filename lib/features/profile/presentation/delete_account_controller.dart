@@ -54,6 +54,7 @@ class DeleteAccountState {
     this.failedStep,
     this.dataDeleted = false,
     this.started = false,
+    this.uid,
   });
 
   final DeletePhase phase;
@@ -71,6 +72,9 @@ class DeleteAccountState {
   /// Ja houve tentativa nesta sessao (decide o texto de "perfil ausente").
   final bool started;
 
+  /// Uid que iniciou a exclusao: `dataDeleted` so vale para ele.
+  final String? uid;
+
   DeleteAccountState copyWith({
     DeletePhase? phase,
     DeleteStep? step,
@@ -80,6 +84,7 @@ class DeleteAccountState {
     bool clearFailure = false,
     bool? dataDeleted,
     bool? started,
+    String? uid,
   }) =>
       DeleteAccountState(
         phase: phase ?? this.phase,
@@ -89,6 +94,7 @@ class DeleteAccountState {
         failedStep: clearFailure ? null : failedStep ?? this.failedStep,
         dataDeleted: dataDeleted ?? this.dataDeleted,
         started: started ?? this.started,
+        uid: uid ?? this.uid,
       );
 }
 
@@ -119,7 +125,12 @@ class DeleteAccountController extends Notifier<DeleteAccountState> {
       _fail(const AuthException(AuthErrorCode.unknown), DeleteStep.verifying);
       return;
     }
+    // O estado sobrevive a troca de usuario: nunca reaproveitar o de outro uid.
+    if (state.uid != null && state.uid != uid) {
+      state = const DeleteAccountState();
+    }
     state = state.copyWith(
+      uid: uid,
       phase: DeletePhase.running,
       step: DeleteStep.verifying,
       clearFailure: true,
