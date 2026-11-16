@@ -6,6 +6,18 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). A
 
 ## [Não lançado]
 
+### Adicionado (etapa 12: aceite de amizade)
+
+- Amizade com aceite: "Enviar pedido" por e-mail (confirmação com nome e avatar), tela "Pedidos de amizade" (`/account/requests`) com recebidos (Aceitar/Recusar), enviados (Aguardando resposta, Cancelar pedido) e recusados e removidos (Desbloquear); "Remover amizade" no cartão do amigo; selo com o número de pedidos recebidos no ícone Perfil. Pedido cruzado vira amizade na hora. Sem notificação push.
+- Regras do Firestore: `friendships/{menorUid_maiorUid}` (um documento por par; só o destinatário aceita ou recusa; recusa e remoção viram lápide até quem recusou desbloquear; exclusão de conta apaga qualquer relação). Intenções só entre amigos aceitos. `publicProfiles` com `get` por uid e `list` só com `limit(1)`. 81 testes de regras. **Implantar regras e cliente na ordem do `docs/release-checklist.md` (seção 6c).**
+- Quem desliga "Aparecer na busca de amigos" deixa de receber pedidos novos.
+
+### Alterado (etapa 12)
+
+- A subcoleção `users/{uid}/friends` foi removida (sem migração; não há usuários ativos). A lista de amigos vem de `friendships`. Exclusão de conta apaga amizades e pedidos (enviados e recebidos), o que fecha o resíduo R10 da etapa 11 (nome copiado na lista de terceiros); o texto da tela de exclusão foi atualizado.
+- Intenção enviada a uma amizade desfeita avisa "Esta amizade não existe mais.".
+- Limite de 20 pedidos pendentes só no cliente (o Spark não conta documentos; risco R-S1; teto real com App Check ou Cloud Functions).
+
 ### Adicionado (etapa 11: exclusão de dados e de conta)
 
 - Exclusão de conta (Perfil > "Excluir minha conta"): reautenticação por senha, diálogo final e cascata no cliente (perfil, conversas, eventos, amigos, notificações, intenções enviadas, registros de uso e usuário Auth), idempotente e retomável ("Tentar de novo"). Conta sem perfil cai na mesma tela.

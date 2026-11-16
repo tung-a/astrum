@@ -1,5 +1,7 @@
 # Etapa 11: exclusão de dados e de conta
 
+> Atualização (etapa 12): a subcoleção `users/{uid}/friends` deixou de existir; amizades vivem em `friendships/{pairId}` e a cascata usa `deleteAllFriendships`. A heurística de `sendIntention` passou a reler a relação do par (ver `step12-friend-requests.md`, seção 4). Onde este texto fala em `friends`, leia `friendships`.
+
 Data: 2026-11-16. Status: implementado (passos 1 a 11 no código; ver "Desvios da implementação" ao fim; verificação manual em aparelho pendente, ver `docs/release-checklist.md`, seção 6b). Base: `step6-auth.md` (ponto de extensão do `AuthRepository`), `step10-chat-sync.md` (seções 5 e 14), `docs/decisions/2026-11-chat-sync-decisions.md`, `docs/release-checklist.md` (6b, bloqueante), `docs/plans/reestruturacao-etapas-1-a-3.md` (pendências da etapa 11, M1 e M3), `firestore.rules`, `test_rules/`.
 
 Motivo: LGPD art. 18, VI e exigência da Apple de exclusão de conta dentro do app. **Bloqueante de release.** Premissas do usuário: não há usuários ativos (só contas de teste), mudanças drásticas (inclusive nas regras) são aceitas, Firebase segue no Spark (**sem Cloud Functions**: a cascata é do cliente).
@@ -274,7 +276,7 @@ Independentes da cascata, mas a regra de delete do `publicProfiles` as destrava;
 | R7 | Regra `{path=**}/notifications` ampla demais. | Restrita a `fromUid == request.auth.uid`; teste de negação; consultor. |
 | R8 | Delete do perfil reabre "apagar e recriar para resetar o saldo". | Sem ganho acima de 500 (seção 6.1); teste de caracterização. |
 | R9 | Usuário que esqueceu a senha não reautentica. | Backlog imediato: "Esqueci minha senha" (`sendPasswordResetEmail`) na tela de login; até lá, contato do suporte na política. Recomendado entrar na etapa 11 como passo opcional (seção 12, passo 11). |
-| R10 | Cópia do meu nome na lista de amigos de terceiros. | Limpeza preguiçosa + aviso no texto; backlog `friendUid`. |
+| R10 | Cópia do meu nome na lista de amigos de terceiros. | **Resolvida na etapa 12**: não há mais lista alheia; a relação é um documento `friendships/{pairId}` e a cascata apaga todas as relações do uid (`deleteAllFriendships`). O texto da tela de exclusão foi atualizado. |
 | R11 | Texto prometer mais do que ocorre. | Texto revisado (seção 8.2); sem prazo de eliminação em backups; revisão jurídica da política. |
 
 ## 12. Custo (por exclusão) e passos

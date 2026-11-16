@@ -82,7 +82,7 @@ Prioridade (do usuário): refactor primeiro; exclusão de conta é importante; a
 9. Controllers (`Notifier`) de cosmos e oráculo; interfaces só para Auth/Profile/Economy/Chat.
 10. Chat no Firestore (D9, desejável), conforme `chat-sync.md`, com migração do legado em SharedPreferences. architect + (R) dado pessoal.
 11. Exclusão de conta (LGPD, importante, no Spark). Fluxo: reautenticação, apagar subcoleções pelo cliente em lotes (`events`, `friends`, `notifications`, `conversations/messages`), depois `publicProfiles/{uid}`, `users/{uid}` e por último a conta Auth; idempotente e retomável. Exige documento do architect, ajuste de `allow delete` nas regras com testes em `test_rules/` e `reviewer-consultor`. Posicionada logo após o chat para cobrir também as conversas; se o usuário quiser antes, pode subir para depois da etapa 6 (cobrindo então as coleções existentes e estendendo na 10).
-12. Aceite de amizade (desejável): `friends` com estado (pendente/aceito), regras e testes, notificação de pedido, UI. architect + designer + (R) regras e dados pessoais.
+12. Aceite de amizade (desejável). CONCLUÍDA (`docs/architecture/step12-friend-requests.md`): `friendships/{pairId}` com estado (pendente/aceito/recusado), regras e testes, tela de pedidos e selo (sem push, por decisão: Spark e sem FCM). architect + designer + (R) regras e dados pessoais.
 13. Higiene de custo e abuso: TTL e limite em `analytics_events`, paginação de `listUsers`, App Check (Play Integrity e App Attest/DeviceCheck, modo monitor e depois enforcement). (R) regras.
 14. Upgrade das dependências Firebase (depois), Riverpod/go_router só se houver motivo; verificação manual em Android e iOS.
 
@@ -91,6 +91,10 @@ Nota: a renumeração acima insere exclusão de conta e aceite de amizade (antig
 ## Estado após a etapa 8
 
 Etapas 1 a 8 concluídas na branch. Dívida registrada: equipar mora em `ProfileRepository` (`profile_repository`); revisar na etapa 9. Também a revisar: `shared/cosmetics_style.dart` e `shared/equipped_cosmetics_providers.dart` (exceções à regra de admissão do `shared/`). Backlog restante: etapas 9 a 14 (9 controllers de cosmos e oráculo e interfaces Auth/Profile/Economy/Chat; 10 chat no Firestore; 11 exclusão de conta; 12 aceite de amizade; 13 higiene de custo e abuso; 14 upgrade de dependências), conforme a lista acima.
+
+## Estado após a etapa 12
+
+Etapas 1 a 12 concluídas na branch (a 12 aguarda a verificação manual e o deploy de regras na ordem do `docs/release-checklist.md`). Backlog restante: 13 higiene de custo e abuso (TTL e limite em `analytics_events`, paginação de `listUsers`, App Check, que também é a barreira real contra enumeração de `publicProfiles` e contra pedidos em massa) e 14 upgrade de dependências.
 
 ## Riscos gerais e escalonamento
 
